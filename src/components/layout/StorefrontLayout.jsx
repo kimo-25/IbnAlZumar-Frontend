@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import StorefrontAnnouncementBar from '../storefront/StorefrontAnnouncementBar'
 import StorefrontHeader from '../storefront/StorefrontHeader'
 import CartDrawer from '../storefront/CartDrawer'
+import ReminderBanner from '../ui/ReminderBanner'
 import { useLanguage } from '../../context/LanguageContext'
 
 export default function StorefrontLayout() {
@@ -11,6 +12,7 @@ export default function StorefrontLayout() {
   return (
     <div className="min-h-screen bg-canvas font-arabic" dir={direction} lang={language}>
       <div className="sticky top-0 z-40">
+        <ReminderBanner />
         <StorefrontAnnouncementBar />
         <StorefrontHeader />
       </div>

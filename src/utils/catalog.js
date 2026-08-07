@@ -52,7 +52,7 @@ function normalizeImageUrl(url) {
   }
 
   // تنظيف الـ Slashes لتجنب أي أخطاء في تركيبة الـ URL
-  const cleanApiBase = API_BASE_URL.replace(/\/+$/, '')
+  const cleanApiBase = (API_BASE_URL || '').replace(/\/+$/, '')
   const cleanPath = trimmed.replace(/^\/+/, '')
 
   return `${cleanApiBase}/${cleanPath}`
@@ -179,7 +179,16 @@ export function normalizeVariant(variant = {}) {
     material: normalizeAttributeSource(variant, 'material'),
   }
 
-  const imageUrl = normalizeImageUrl(readString(variant.imageUrl, variant.ImageUrl, variant.image, variant.Image, variant.imagePath, variant.ImagePath, variant.thumbnailUrl, variant.ThumbnailUrl, variant.filePath, variant.FilePath, variant.url, variant.Url)) || getProductImageFallbackUrl()
+  const imageUrl = normalizeImageUrl(readString(
+    variant.imageUrl, variant.ImageUrl,
+    variant.image, variant.Image,
+    variant.imagePath, variant.ImagePath,
+    variant.thumbnailUrl, variant.ThumbnailUrl,
+    variant.filePath, variant.FilePath,
+    variant.url, variant.Url,
+    variant.img, variant.Img,
+    variant.path, variant.Path
+  )) || getProductImageFallbackUrl()
 
   return {
     ...variant,
@@ -209,8 +218,14 @@ export function normalizeProduct(rawProduct = {}) {
 
   const gallery = asArray(
     product.galleryImages || product.GalleryImages || product.images || product.Images || product.imageUrls || product.ImageUrls || product.media || product.Media || product.productImages || product.ProductImages || product.attachments || product.Attachments
-  ).map((item) => normalizeImageUrl(readString(item?.url, item?.Url, item?.imageUrl, item?.ImageUrl, item?.imagePath, item?.ImagePath, item?.src, item, item?.filePath, item?.FilePath)))
-   .filter(Boolean)
+  ).map((item) => normalizeImageUrl(readString(
+    item?.url, item?.Url,
+    item?.imageUrl, item?.ImageUrl,
+    item?.imagePath, item?.ImagePath,
+    item?.src, item,
+    item?.filePath, item?.FilePath,
+    item?.path, item?.Path
+  ))).filter(Boolean)
 
   const priceFields = resolvePriceFields(product)
 
@@ -239,7 +254,11 @@ export function normalizeProduct(rawProduct = {}) {
       product.photo,
       product.Photo,
       product.picture,
-      product.Picture
+      product.Picture,
+      product.img,
+      product.Img,
+      product.path,
+      product.Path
     )
   )
 

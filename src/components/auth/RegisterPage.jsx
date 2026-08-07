@@ -233,6 +233,7 @@ export default function RegisterPage() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-canvas p-4 shadow-subtle transition hover:border-amber/50">
           <div className="overflow-hidden rounded-xl">
             <GoogleLogin
+              clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}
               onSuccess={handleGoogleSuccess}
               onError={() => setError('فشل التسجيل عبر جوجل.')}
               theme="outline"

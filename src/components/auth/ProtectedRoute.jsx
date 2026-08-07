@@ -12,24 +12,30 @@ export default function ProtectedRoute({ permission, role, allowRoles = [] }) {
   }
 
   // 2. إعطاء صلاحية كاملة ومباشرة للـ Owner والـ Super Admin دون أي قيود
-  const isSuperUser = hasRole('Owner') || hasRole('SuperAdmin') || user?.role === 'Owner' || user?.role === 'SuperAdmin'
+  const isSuperUser = 
+    (typeof hasRole === 'function' && (hasRole('Owner') || hasRole('SuperAdmin'))) || 
+    user?.role === 'Owner' || 
+    user?.role === 'SuperAdmin'
+
   if (isSuperUser) {
     return <Outlet />
   }
 
   // 3. التحقق من الـ allowRoles المحددة
-  const hasAllowedRole = allowRoles.some((candidateRole) => hasRole(candidateRole))
+  const hasAllowedRole = Array.isArray(allowRoles) && allowRoles.some((candidateRole) => 
+    typeof hasRole === 'function' && hasRole(candidateRole)
+  )
   if (hasAllowedRole) {
     return <Outlet />
   }
 
   // 4. التحقق من الـ Permission
-  if (permission && !hasPermission(permission)) {
+  if (permission && typeof hasPermission === 'function' && !hasPermission(permission)) {
     return <Navigate to="/admin/forbidden" replace />
   }
 
   // 5. التحقق من الـ Role
-  if (role && !hasRole(role)) {
+  if (role && typeof hasRole === 'function' && !hasRole(role)) {
     return <Navigate to="/admin/forbidden" replace />
   }
 

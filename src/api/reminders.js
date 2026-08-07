@@ -1,13 +1,12 @@
 // File: src/services/reminders.js
 import axiosInstance from '../api/axiosInstance'
 
-export const getReminders = async () => {
+export const getRandomReminder = async () => {
   try {
-    const response = await axiosInstance.get('/Reminders')
+    const response = await axiosInstance.get('/Reminders/random')
     return response.data
   } catch (error) {
-    // Silent catch للزائر حتى لا تظهر أخطاء حمراء في الكونسول لو كانت المحظورة للأدمن فقط
-    console.warn("[Reminders] Guest or unauthorized fetch ignored:", error.message)
-    return []
+    console.warn("[Reminders] Could not fetch random reminder:", error.message)
+    return null
   }
 }
