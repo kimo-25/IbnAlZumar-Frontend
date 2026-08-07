@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { Check, ShoppingBag } from 'lucide-react'
 import { useCart } from '../../context/CartContext'
-import { getImageUrl, getProductImagePath } from '../../utils/imageHelper'
+import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
 import { buildVariantLabel, formatCurrency } from '../../utils/catalog'
 
 export default function ProductCard({ product }) {
@@ -17,8 +17,8 @@ export default function ProductCard({ product }) {
   const price = defaultVariant?.price ?? product.price ?? product.sellingPrice
   const originalPrice = defaultVariant?.originalPrice ?? product.originalPrice ?? price
   const discountPercentage = defaultVariant?.discountPercentage ?? product.discountPercentage ?? 0
-  const imageUrl = defaultVariant?.imageUrl || getProductImagePath(product)
-  const imageSrc = getImageUrl(imageUrl)
+  const rawImagePath = defaultVariant?.imageUrl || getProductImagePath(product)
+  const imageSrc = getImageUrl(rawImagePath)
   const hasDiscount = discountPercentage > 0 && Number(originalPrice) > Number(price)
   const savings = Math.max(0, Number(originalPrice) - Number(price))
 
@@ -29,7 +29,7 @@ export default function ProductCard({ product }) {
         name: displayName,
         sku: product.sku,
         price,
-        imageUrl,
+        imageUrl: rawImagePath,
         variantId: defaultVariant?.id || null,
         variantLabel: buildVariantLabel(defaultVariant),
         selectedOptions: defaultVariant?.attributes || {},
@@ -52,6 +52,7 @@ export default function ProductCard({ product }) {
           <img
             src={imageSrc}
             alt={displayName}
+            onError={handleImageError}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
           />

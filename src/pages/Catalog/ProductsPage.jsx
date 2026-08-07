@@ -4,7 +4,7 @@ import { Loader2, Package, Search, Trash2 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import Pagination from '../../components/ui/Pagination'
-import { getImageUrl, getProductImagePath } from '../../utils/imageHelper'
+import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
 import { getProducts, deleteProduct } from '../../api/adminApi'
 
 export default function ProductsPage() {
@@ -143,11 +143,9 @@ export default function ProductsPage() {
               <Card key={product.id} className="flex items-center gap-4 p-4 relative group">
                 <img
                   src={getImageUrl(getProductImagePath(product))}
-                  alt={product.name}
+                  alt={product.nameAr || product.name}
+                  onError={handleImageError}
                   className="h-16 w-16 flex-shrink-0 rounded-md bg-gray-100 object-cover"
-                  onError={(e) => {
-                    e.target.src = 'https://placehold.co/150x150/f3f4f6/9ca3af?text=No+Image'
-                  }}
                 />
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-sm font-semibold text-ink" dir="auto">{product.nameAr || product.name}</h3>

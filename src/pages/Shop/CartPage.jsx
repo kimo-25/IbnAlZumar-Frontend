@@ -1,10 +1,11 @@
+// File: src/pages/storefront/CartPage.jsx
 import { Link } from 'react-router-dom'
 import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import { useCart } from '../../context/CartContext'
 import { formatCurrency } from '../../utils/catalog'
-import { getImageUrl } from '../../utils/imageHelper'
+import { getImageUrl, handleImageError } from '../../utils/imageHelper'
 
 export default function CartPage() {
   const { items, itemCount, subtotal, updateQuantity, removeItem, clearCart } = useCart()
@@ -44,7 +45,12 @@ export default function CartPage() {
             {items.map((item) => (
               <div key={item.id} className="flex gap-4 py-4 first:pt-0 last:pb-0">
                 <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-canvas">
-                  <img src={getImageUrl(item.imageUrl)} alt={item.name} className="h-full w-full object-cover" />
+                  <img
+                    src={getImageUrl(item.imageUrl)}
+                    alt={item.name}
+                    onError={handleImageError}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
 
                 <div className="flex flex-1 flex-col gap-3">

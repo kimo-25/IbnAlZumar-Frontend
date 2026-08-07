@@ -1,5 +1,5 @@
-// File: src/services/reminders.js
-import axiosInstance from '../api/axiosInstance'
+// File: src/api/reminders.js
+import axiosInstance from './axiosInstance'
 
 export const getRandomReminder = async () => {
   try {

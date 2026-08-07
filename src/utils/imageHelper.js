@@ -1,3 +1,5 @@
+// File: src/utils/imageHelper.js
+
 // صورة افتراضية محترفة ومناسبة للمتجر في حال فشل تحميل الصورة
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600&auto=format&fit=crop';
 
@@ -13,19 +15,29 @@ export function getApiBaseUrl() {
 /**
  * الحصول على الرابط الكامل للصورة مع التعامل مع الروابط النسبية والكاملة
  * وتوفير صورة افتراضية في حال عدم توفر الصورة
- * @param {string} imagePath - مسار أو رابط الصورة القادم من الـ Backend
+ * @param {string|object} imageInput - مسار أو رابط الصورة، أو كائن المنتج مباشرة
  * @returns {string} - الرابط الكامل أو صورة Placeholder افتراضية
  */
-export function getImageUrl(imagePath) {
-  // حماية التأكد من أن المسار نص وغير فارغ
-  if (!imagePath || typeof imagePath !== 'string') {
+export function getImageUrl(imageInput) {
+  // 1. Handling Null or Undefined
+  if (!imageInput) return FALLBACK_IMAGE;
+
+  let imagePath = imageInput;
+
+  // 2. إذا تم إرسال كائن المنتج بالكامل بدلاً من النص
+  if (typeof imageInput === 'object') {
+    imagePath = getProductImagePath(imageInput);
+  }
+
+  // 3. حماية التأكد من أن المسار نص وغير فارغ
+  if (typeof imagePath !== 'string') {
     return FALLBACK_IMAGE;
   }
 
   const trimmed = imagePath.trim();
   if (!trimmed) return FALLBACK_IMAGE;
 
-  // إذا كان الرابط يبدأ بـ http أو https أو blob أو data فهو رابط خارجي مكتمل
+  // 4. إذا كان الرابط يبدأ بـ http أو https أو blob أو data فهو رابط خارجي مكتمل
   if (
     trimmed.startsWith('http://') ||
     trimmed.startsWith('https://') ||
@@ -35,7 +47,7 @@ export function getImageUrl(imagePath) {
     return trimmed;
   }
 
-  // الحصول على رابط الـ API الأساسي وتنظيف المسارات
+  // 5. الحصول على رابط الـ API الأساسي وتنظيف المسارات
   const apiBaseUrl = getApiBaseUrl();
   const cleanPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
 
@@ -43,10 +55,28 @@ export function getImageUrl(imagePath) {
 }
 
 /**
- * دالة مساعدة مطابقة لـ getImageUrl لتجنب أخطاء الاستيراد في المكونات
+ * استخراج مسار الصورة من كائن المنتج الذكي (سواء كان يحتوي على primaryImage أو variants أو غير ذلك)
+ * @param {object|string} product - كائن المنتج أو مسار الصورة المباشر
+ * @returns {string} - المسار المباشر قبل المعالجة
  */
-export function getProductImagePath(imagePath) {
-  return getImageUrl(imagePath);
+export function getProductImagePath(product) {
+  if (!product) return FALLBACK_IMAGE;
+
+  // إذا تم إرسال النص مباشرة
+  if (typeof product === 'string') return product;
+
+  // 1. فحص الصورة الأساسية
+  if (product.primaryImage) return product.primaryImage;
+
+  // 2. فحص الـ Default Variant
+  const defaultVariant = product.variants?.find((v) => v.isDefault) || product.variants?.[0];
+  if (defaultVariant?.imageUrl) return defaultVariant.imageUrl;
+
+  // 3. فحص حقل imageUrl المباشر على مستوى المنتج
+  if (product.imageUrl) return product.imageUrl;
+
+  // 4. Fallback
+  return FALLBACK_IMAGE;
 }
 
 /**
