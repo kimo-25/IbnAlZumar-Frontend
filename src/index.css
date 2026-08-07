@@ -1,0 +1,41 @@
+/* File: src/index.css */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Cairo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-canvas text-ink font-body antialiased transition-colors duration-200;
+}
+
+::selection {
+  background-color: rgb(242 169 0 / 0.25);
+}
+
+:focus-visible {
+  outline: 2px solid theme('colors.amber.DEFAULT');
+  outline-offset: 2px;
+}
+
+/* Signature motif: a receipt-tape perforation line, echoing the tear-edge of a POS receipt.
+   Used sparingly — under brand marks and KPI cards — as the one deliberate flourish in the UI. */
+.receipt-tear {
+  height: 1px;
+  background-image: repeating-linear-gradient(to right, theme('colors.border') 0 6px, transparent 6px 12px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
