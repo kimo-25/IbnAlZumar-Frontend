@@ -14,7 +14,7 @@ export default function ProductCard({ product }) {
   const displayName = product.nameAr || product.name || ''
 
   const defaultVariant = product.variants?.find((variant) => variant.isDefault) || product.variants?.[0] || null
-  const price = defaultVariant?.price ?? product.price ?? product.sellingPrice
+  const price = defaultVariant?.price ?? product.price ?? product.sellingPrice ?? 0
   const originalPrice = defaultVariant?.originalPrice ?? product.originalPrice ?? price
   const discountPercentage = defaultVariant?.discountPercentage ?? product.discountPercentage ?? 0
   const rawImagePath = defaultVariant?.imageUrl || getProductImagePath(product)
@@ -27,7 +27,7 @@ export default function ProductCard({ product }) {
       {
         id: defaultVariant?.id || product.id,
         name: displayName,
-        sku: product.sku,
+        sku: defaultVariant?.sku || product.sku,
         price,
         imageUrl: rawImagePath,
         variantId: defaultVariant?.id || null,
@@ -80,9 +80,9 @@ export default function ProductCard({ product }) {
       <div className="flex flex-1 flex-col gap-2 p-4">
         
         {/* SKU ورقم الصنف */}
-        {product.sku && (
+        {(defaultVariant?.sku || product.sku) && (
           <span className="w-fit rounded-md bg-canvas px-2 py-0.5 font-mono text-[11px] text-ink-soft border border-border/50">
-            {product.sku}
+            {defaultVariant?.sku || product.sku}
           </span>
         )}
 

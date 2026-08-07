@@ -1,3 +1,4 @@
+// File: src/pages/storefront/ProductDetailsPage.jsx
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowRight, Check, Loader2, Minus, Plus, ShoppingBag } from 'lucide-react'
@@ -68,7 +69,7 @@ export default function ProductDetailsPage() {
     return resolveVariantByAttributes(product.variants, selectedAttributes)
   }, [product, selectedAttributes])
 
-  // تجميع كافة الصور المتاحة (الرئيسية + الجاليري + الفاريانتس) واستبعاد أي مسارات فارغة
+  // تجميع كافة الصور المتاحة واستبعاد أي مسارات فارغة
   const galleryImages = useMemo(() => {
     if (!product) return []
     
@@ -88,7 +89,7 @@ export default function ProductDetailsPage() {
   const displayPrice = selectedVariant?.price ?? product?.price ?? product?.sellingPrice ?? 0
   const displaySpecs = selectedVariant?.specs?.length ? selectedVariant.specs : product?.specs || []
   const stockAvailable = selectedVariant
-    ? selectedVariant.stock > 0 && product?.isAvailableOnline !== false
+    ? (selectedVariant.stock ?? 1) > 0 && product?.isAvailableOnline !== false
     : product?.inStock !== false && product?.isAvailableOnline !== false
   const availableQuantity = selectedVariant?.stock || product?.stock || null
   const detailsSummary = [product?.brand, product?.material, product?.finish].filter(Boolean)
@@ -116,7 +117,7 @@ export default function ProductDetailsPage() {
         id: variant.id || product.id,
         name: product.nameAr || product.name,
         sku: variant.sku || product.sku,
-        price: variant.price || product.sellingPrice,
+        price: displayPrice,
         imageUrl: finalImage,
         variantId: selectedVariant?.id || null,
         variantLabel: buildVariantLabel(selectedVariant),

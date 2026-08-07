@@ -1,12 +1,13 @@
 // File: src/context/CartContext.jsx
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+
 const CartContext = createContext(null)
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState([])
   const [isCartOpen, setIsCartOpen] = useState(false)
 
-  /** product: { id, name, sku, price, imageUrl }. Adding an item already in the cart bumps its quantity. */
+  /** product: { id, name, sku, price, imageUrl, variantId, variantLabel, selectedOptions }. Adding an item already in the cart bumps its quantity. */
   const addItem = useCallback((product, quantity = 1) => {
     setItems((current) => {
       const existing = current.find((item) => item.id === product.id)

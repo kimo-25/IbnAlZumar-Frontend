@@ -38,12 +38,9 @@ const TRACKING_STEPS = [
 function getStepNumber(status) {
   if (status === null || status === undefined) return 1
 
-  // إذا كانت الحالة عبارة عن رقم Enum من الـ Backend
   if (typeof status === 'number') {
     if (status === -1) return -1
-    // التعامل مع Enums يبدأ من 0 (0: Pending, 1: Confirmed, 2: Processing, 3: Shipped, 4: Delivered)
     if (status >= 0 && status <= 4) return status + 1
-    // التعامل مع Enums يبدأ من 1 (1: Pending... 5: Delivered)
     if (status >= 1 && status <= 5) return status
     return 1
   }
@@ -92,7 +89,6 @@ function getStatusBadge(status) {
 export default function CustomerProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   
-  // التبويب النشط: orders أو profile مرتبط بالـ URL
   const activeTab = searchParams.get('tab') === 'profile' ? 'profile' : 'orders'
 
   const handleTabChange = (tab) => {
@@ -108,16 +104,13 @@ export default function CustomerProfilePage() {
     address: ''
   })
   
-  const [isFormInitialized, setIsFormInitialized] = useState(false)
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [message, setMessage] = useState(null)
 
-  // التحكم في فتح/إغلاق تفاصيل الطلب
   const [expandedOrders, setExpandedOrders] = useState({})
 
-  // حالة مودال التقييم
   const [reviewModal, setReviewModal] = useState({
     isOpen: false,
     item: null,
@@ -128,36 +121,35 @@ export default function CustomerProfilePage() {
     errorMsg: null
   })
 
-  // تهيئة بيانات الحساب مرة واحدة لمنع إلغاء التعديلات أثناء الكتابة
+  // جلب بيانات الحساب الشخصي من الـ Backend مباشرة عند التحميل
   useEffect(() => {
-    if (isFormInitialized) return
-
-    const storedUser = localStorage.getItem('user')
-    if (storedUser) {
+    async function fetchProfile() {
       try {
-        const parsed = JSON.parse(storedUser)
-        setUser({
-          fullName: parsed.fullName || parsed.name || authUser?.fullName || '',
-          email: parsed.email || authUser?.email || '',
-          phone: parsed.phone || authUser?.phone || '',
-          governorate: parsed.governorate || authUser?.governorate || '',
-          address: parsed.address || authUser?.address || ''
-        })
-        setIsFormInitialized(true)
-      } catch (e) {
-        console.error('فشل قراءة بيانات المستخدم من localStorage', e)
+        const response = await axiosInstance.get('/Auth/profile')
+        if (response.data) {
+          setUser({
+            fullName: response.data.fullName || response.data.name || authUser?.fullName || '',
+            email: response.data.email || authUser?.email || '',
+            phone: response.data.phone || authUser?.phone || '',
+            governorate: response.data.governorate || authUser?.governorate || '',
+            address: response.data.address || authUser?.address || ''
+          })
+        }
+      } catch (err) {
+        console.error('فشل جلب بيانات الحساب من الخادم، يتم استخدام البيانات المحلية', err)
+        if (authUser) {
+          setUser({
+            fullName: authUser.fullName || authUser.name || '',
+            email: authUser.email || '',
+            phone: authUser.phone || '',
+            governorate: authUser.governorate || '',
+            address: authUser.address || ''
+          })
+        }
       }
-    } else if (authUser) {
-      setUser({
-        fullName: authUser.fullName || authUser.name || '',
-        email: authUser.email || '',
-        phone: authUser.phone || '',
-        governorate: authUser.governorate || '',
-        address: authUser.address || ''
-      })
-      setIsFormInitialized(true)
     }
-  }, [authUser, isFormInitialized])
+    fetchProfile()
+  }, [authUser])
 
   // جلب الطلبات
   useEffect(() => {
@@ -190,29 +182,29 @@ export default function CustomerProfilePage() {
     e.preventDefault()
     setUpdating(true)
     setMessage(null)
-    const token = localStorage.getItem('token')
 
     try {
-      await axiosInstance.put('/Auth/update-profile', user)
+      // إرسال التحديثات للباك إند أولاً واعتماد الرد الرسمي
+      const response = await axiosInstance.put('/Auth/update-profile', user)
+      const updatedData = response.data?.user || response.data || { ...user }
 
       const currentStored = JSON.parse(localStorage.getItem('user') || '{}')
-      const updatedData = { ...currentStored, ...user }
-      localStorage.setItem('user', JSON.stringify(updatedData))
+      const newStoredData = { ...currentStored, ...updatedData }
+      localStorage.setItem('user', JSON.stringify(newStoredData))
 
       if (typeof updateAuthUser === 'function') {
-        updateAuthUser(updatedData)
+        updateAuthUser(newStoredData)
       }
 
-      setMessage({ type: 'success', text: 'تم تحديث البيانات بنجاح!' })
+      setMessage({ type: 'success', text: 'تم تحديث البيانات وحفظها في الحساب بنجاح!' })
       setTimeout(() => setMessage(null), 4000)
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'حدث خطأ أثناء التحديث.' })
+      setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'حدث خطأ أثناء التحديث.' })
     } finally {
       setUpdating(false)
     }
   }
 
-  // فتح نافذة التقييم
   const openReviewModal = (item) => {
     setReviewModal({
       isOpen: true,
@@ -225,11 +217,9 @@ export default function CustomerProfilePage() {
     })
   }
 
-  // إرسال التقييم للـ Backend
   const handleSubmitReview = async (e) => {
     e.preventDefault()
     setReviewModal(prev => ({ ...prev, submitting: true, errorMsg: null }))
-    const token = localStorage.getItem('token')
 
     try {
       await axiosInstance.post('/Reviews', {
@@ -251,14 +241,13 @@ export default function CustomerProfilePage() {
       setReviewModal(prev => ({
         ...prev,
         submitting: false,
-        errorMsg: err.message || 'تعذر إرسال التقييم حالياً.'
+        errorMsg: err.response?.data?.message || err.message || 'تعذر إرسال التقييم حالياً.'
       }))
     }
   }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10" dir="rtl">
-      {/* الترويسة */}
       <div className="mb-6 border-b border-border pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">
@@ -269,7 +258,6 @@ export default function CustomerProfilePage() {
           </p>
         </div>
 
-        {/* أزرار التبويبات (Tabs) */}
         <div className="flex items-center gap-2 bg-canvas p-1.5 rounded-2xl border border-border shrink-0">
           <button
             onClick={() => handleTabChange('orders')}
@@ -302,7 +290,6 @@ export default function CustomerProfilePage() {
         </div>
       </div>
 
-      {/* محتوى تبويب طلباتي */}
       {activeTab === 'orders' && (
         <Card title="سجل الطلبات وتتبع الحالة">
           {loading ? (
@@ -330,7 +317,6 @@ export default function CustomerProfilePage() {
                     key={orderKey}
                     className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs transition hover:border-amber/40"
                   >
-                    {/* ترويسة الطلب الإجمالية */}
                     <div 
                       onClick={() => toggleOrderExpand(orderKey)}
                       className="flex flex-wrap items-center justify-between gap-3 bg-canvas/80 p-4 border-b border-border text-xs cursor-pointer select-none"
@@ -369,10 +355,8 @@ export default function CustomerProfilePage() {
                       </div>
                     </div>
 
-                    {/* التفاصيل المفتوحة للطلب */}
                     {isExpanded && (
                       <div className="p-4 sm:p-6 space-y-6">
-                        {/* مخطط تتبع حالة الشحنة (Stepper) */}
                         {currentStep === -1 ? (
                           <div className="rounded-xl bg-rose-50 p-3.5 text-xs text-rose-700 flex items-center gap-2 border border-rose-200">
                             <XCircle size={18} />
@@ -383,7 +367,6 @@ export default function CustomerProfilePage() {
                             <span className="text-xs font-bold text-ink mb-4 block">تتبع مراحل الشحنة</span>
                             
                             <div className="relative py-2">
-                              {/* شريط التقدم الخلفي بين النقاط */}
                               <div className="absolute top-4 right-6 left-6 h-0.5 bg-border -z-0">
                                 <div 
                                   className="h-full bg-emerald-600 transition-all duration-500"
@@ -423,7 +406,6 @@ export default function CustomerProfilePage() {
                           </div>
                         )}
 
-                        {/* محتويات الشحنة والمنتجات */}
                         {items.length > 0 && (
                           <div>
                             <span className="text-xs font-bold text-ink mb-3 block">منتجات الطلب ({items.length})</span>
@@ -455,7 +437,6 @@ export default function CustomerProfilePage() {
                           </div>
                         )}
 
-                        {/* عنوان التوصيل */}
                         <div className="rounded-xl bg-canvas p-3.5 flex items-center gap-2 text-xs text-ink border border-border/60">
                           <MapPin size={16} className="text-emerald-600 shrink-0" />
                           <span className="font-bold text-ink shrink-0">عنوان التوصيل:</span>
@@ -471,7 +452,6 @@ export default function CustomerProfilePage() {
         </Card>
       )}
 
-      {/* محتوى تبويب الملف الشخصي */}
       {activeTab === 'profile' && (
         <div className="max-w-2xl mx-auto">
           <Card title="بيانات الحساب والملف الشخصي">
@@ -487,7 +467,6 @@ export default function CustomerProfilePage() {
                 </div>
               )}
 
-              {/* الاسم الكامل */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">الاسم الكامل</label>
                 <div className="relative">
@@ -503,7 +482,6 @@ export default function CustomerProfilePage() {
                 </div>
               </div>
 
-              {/* البريد الإلكتروني */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">البريد الإلكتروني (غير قابل للتعديل)</label>
                 <input
@@ -514,7 +492,6 @@ export default function CustomerProfilePage() {
                 />
               </div>
 
-              {/* رقم الهاتف */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">رقم الهاتف</label>
                 <div className="relative">
@@ -529,7 +506,6 @@ export default function CustomerProfilePage() {
                 </div>
               </div>
 
-              {/* المحافظة */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">المحافظة</label>
                 <div className="relative">
@@ -544,7 +520,6 @@ export default function CustomerProfilePage() {
                 </div>
               </div>
 
-              {/* العنوان */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">العنوان بالتفصيل</label>
                 <div className="relative">
@@ -572,7 +547,6 @@ export default function CustomerProfilePage() {
         </div>
       )}
 
-      {/* نافذة مودال التقييم الجانبية (Rating Modal) */}
       {reviewModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs" dir="rtl">
           <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative">
@@ -602,7 +576,6 @@ export default function CustomerProfilePage() {
                   </div>
                 )}
 
-                {/* اختيار عدد النجوم */}
                 <div>
                   <label className="block text-xs font-semibold text-ink mb-2">تقييمك بالنجوم:</label>
                   <div className="flex items-center gap-2">
@@ -622,7 +595,6 @@ export default function CustomerProfilePage() {
                   </div>
                 </div>
 
-                {/* كتابة التعليق */}
                 <div>
                   <label className="block text-xs font-semibold text-ink mb-1">تعليقك / رأيك بالمنتج:</label>
                   <textarea

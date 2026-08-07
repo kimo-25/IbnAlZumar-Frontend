@@ -3,7 +3,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { getRandomReminder } from '../../api/reminders';
 import { BookOpen, RefreshCw, X } from 'lucide-react';
 
-// أذكار افتراضية محلية في حال عدم توفر الـ Backend أو حدوث خطأ في الشبكة
 const FALLBACK_REMINDERS = [
   { text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ", category: "ذكر", source: "حديث شريف" },
   { text: "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ", category: "دعاء", source: "حديث شريف" },
@@ -12,9 +11,12 @@ const FALLBACK_REMINDERS = [
   { text: "رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي", category: "آية كريمة", source: "سورة طه" }
 ];
 
+const DISPLAY_DURATION = 10000;  // 10 ثوانٍ ظهور
+const INTERVAL_DURATION = 120000; // دقيقتين اختفاء وانتظار للذكر التالي
+
 const ReminderBanner = () => {
   const [reminder, setReminder] = useState(null);
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchReminder = useCallback(async () => {
@@ -24,12 +26,11 @@ const ReminderBanner = () => {
       if (data && (data.text || data.content || data.message || data.title)) {
         setReminder(data);
       } else {
-        // اختياري: اختيار ذكر عشوائي من الـ Fallback عند عدم إرجاع بيانات
         const randomFallback = FALLBACK_REMINDERS[Math.floor(Math.random() * FALLBACK_REMINDERS.length)];
         setReminder(randomFallback);
       }
     } catch (err) {
-      const randomFallback = FALLBACK_REMINDERS[Math.floor(Math.random() * FALLBACK_REMINDERS.length)];
+      const randomFallback = FALLBACK_REMINDERS[Math.floor(Math.random() * FALLDACK_REMINDERS?.length || 5)];
       setReminder(randomFallback);
     } finally {
       setIsRefreshing(false);
@@ -37,14 +38,31 @@ const ReminderBanner = () => {
   }, []);
 
   useEffect(() => {
-    fetchReminder();
+    let timerHide;
+    let intervalTimer;
 
-    // تحديث الذكر تلقائياً كل 60 ثانية (يمكنك تعديل الموعد أو إزالته حسب رغبتك)
-    const interval = setInterval(() => {
-      fetchReminder();
-    }, 60000);
+    const showCycle = async () => {
+      await fetchReminder();
+      setIsVisible(true);
 
-    return () => clearInterval(interval);
+      // إخفاء البانر بعد 10 ثوانٍ
+      timerHide = setTimeout(() => {
+        setIsVisible(false);
+      }, DISPLAY_DURATION);
+    };
+
+    // التشغيل الأول بعد تحميل الصفحة
+    showCycle();
+
+    // التكرار كل دقيقتين (120000 مللي ثانية)
+    intervalTimer = setInterval(() => {
+      showCycle();
+    }, INTERVAL_DURATION);
+
+    return () => {
+      clearTimeout(timerHide);
+      clearInterval(intervalTimer);
+    };
   }, [fetchReminder]);
 
   if (!isVisible || !reminder) return null;
