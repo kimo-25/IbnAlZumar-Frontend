@@ -1,3 +1,4 @@
+// صورة افتراضية محترفة ومناسبة للمتجر في حال فشل تحميل الصورة
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600&auto=format&fit=crop';
 
 /**
@@ -5,7 +6,8 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1581092160607-ee22621d
  * @returns {string} - رابط الـ API
  */
 export function getApiBaseUrl() {
-  return import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5211';
+  const url = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5211';
+  return url.replace(/\/+$/, ''); // تنظيف السلاش الأخيرة
 }
 
 /**
@@ -20,18 +22,24 @@ export function getImageUrl(imagePath) {
     return FALLBACK_IMAGE;
   }
 
-  // إذا كان الرابط يبدأ بـ http أو كلمة خادمة فهو رابط خارجي كامل
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
+  const trimmed = imagePath.trim();
+  if (!trimmed) return FALLBACK_IMAGE;
+
+  // إذا كان الرابط يبدأ بـ http أو https أو blob أو data فهو رابط خارجي مكتمل
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('data:')
+  ) {
+    return trimmed;
   }
 
-  // الحصول على رابط الـ API الأساسي
+  // الحصول على رابط الـ API الأساسي وتنظيف المسارات
   const apiBaseUrl = getApiBaseUrl();
+  const cleanPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
 
-  // تنظيف المسار والتأكد من وجود الشرطة المائلة
-  const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-
-  return `${apiBaseUrl}${cleanPath}`;
+  return `${apiBaseUrl}/${cleanPath}`;
 }
 
 /**

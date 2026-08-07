@@ -36,11 +36,12 @@ function readString(...values) {
 
 function normalizeImageUrl(url) {
   let trimmed = readString(url)
-  // حماية من الأخطاء والتأكد من إن المتغير نصي
+  // حماية من الأخطاء والتأكد من إن المتغير نصي وغير فارغ
   if (!trimmed || typeof trimmed !== 'string') return ''
 
   trimmed = trimmed.replace(/\\/g, '/')
 
+  // إذا كان الرابط مكتمل بالفعل من البداية
   if (
     trimmed.startsWith('http://') ||
     trimmed.startsWith('https://') ||
@@ -50,8 +51,11 @@ function normalizeImageUrl(url) {
     return trimmed
   }
 
-  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
-  return `${API_BASE_URL}${cleanPath}`
+  // تنظيف الـ Slashes لتجنب أي أخطاء في تركيبة الـ URL
+  const cleanApiBase = API_BASE_URL.replace(/\/+$/, '')
+  const cleanPath = trimmed.replace(/^\/+/, '')
+
+  return `${cleanApiBase}/${cleanPath}`
 }
 
 function readNumber(...values) {
