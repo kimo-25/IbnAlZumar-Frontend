@@ -36,7 +36,8 @@ function readString(...values) {
 
 function normalizeImageUrl(url) {
   let trimmed = readString(url)
-  if (!trimmed) return ''
+  // حماية من الأخطاء والتأكد من إن المتغير نصي
+  if (!trimmed || typeof trimmed !== 'string') return ''
 
   trimmed = trimmed.replace(/\\/g, '/')
 

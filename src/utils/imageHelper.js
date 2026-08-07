@@ -1,5 +1,3 @@
-// File: src/utils/imageHelper.js
-
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600&auto=format&fit=crop';
 
 /**
@@ -17,11 +15,12 @@ export function getApiBaseUrl() {
  * @returns {string} - الرابط الكامل أو صورة Placeholder افتراضية
  */
 export function getImageUrl(imagePath) {
-  if (!imagePath) {
+  // حماية التأكد من أن المسار نص وغير فارغ
+  if (!imagePath || typeof imagePath !== 'string') {
     return FALLBACK_IMAGE;
   }
 
-  // إذا كان الرابط يبدأ بـ http أو https فهو رابط خارجي كامل
+  // إذا كان الرابط يبدأ بـ http أو كلمة خادمة فهو رابط خارجي كامل
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
