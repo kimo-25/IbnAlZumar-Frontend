@@ -3,7 +3,8 @@ import axios from 'axios'
 import { getStoredAuth, clearStoredAuth, isAuthExpired } from '../utils/auth'
 
 const axiosInstance = axios.create({
-  baseURL: 'https://ibn-al-zumar-backend-production-f3dc.up.railway.app',
+  // تم إضافة /api هنا لضمان توجيه كل الريكويستات بشكل صحيح وسليم للـ Backend
+  baseURL: 'https://ibn-al-zumar-backend-production-f3dc.up.railway.app/api',
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -37,7 +38,6 @@ axiosInstance.interceptors.response.use(
     if (normalized.statusCode === 401 && (!auth?.token || isAuthExpired(auth))) {
       clearStoredAuth()
       if (window.location.pathname.includes('/admin') && !window.location.pathname.includes('/admin/login')) {
-        // استخدمنا الـ base relative path للتحويل الصح على GitHub Pages
         window.location.assign(import.meta.env.BASE_URL + 'admin/login')
       }
     }
