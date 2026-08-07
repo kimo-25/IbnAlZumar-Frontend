@@ -3,19 +3,21 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/IbnAlZumar-Frontend/', // <--- السطر ده هو الأساس اللي بيمنع خطأ الـ 404
+  base: '/', 
   server: {
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://localhost:7223',
+        // حطينا لينك Railway هنا
+        target: 'https://ibn-al-zumar-backend-production-f3dc.up.railway.app',
         changeOrigin: true,
-        secure: false,
+        secure: true, // يفضل تكون true للـ Production
       },
       '/uploads': {
-        target: 'https://localhost:7223',
+        // وهنا كمان
+        target: 'https://ibn-al-zumar-backend-production-f3dc.up.railway.app',
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
     },
   },
