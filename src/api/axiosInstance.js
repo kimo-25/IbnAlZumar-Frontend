@@ -32,12 +32,13 @@ axiosInstance.interceptors.response.use(
       traceId: apiError?.traceId ?? null,
     }
 
-    // نطرد للـ Login فقط لو الـ Token غير موجود أو منتهي فعلياً (مش بسبب 401 عادي من السيرفر)
+    // نطرد للـ Login فقط لو الـ Token غير موجود أو منتهي فعلياً
     const auth = getStoredAuth()
     if (normalized.statusCode === 401 && (!auth?.token || isAuthExpired(auth))) {
       clearStoredAuth()
-      if (window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {
-        window.location.assign('/admin/login')
+      if (window.location.pathname.includes('/admin') && !window.location.pathname.includes('/admin/login')) {
+        // استخدمنا الـ base relative path للتحويل الصح على GitHub Pages
+        window.location.assign(import.meta.env.BASE_URL + 'admin/login')
       }
     }
 
