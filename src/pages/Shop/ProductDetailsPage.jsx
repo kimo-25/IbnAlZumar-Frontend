@@ -69,7 +69,6 @@ export default function ProductDetailsPage() {
     return resolveVariantByAttributes(product.variants, selectedAttributes)
   }, [product, selectedAttributes])
 
-  // تجميع كافة الصور المتاحة واستبعاد أي مسارات فارغة
   const galleryImages = useMemo(() => {
     if (!product) return []
     

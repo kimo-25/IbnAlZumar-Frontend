@@ -18,7 +18,8 @@ export function CartProvider({ children }) {
       }
       return [...current, { ...product, quantity }]
     })
-    setIsCartOpen(true)
+    // تم التعليق على السطر التالي لمنع فتح السلة إجبارياً
+    // setIsCartOpen(true) 
   }, [])
 
   const removeItem = useCallback((productId) => {

@@ -22,7 +22,8 @@ export default function ProductCard({ product }) {
   const hasDiscount = discountPercentage > 0 && Number(originalPrice) > Number(price)
   const savings = Math.max(0, Number(originalPrice) - Number(price))
 
-  function handleAddToCart() {
+  function handleAddToCart(e) {
+    e.preventDefault() // لمنع أي سلوك افتراضي مزعج
     addItem(
       {
         id: defaultVariant?.id || product.id,

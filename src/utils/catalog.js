@@ -51,7 +51,7 @@ function normalizeImageUrl(url) {
     return trimmed
   }
 
-  // تنظيف الـ Slashes لتجنب أي أخطاء في تركيبة الـ URL
+  // التعديل: تنظيف السلاش لضمان عدم حدوث تكرار (Double Slash)
   const cleanApiBase = (API_BASE_URL || '').replace(/\/+$/, '')
   const cleanPath = trimmed.replace(/^\/+/, '')
 
