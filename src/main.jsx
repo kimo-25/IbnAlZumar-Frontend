@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router-dom' // تم التعديل إلى HashRouter لحل مشاكل 404 على GitHub Pages
 import App from './App.jsx'
 import { LanguageProvider } from './context/LanguageContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
@@ -11,11 +11,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <GoogleOAuthProvider clientId="177839769475-50792n4hv6hmorga90iem6doseff59ut.apps.googleusercontent.com">
       <LanguageProvider>
-        <BrowserRouter basename="/IbnAlZumar-Frontend">
+        {/* HashRouter لا يحتاج إلى basename وبيحول كل الروابط لتشتغل محلياً داخل الـ Hash بدون 404 */}
+        <HashRouter>
           <AuthProvider>
             <App />
           </AuthProvider>
-        </BrowserRouter>
+        </HashRouter>
       </LanguageProvider>
     </GoogleOAuthProvider>
   </React.StrictMode>

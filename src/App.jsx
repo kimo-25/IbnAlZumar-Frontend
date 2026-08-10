@@ -60,6 +60,8 @@ export default function App() {
           <Route path="/products/:productId" element={<ProductDetailsPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          
+          {/* 👤 صفحة العميل والطلبات (محمية بـ ProtectedRoute للعملاء أو تسجيل الدخول) */}
           <Route path="/profile" element={<CustomerProfilePage />} />
           <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
         </Route>
