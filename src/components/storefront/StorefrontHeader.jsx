@@ -117,78 +117,23 @@ export default function StorefrontHeader() {
 
   return (
     <header className="border-b border-border bg-surface/95 shadow-subtle backdrop-blur">
-      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center justify-between gap-3 lg:shrink-0">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-graphite-900 text-amber shadow-subtle">
-                <Wrench size={18} strokeWidth={2.5} />
-              </div>
-              <div className="leading-tight">
-                <span className="block font-display text-base font-semibold tracking-tight text-ink" dir="auto">
-                  ابن الزمر
-                </span>
-                <span className="text-[11px] font-medium uppercase tracking-[0.24em] text-ink-soft">Industrial Supply</span>
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-2 lg:hidden">
-              <button
-                type="button"
-                onClick={toggleLanguage}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-ink shadow-subtle transition hover:border-amber"
-                aria-label="تبديل اللغة"
-                title="تبديل اللغة"
-              >
-                <Languages size={16} />
-                <span>{languageLabel}</span>
-              </button>
-              <button
-                type="button"
-                onClick={openCart}
-                className="relative inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-ink shadow-subtle transition hover:border-amber"
-                aria-label="فتح السلة"
-              >
-                <ShoppingCart size={16} />
-                {itemCount > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-amber px-1 font-mono text-xs font-semibold text-graphite-900">
-                    {itemCount}
-                  </span>
-                )}
-              </button>
+      <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6">
+        {/* الصف العلوي: اللوجو وأزرار الموبايل السريعة */}
+        <div className="flex items-center justify-between gap-2">
+          {/* الشعار والاسم */}
+          <Link to="/" className="flex items-center gap-2 shrink-0">
+            <div className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-graphite-900 text-amber shadow-subtle">
+              <Wrench size={18} strokeWidth={2.5} />
             </div>
-          </div>
+            <div className="leading-tight">
+              <span className="block font-display text-sm sm:text-base font-semibold tracking-tight text-ink" dir="auto">
+                ابن الزمر
+              </span>
+              <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.2em] text-ink-soft">Industrial Supply</span>
+            </div>
+          </Link>
 
-          <div className="relative flex-1 lg:max-w-3xl">
-            <Search size={18} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft" />
-            <input
-              type="search"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="ابحث بالكود SKU أو اسم المنتج..."
-              className="w-full rounded-2xl border border-border bg-canvas py-3.5 pl-12 pr-12 text-sm text-ink shadow-subtle outline-none transition placeholder:text-ink-soft/65 focus:border-amber focus:bg-surface focus:ring-2 focus:ring-amber/20"
-              dir={language === 'en' ? 'ltr' : 'rtl'}
-            />
-            <button
-              type="button"
-              onClick={handleVoiceSearch}
-              disabled={!speechRecognition}
-              className={`absolute left-2 top-1/2 -translate-y-1/2 rounded-xl border p-2 transition ${listeningStyle} disabled:cursor-not-allowed disabled:opacity-50`}
-              aria-label={isListening ? 'إيقاف الإملاء الصوتي' : 'بدء البحث الصوتي'}
-              title={speechRecognition ? (isListening ? 'إيقاف البحث الصوتي' : 'بحث صوتي') : 'البحث الصوتي غير مدعوم'}
-            >
-              {isListening ? (
-                <span className="relative inline-flex h-4 w-4 items-center justify-center">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger/70" />
-                  <span className="absolute h-2 w-2 rounded-full bg-danger" />
-                  <MicOff size={16} className="relative text-danger" />
-                </span>
-              ) : (
-                <Mic size={16} />
-              )}
-            </button>
-          </div>
-
+          {/* أزرار الإجراءات للكمبيوتر (تختفي في الموبايل وتظهر في الشاشات الكبيرة) */}
           <div className="hidden items-center gap-2 lg:flex">
             <button
               type="button"
@@ -246,24 +191,82 @@ export default function StorefrontHeader() {
               )}
             </button>
           </div>
+
+          {/* أزرار الموبايل السريعة (اللغة والسلة) */}
+          <div className="flex items-center gap-1.5 lg:hidden">
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink shadow-subtle transition hover:border-amber"
+              aria-label="تبديل اللغة"
+            >
+              <Languages size={14} />
+              <span>{languageLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={openCart}
+              className="relative inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink shadow-subtle transition hover:border-amber"
+              aria-label="فتح السلة"
+            >
+              <ShoppingCart size={14} />
+              {itemCount > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-amber px-0.5 font-mono text-[10px] font-semibold text-graphite-900">
+                  {itemCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2" ref={categoriesMenuRef}>
+        {/* شريط البحث (يظهر بشكل مرن ومتكامل في كل الشاشات) */}
+        <div className="mt-3 relative w-full">
+          <Search size={18} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="ابحث بالكود SKU أو اسم المنتج..."
+            className="w-full rounded-2xl border border-border bg-canvas py-3 pl-11 pr-11 text-xs sm:text-sm text-ink shadow-subtle outline-none transition placeholder:text-ink-soft/65 focus:border-amber focus:bg-surface focus:ring-2 focus:ring-amber/20"
+            dir={language === 'en' ? 'ltr' : 'rtl'}
+          />
+          <button
+            type="button"
+            onClick={handleVoiceSearch}
+            disabled={!speechRecognition}
+            className={`absolute left-2 top-1/2 -translate-y-1/2 rounded-xl border p-1.5 sm:p-2 transition ${listeningStyle} disabled:cursor-not-allowed disabled:opacity-50`}
+            aria-label={isListening ? 'إيقاف الإملاء الصوتي' : 'بدء البحث الصوتي'}
+            title={speechRecognition ? (isListening ? 'إيقاف البحث الصوتي' : 'بحث صوتي') : 'البحث الصوتي غير مدعوم'}
+          >
+            {isListening ? (
+              <span className="relative inline-flex h-4 w-4 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger/70" />
+                <span className="absolute h-2 w-2 rounded-full bg-danger" />
+                <MicOff size={16} className="relative text-danger" />
+              </span>
+            ) : (
+              <Mic size={16} />
+            )}
+          </button>
+        </div>
+
+        {/* التصنيفات وحالة البحث */}
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2" ref={categoriesMenuRef}>
           <div className="relative">
             <button
               type="button"
               onClick={() => setIsCategoriesOpen((current) => !current)}
-              className="inline-flex items-center gap-2 rounded-xl bg-graphite-900 px-4 py-2.5 text-sm font-semibold text-white shadow-subtle transition hover:bg-graphite-800"
+              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-subtle transition hover:bg-graphite-800"
               aria-haspopup="menu"
               aria-expanded={isCategoriesOpen}
             >
-              <Grid2X2 size={18} />
+              <Grid2X2 size={16} />
               <span>التصنيفات</span>
-              <ChevronDown size={16} className={`transition ${isCategoriesOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={14} className={`transition ${isCategoriesOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isCategoriesOpen && (
-              <div className="absolute right-0 top-full z-20 mt-2 w-[min(92vw,28rem)] rounded-2xl border border-border bg-surface p-3 shadow-2xl">
+              <div className="absolute right-0 sm:right-auto sm:left-0 top-full z-30 mt-2 w-full sm:w-[28rem] rounded-2xl border border-border bg-surface p-3 shadow-2xl">
                 <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-ink-soft">
                   <Store size={14} />
                   <span>تصفح سريع</span>
@@ -274,7 +277,7 @@ export default function StorefrontHeader() {
                       key={category.label}
                       type="button"
                       onClick={() => handleCategorySelect(category)}
-                      className="rounded-xl border border-border bg-canvas px-3 py-3 text-right text-sm font-medium text-ink transition hover:border-amber hover:bg-surface"
+                      className="rounded-xl border border-border bg-canvas px-3 py-2.5 text-right text-xs sm:text-sm font-medium text-ink transition hover:border-amber hover:bg-surface"
                     >
                       {category.label}
                     </button>
@@ -284,7 +287,7 @@ export default function StorefrontHeader() {
             )}
           </div>
 
-          <p className="hidden text-sm text-ink-soft md:block">
+          <p className="text-xs sm:text-sm text-ink-soft text-center sm:text-right">
             {searchInput.trim() ? `بحث نشط: ${searchInput.trim()}` : 'استخدم البحث السريع أو اختر القسم المناسب.'}
           </p>
         </div>
