@@ -118,7 +118,7 @@ export default function StorefrontHeader() {
   return (
     <header className="border-b border-border bg-surface/95 shadow-subtle backdrop-blur">
       <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6">
-        {/* الصف العلوي: اللوجو وأزرار الموبايل السريعة */}
+        {/* الصف العلوي: اللوجو وأزرار التحكم */}
         <div className="flex items-center justify-between gap-2">
           {/* الشعار والاسم */}
           <Link to="/" className="flex items-center gap-2 shrink-0">
@@ -133,7 +133,7 @@ export default function StorefrontHeader() {
             </div>
           </Link>
 
-          {/* أزرار الإجراءات للكمبيوتر (تختفي في الموبايل وتظهر في الشاشات الكبيرة) */}
+          {/* أزرار الإجراءات للشاشات الكبيرة */}
           <div className="hidden items-center gap-2 lg:flex">
             <button
               type="button"
@@ -192,7 +192,7 @@ export default function StorefrontHeader() {
             </button>
           </div>
 
-          {/* أزرار الموبايل السريعة (اللغة والسلة) */}
+          {/* أزرار الموبايل السريعة */}
           <div className="flex items-center gap-1.5 lg:hidden">
             <button
               type="button"
@@ -219,7 +219,7 @@ export default function StorefrontHeader() {
           </div>
         </div>
 
-        {/* شريط البحث (يظهر بشكل مرن ومتكامل في كل الشاشات) */}
+        {/* شريط البحث */}
         <div className="mt-3 relative w-full">
           <Search size={18} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
           <input

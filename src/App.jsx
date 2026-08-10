@@ -1,8 +1,9 @@
+// File: src/App.jsx
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { StorefrontSearchProvider } from './context/StorefrontSearchContext'
 
-// 🌟 الـ Component الجمالي للأذكار والآيات
+// 🌟 الـ Component الجمالي للأذكار والآيات (يعمل للجميع هنا)
 import ReminderBanner from './components/ui/ReminderBanner'
 
 // Public storefront
@@ -41,7 +42,7 @@ import ModeratorCatalogPage from './pages/Moderator/ModeratorCatalogPage'
 export default function App() {
   return (
     <>
-      {/* 🟢 يظهر هنا عافية في كل صفحات الموقع (زائر، كاستمر، أدمن، موديريتور) */}
+      {/* 🟢 يظهر هنا للجميع (زائر، كاستمر، أدمن، موديريتور) بدون تكرار */}
       <ReminderBanner />
 
       <Routes>
@@ -61,7 +62,6 @@ export default function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           
-          {/* 👤 صفحة العميل والطلبات (محمية بـ ProtectedRoute للعملاء أو تسجيل الدخول) */}
           <Route path="/profile" element={<CustomerProfilePage />} />
           <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
         </Route>
@@ -80,17 +80,14 @@ export default function App() {
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardHome />} />
             
-            {/* 📦 سماح لكافة مدراء وموديريتور ومسؤولي النظام بدخول عمليات المتجر */}
             <Route path="operations" element={<ProtectedRoute allowRoles={['ONLINE_MANAGER', 'Moderator', 'moderator', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager']} />}>
               <Route index element={<OperationsHubPage />} />
             </Route>
 
-            {/* 👑 Owner Only Route */}
             <Route path="owner" element={<ProtectedRoute role="STORE_OWNER" allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']} />}>
               <Route index element={<OwnerHubPage />} />
             </Route>
 
-            {/* 🛡️ Moderator Routes */}
             <Route path="moderator" element={<ProtectedRoute allowRoles={['moderator', 'Moderator', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']} />}>
               <Route index element={<ModeratorHubPage />} />
               <Route path="catalog" element={<ModeratorCatalogPage />} />
@@ -112,7 +109,6 @@ export default function App() {
           </Route>
         </Route>
 
-        {/* Unknown URLs fall back to the public storefront */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
