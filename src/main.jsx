@@ -9,15 +9,14 @@ import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <GoogleOAuthProvider clientId="177839769475-50792n4hv6hmorga90iem6doseff59ut.apps.googleusercontent.com">
-      <LanguageProvider>
-        {/* HashRouter لا يحتاج إلى basename وبيحول كل الروابط لتشتغل محلياً داخل الـ Hash بدون 404 */}
-        <HashRouter>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
-        </HashRouter>
-      </LanguageProvider>
+    <GoogleOAuthProvider clientId="907304137172-th8oq2nl5upmnmsqcf2c9u24tu38omoq.apps.googleusercontent.com">      <LanguageProvider>
+      {/* HashRouter لا يحتاج إلى basename وبيحول كل الروابط لتشتغل محلياً داخل الـ Hash بدون 404 */}
+      <HashRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </HashRouter>
+    </LanguageProvider>
     </GoogleOAuthProvider>
   </React.StrictMode>
 )
