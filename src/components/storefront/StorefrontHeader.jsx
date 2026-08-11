@@ -85,7 +85,6 @@ export default function StorefrontHeader() {
     }
   }, [])
 
-  // إغلاق قائمة الموبايل عند تغيير الصفحة
   useEffect(() => {
     setIsMobileMenuOpen(false)
   }, [location.pathname])
@@ -131,8 +130,8 @@ export default function StorefrontHeader() {
         {/* الصف العلوي: اللوجو وأزرار التحكم */}
         <div className="flex items-center justify-between gap-2">
           
-          {/* الجانب الأيمن للموبايل: زر القائمة والشعار */}
-          <div className="flex items-center gap-2">
+          {/* الجانب الأيمن للموبايل: زر الهامبرجر والشعار */}
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
@@ -215,7 +214,7 @@ export default function StorefrontHeader() {
             </button>
           </div>
 
-          {/* أزرار الموبايل السريعة (اللغة والسلة فقط في الهيدر العلوي) */}
+          {/* أزرار الموبايل السريعة (اللغة والسلة فقط) */}
           <div className="flex items-center gap-1.5 lg:hidden">
             <button
               type="button"
@@ -316,67 +315,71 @@ export default function StorefrontHeader() {
         </div>
       </div>
 
-      {/* القائمة الجانبية للموبايل (Mobile Drawer) */}
+      {/* قائمة الموبايل الجانبية (Mobile Drawer) المحسنة */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden flex">
           {/* الخلفية المعتمة */}
           <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
             onClick={() => setIsMobileMenuOpen(false)}
           />
 
-          {/* محتوى القائمة الجانبية */}
-          <div className="absolute top-0 right-0 bottom-0 w-80 max-w-[85%] bg-surface border-l border-border shadow-2xl flex flex-col p-4 overflow-y-auto">
-            {/* رأس القائمة */}
+          {/* محتوى القائمة (تنسيق يمين الشاشة RTL) */}
+          <div className="relative ml-auto w-80 max-w-[85%] bg-surface border-r border-border shadow-2xl flex flex-col h-full z-10 p-5 overflow-y-auto">
+            
+            {/* رأس القائمة الجانبية */}
             <div className="flex items-center justify-between pb-4 border-b border-border">
-              <div className="flex items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-xl bg-graphite-900 text-amber">
-                  <Wrench size={16} strokeWidth={2.5} />
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-graphite-900 text-amber">
+                  <Wrench size={18} strokeWidth={2.5} />
                 </div>
-                <span className="font-display font-semibold text-ink">ابن الزمر</span>
+                <div>
+                  <span className="block font-display font-semibold text-ink text-sm">ابن الزمر</span>
+                  <span className="text-[10px] text-ink-soft uppercase tracking-wider">Industrial Supply</span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="p-1.5 rounded-lg text-ink-soft hover:bg-canvas hover:text-ink transition"
+                className="p-2 rounded-xl text-ink-soft hover:bg-canvas hover:text-ink transition border border-border"
                 aria-label="إغلاق القائمة"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            {/* قسم الحساب وتسجيل الدخول */}
+            {/* قسم الحساب والتسجيل */}
             <div className="py-4 border-b border-border">
               {isAuthenticated ? (
                 <div className="flex flex-col gap-2">
                   <Link 
                     to="/admin/login" 
-                    className="flex items-center gap-2 rounded-xl bg-canvas px-3 py-2.5 text-sm font-semibold text-ink border border-border"
+                    className="flex items-center gap-2.5 rounded-xl bg-canvas px-3.5 py-3 text-sm font-semibold text-ink border border-border hover:border-amber transition"
                   >
-                    <UserCircle2 size={18} />
+                    <UserCircle2 size={18} className="text-amber" />
                     <span className="truncate">{user?.fullName || 'حسابي'}</span>
                   </Link>
                   <button
                     type="button"
                     onClick={() => { logout(); setIsMobileMenuOpen(false); }}
-                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-danger hover:bg-danger/10 transition"
+                    className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-medium text-danger hover:bg-danger/10 transition"
                   >
                     <LogOut size={16} />
                     <span>تسجيل الخروج</span>
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2.5">
                   <Link 
                     to="/admin/login" 
-                    className="flex items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-2.5 text-sm font-semibold text-white shadow-subtle"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-3 text-sm font-semibold text-white shadow-subtle hover:bg-graphite-800 transition"
                   >
-                    <LogIn size={16} />
+                    <LogIn size={16} className="text-amber" />
                     <span>تسجيل الدخول / الاشتراك</span>
                   </Link>
                   <Link 
                     to="/admin/login" 
-                    className="flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-ink"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-2.5 text-sm font-medium text-ink hover:border-amber transition"
                   >
                     <UserCircle2 size={16} />
                     <span>حسابي</span>
@@ -385,10 +388,10 @@ export default function StorefrontHeader() {
               )}
             </div>
 
-            {/* روابط سريعة والتصنيفات للموبايل */}
+            {/* الأقسام والتصنيفات */}
             <div className="py-4 flex-1">
               <span className="block text-xs font-semibold uppercase tracking-widest text-ink-soft mb-3">
-                الأقسام والتصنيفات
+                الأقسام والتصنيفات السريعة
               </span>
               <div className="grid gap-2">
                 {CATEGORY_LINKS.map((category) => (
@@ -396,25 +399,28 @@ export default function StorefrontHeader() {
                     key={category.label}
                     type="button"
                     onClick={() => handleCategorySelect(category)}
-                    className="w-full text-right rounded-xl border border-border bg-canvas px-3 py-2.5 text-xs font-medium text-ink hover:border-amber transition"
+                    className="w-full text-right rounded-xl border border-border bg-canvas px-3.5 py-3 text-xs sm:text-sm font-medium text-ink hover:border-amber hover:bg-surface transition flex items-center justify-between"
                   >
-                    {category.label}
+                    <span>{category.label}</span>
+                    <Store size={14} className="text-ink-soft" />
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* تذييل القائمة */}
-            <div className="pt-4 border-t border-border flex items-center justify-between text-xs text-ink-soft">
-              <span>اللغة الحالية: {languageLabel}</span>
+            {/* تذييل القائمة (تبديل اللغة) */}
+            <div className="pt-4 border-t border-border flex items-center justify-between">
+              <span className="text-xs text-ink-soft font-medium">اللغة الحالية: {languageLabel}</span>
               <button
                 type="button"
                 onClick={toggleLanguage}
-                className="font-semibold text-ink underline"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-canvas px-3 py-1.5 text-xs font-semibold text-ink hover:border-amber transition"
               >
-                تبديل
+                <Languages size={14} />
+                <span>{language === 'ar' ? 'English' : 'عربي'}</span>
               </button>
             </div>
+
           </div>
         </div>
       )}
