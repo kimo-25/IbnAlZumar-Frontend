@@ -10,11 +10,13 @@ export function AuthProvider({ children }) {
     return stored && !isAuthExpired(stored) ? stored : null
   })
 
-  const normalizedRoles = useMemo(() => (auth?.roles ?? []).map((role) => String(role).toLowerCase()), [auth])
+  const normalizedRoles = useMemo(
+    () => (auth?.roles ?? []).map((role) => String(role).toLowerCase().trim()),
+    [auth]
+  )
 
   const login = useCallback(async (username, password) => {
     const { data } = await axiosInstance.post('/Auth/login', { username, password })
-    // حفظ البيانات في localStorage
     setStoredAuth(data)
     setAuth(data)
     return data
@@ -30,11 +32,19 @@ export function AuthProvider({ children }) {
   const hasRole = useCallback(
     (role) => {
       if (!role) return true
-      // السماح لـ admin و super admin بالوصول لكل حاجة دائماً
-      if (normalizedRoles.includes('admin') || normalizedRoles.includes('superadmin') || normalizedRoles.includes('super admin')) {
+      
+      const checkRole = String(role).toLowerCase().trim()
+
+      // الأدمن والـ Super Admin يمتلكون صلاحية الوصول لكل شيء
+      if (
+        normalizedRoles.includes('admin') ||
+        normalizedRoles.includes('superadmin') ||
+        normalizedRoles.includes('super admin') ||
+        normalizedRoles.includes('owner')
+      ) {
         return true
       }
-      return normalizedRoles.includes(String(role).toLowerCase())
+      return normalizedRoles.includes(checkRole)
     },
     [normalizedRoles]
   )

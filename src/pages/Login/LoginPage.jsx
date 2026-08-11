@@ -1,10 +1,10 @@
-// File: src/pages/Login/LoginPage.jsx
 import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { AlertCircle, Eye, EyeOff, Lock, Loader2, User, Wrench } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { GoogleLogin } from '@react-oauth/google'
 import axiosInstance from '../../api/axiosInstance'
+import { setStoredAuth } from '../../utils/auth'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -25,35 +25,36 @@ export default function LoginPage() {
       return fromPath
     }
 
-    // 2. تجميع الأدوار المسجلة للمستخدم
+    // 2. تجميع الأدوار المسجلة للمستخدم بطريقة مرنة
     const roles = []
-    if (userData?.roles) {
-      if (Array.isArray(userData.roles)) roles.push(...userData.roles)
-      else roles.push(userData.roles)
+    if (userData?.roles && Array.isArray(userData.roles)) {
+      roles.push(...userData.roles)
+    } else if (userData?.roles) {
+      roles.push(userData.roles)
     }
-    if (userData?.role) roles.push(userData.role)
-    if (userData?.user?.roles) {
-      if (Array.isArray(userData.user.roles)) roles.push(...userData.user.roles)
-      else roles.push(userData.user.roles)
+
+    const normalizedRoles = roles.map((r) => String(r).toUpperCase().trim())
+
+    // 3. التوجيه بناءً على الدور الفعلي
+    if (normalizedRoles.includes('ONLINE_MANAGER')) {
+      return '/admin/operations'
     }
-    if (userData?.user?.role) roles.push(userData.user.role)
+    
+    if (normalizedRoles.includes('MODERATOR')) {
+      return '/admin/moderator'
+    }
 
-    const normalizedRoles = roles.map((r) => String(r).toUpperCase())
-
-    // 3. فحص هل المستخدم ضمن الإدارة / المشرفين
-    const isStaffOrAdmin = normalizedRoles.some((r) =>
-      ['ADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'STORE_OWNER', 'MODERATOR', 'ONLINE_MANAGER'].includes(r)
+    const isAdminOrOwner = normalizedRoles.some((r) =>
+      ['ADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'STORE_OWNER', 'OWNER'].includes(r)
     )
 
     const isLoginFromAdminPage = location.pathname === '/admin/login'
 
-    if (isStaffOrAdmin || isLoginFromAdminPage) {
-      if (normalizedRoles.includes('ONLINE_MANAGER')) return '/admin/operations'
-      if (normalizedRoles.includes('MODERATOR')) return '/admin/moderator'
+    if (isAdminOrOwner || isLoginFromAdminPage) {
       return '/admin/dashboard'
     }
 
-    // 4. الافتراضي للعميل العادي
+    // 4. الافتراضي للعميل العادي (Customer)
     return '/profile'
   }
 
@@ -82,18 +83,19 @@ export default function LoginPage() {
     setError(null)
     setIsSubmitting(true)
     try {
-      // استخدام axiosInstance الموحد بدلاً من localhost
       const response = await axiosInstance.post('/Auth/google', {
         idToken: credentialResponse.credential,
       })
 
       const data = response.data
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data))
+      // استخدام الميثود الموحدة للحفظ لضمان التزامن مع AuthContext
+      setStoredAuth(data)
 
       const targetPath = determineDestination(data)
       navigate(targetPath, { replace: true })
+      // إعادة تحميل خفيفة أو تحديث الصفحة لضمان قراءة AuthContext للبيانات الجديدة
+      window.location.href = targetPath;
     } catch (err) {
       setError(err?.message || 'حدث خطأ أثناء المصادقة مع جوجل.')
     } finally {
@@ -218,7 +220,6 @@ export default function LoginPage() {
               <div className="flex-grow border-t border-border"></div>
             </div>
 
-            {/* حاوية زر تسجيل الدخول بجوجل */}
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-surface p-4 shadow-subtle transition hover:border-amber/50">
               <span className="mb-3 text-xs font-medium text-ink-soft">المتابعة السريعة باستخدام حسابك</span>
               <div className="overflow-hidden rounded-xl">
@@ -232,7 +233,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* زر إنشاء حساب جديد (Sign Up) */}
             <p className="mt-6 text-center text-sm text-ink-soft">
               ليس لديك حساب؟{' '}
               <Link to="/register" className="font-semibold text-amber hover:underline">
