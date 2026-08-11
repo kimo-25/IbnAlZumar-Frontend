@@ -1,7 +1,7 @@
 // File: src/components/storefront/StorefrontHeader.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronDown, Grid2X2, Languages, LogIn, LogOut, Mic, MicOff, Search, ShoppingCart, Store, UserCircle2, Wrench } from 'lucide-react'
+import { ChevronDown, Grid2X2, Languages, LogIn, LogOut, Menu, Mic, MicOff, Search, ShoppingCart, Store, UserCircle2, Wrench, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -23,8 +23,11 @@ export default function StorefrontHeader() {
   const { language, toggleLanguage } = useLanguage()
   const navigate = useNavigate()
   const location = useLocation()
+  
   const [isListening, setIsListening] = useState(false)
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  
   const recognitionRef = useRef(null)
   const categoriesMenuRef = useRef(null)
 
@@ -69,6 +72,7 @@ export default function StorefrontHeader() {
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
         setIsCategoriesOpen(false)
+        setIsMobileMenuOpen(false)
       }
     }
 
@@ -80,6 +84,11 @@ export default function StorefrontHeader() {
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [])
+
+  // إغلاق قائمة الموبايل عند تغيير الصفحة
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [location.pathname])
 
   function handleVoiceSearch() {
     const recognition = recognitionRef.current
@@ -101,6 +110,7 @@ export default function StorefrontHeader() {
   function handleCategorySelect(category) {
     setSearchInput(category.query)
     setIsCategoriesOpen(false)
+    setIsMobileMenuOpen(false)
 
     if (location.pathname !== '/') {
       navigate('/')
@@ -116,22 +126,35 @@ export default function StorefrontHeader() {
   const listeningStyle = isListening ? 'border-danger/40 bg-danger/10 text-danger shadow-[0_0_0_4px_rgba(214,69,69,0.12)]' : 'text-ink-soft hover:bg-canvas hover:text-ink'
 
   return (
-    <header className="border-b border-border bg-surface/95 shadow-subtle backdrop-blur">
+    <header className="border-b border-border bg-surface/95 shadow-subtle backdrop-blur relative z-40">
       <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6">
         {/* الصف العلوي: اللوجو وأزرار التحكم */}
         <div className="flex items-center justify-between gap-2">
-          {/* الشعار والاسم */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-graphite-900 text-amber shadow-subtle">
-              <Wrench size={18} strokeWidth={2.5} />
-            </div>
-            <div className="leading-tight">
-              <span className="block font-display text-sm sm:text-base font-semibold tracking-tight text-ink" dir="auto">
-                ابن الزمر
-              </span>
-              <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.2em] text-ink-soft">Industrial Supply</span>
-            </div>
-          </Link>
+          
+          {/* الجانب الأيمن للموبايل: زر القائمة والشعار */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="inline-flex lg:hidden items-center justify-center rounded-xl border border-border bg-surface p-2 text-ink shadow-subtle transition hover:border-amber"
+              aria-label="فتح القائمة الرئيسية"
+            >
+              <Menu size={20} />
+            </button>
+
+            {/* الشعار والاسم */}
+            <Link to="/" className="flex items-center gap-2 shrink-0">
+              <div className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-graphite-900 text-amber shadow-subtle">
+                <Wrench size={18} strokeWidth={2.5} />
+              </div>
+              <div className="leading-tight">
+                <span className="block font-display text-sm sm:text-base font-semibold tracking-tight text-ink" dir="auto">
+                  ابن الزمر
+                </span>
+                <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.2em] text-ink-soft">Industrial Supply</span>
+              </div>
+            </Link>
+          </div>
 
           {/* أزرار الإجراءات للشاشات الكبيرة */}
           <div className="hidden items-center gap-2 lg:flex">
@@ -192,7 +215,7 @@ export default function StorefrontHeader() {
             </button>
           </div>
 
-          {/* أزرار الموبايل السريعة */}
+          {/* أزرار الموبايل السريعة (اللغة والسلة فقط في الهيدر العلوي) */}
           <div className="flex items-center gap-1.5 lg:hidden">
             <button
               type="button"
@@ -292,6 +315,109 @@ export default function StorefrontHeader() {
           </p>
         </div>
       </div>
+
+      {/* القائمة الجانبية للموبايل (Mobile Drawer) */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* الخلفية المعتمة */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+
+          {/* محتوى القائمة الجانبية */}
+          <div className="absolute top-0 right-0 bottom-0 w-80 max-w-[85%] bg-surface border-l border-border shadow-2xl flex flex-col p-4 overflow-y-auto">
+            {/* رأس القائمة */}
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-xl bg-graphite-900 text-amber">
+                  <Wrench size={16} strokeWidth={2.5} />
+                </div>
+                <span className="font-display font-semibold text-ink">ابن الزمر</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-1.5 rounded-lg text-ink-soft hover:bg-canvas hover:text-ink transition"
+                aria-label="إغلاق القائمة"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* قسم الحساب وتسجيل الدخول */}
+            <div className="py-4 border-b border-border">
+              {isAuthenticated ? (
+                <div className="flex flex-col gap-2">
+                  <Link 
+                    to="/admin/login" 
+                    className="flex items-center gap-2 rounded-xl bg-canvas px-3 py-2.5 text-sm font-semibold text-ink border border-border"
+                  >
+                    <UserCircle2 size={18} />
+                    <span className="truncate">{user?.fullName || 'حسابي'}</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => { logout(); setIsMobileMenuOpen(false); }}
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-danger hover:bg-danger/10 transition"
+                  >
+                    <LogOut size={16} />
+                    <span>تسجيل الخروج</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Link 
+                    to="/admin/login" 
+                    className="flex items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-2.5 text-sm font-semibold text-white shadow-subtle"
+                  >
+                    <LogIn size={16} />
+                    <span>تسجيل الدخول / الاشتراك</span>
+                  </Link>
+                  <Link 
+                    to="/admin/login" 
+                    className="flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-ink"
+                  >
+                    <UserCircle2 size={16} />
+                    <span>حسابي</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* روابط سريعة والتصنيفات للموبايل */}
+            <div className="py-4 flex-1">
+              <span className="block text-xs font-semibold uppercase tracking-widest text-ink-soft mb-3">
+                الأقسام والتصنيفات
+              </span>
+              <div className="grid gap-2">
+                {CATEGORY_LINKS.map((category) => (
+                  <button
+                    key={category.label}
+                    type="button"
+                    onClick={() => handleCategorySelect(category)}
+                    className="w-full text-right rounded-xl border border-border bg-canvas px-3 py-2.5 text-xs font-medium text-ink hover:border-amber transition"
+                  >
+                    {category.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* تذييل القائمة */}
+            <div className="pt-4 border-t border-border flex items-center justify-between text-xs text-ink-soft">
+              <span>اللغة الحالية: {languageLabel}</span>
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                className="font-semibold text-ink underline"
+              >
+                تبديل
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
