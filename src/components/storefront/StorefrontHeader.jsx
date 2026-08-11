@@ -31,6 +31,18 @@ export default function StorefrontHeader() {
   const recognitionRef = useRef(null)
   const categoriesMenuRef = useRef(null)
 
+  // منع السكرول في الخلفية عند فتح قائمة الموبايل
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isMobileMenuOpen])
+
   const speechRecognition = useMemo(() => {
     if (typeof window === 'undefined') return null
     return window.SpeechRecognition || window.webkitSpeechRecognition || null
@@ -315,20 +327,20 @@ export default function StorefrontHeader() {
         </div>
       </div>
 
-      {/* قائمة الموبايل الجانبية (Mobile Drawer) المحسنة */}
+      {/* قائمة الموبايل الجانبية (Mobile Drawer) بدون سكرول وبلور للخلفية */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          {/* الخلفية المعتمة */}
+          {/* الخلفية المعتمة مع البلور */}
           <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+            className="fixed inset-0 bg-black/40 backdrop-blur-md transition-opacity" 
             onClick={() => setIsMobileMenuOpen(false)}
           />
 
-          {/* محتوى القائمة (تنسيق يمين الشاشة RTL) */}
-          <div className="relative ml-auto w-80 max-w-[85%] bg-surface border-r border-border shadow-2xl flex flex-col h-full z-10 p-5 overflow-y-auto">
+          {/* محتوى القائمة بدون شريط تمرير ظاهر */}
+          <div className="relative ml-auto w-80 max-w-[85%] bg-surface border-r border-border shadow-2xl flex flex-col h-screen z-10 p-5 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             
             {/* رأس القائمة الجانبية */}
-            <div className="flex items-center justify-between pb-4 border-b border-border">
+            <div className="flex items-center justify-between pb-4 border-b border-border shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="grid h-9 w-9 place-items-center rounded-xl bg-graphite-900 text-amber">
                   <Wrench size={18} strokeWidth={2.5} />
@@ -349,7 +361,7 @@ export default function StorefrontHeader() {
             </div>
 
             {/* قسم الحساب والتسجيل */}
-            <div className="py-4 border-b border-border">
+            <div className="py-4 border-b border-border shrink-0">
               {isAuthenticated ? (
                 <div className="flex flex-col gap-2">
                   <Link 
@@ -409,7 +421,7 @@ export default function StorefrontHeader() {
             </div>
 
             {/* تذييل القائمة (تبديل اللغة) */}
-            <div className="pt-4 border-t border-border flex items-center justify-between">
+            <div className="pt-4 pb-6 border-t border-border flex items-center justify-between shrink-0">
               <span className="text-xs text-ink-soft font-medium">اللغة الحالية: {languageLabel}</span>
               <button
                 type="button"
