@@ -13,6 +13,7 @@ import {
   Wrench,
   X,
   ShieldCheck,
+  BookOpen,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -39,6 +40,8 @@ const NAV_GROUPS = [
     items: [
       { to: '/admin/catalog/categories', label: 'الأقسام', icon: Tags, permission: 'Categories.Manage' },
       { to: '/admin/catalog/products', label: 'المنتجات', icon: Package, permission: 'Products.View', allowRoles: ['STORE_OWNER', 'moderator', 'Moderator', 'Admin', 'SuperAdmin', 'admin'] },
+      // 🌟 إدارة الأذكار والآيات (تظهر للأدمن والموديريتور)
+      { to: '/admin/reminders', label: 'إدارة الأذكار', icon: BookOpen, allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'Moderator', 'moderator', 'admin'] },
     ],
   },
   {

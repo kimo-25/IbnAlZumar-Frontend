@@ -3,16 +3,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { getRandomReminder } from '../../api/reminders';
 import { BookOpen, RefreshCw, X } from 'lucide-react';
 
-const FALLBACK_REMINDERS = [
-  { text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ", category: "ذكر", source: "حديث شريف" },
-  { text: "اللَّهُمَّ أَعِنِّي عَلَى ذِكْرِكَ وَشُكْرِكَ وَحُسْنِ عِبَادَتِكَ", category: "دعاء", source: "حديث شريف" },
-  { text: "لا حَوْلَ وَلا قُوَّةَ إِلاَّ بِاللَّهِ", category: "ذكر", source: "كنز من كنوز الجنة" },
-  { text: "الْحَمْدُ لِلَّهِ حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ", category: "ذكر", source: "حديث شريف" },
-  { text: "رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي", category: "آية كريمة", source: "سورة طه" }
-];
-
-const DISPLAY_DURATION = 10000;  // 10 ثوانٍ ظهور
-const INTERVAL_DURATION = 120000; // دقيقتين اختفاء وانتظار للذكر التالي
+const DISPLAY_DURATION = 10000;   
+const INTERVAL_DURATION = 120000; 
 
 const ReminderBanner = () => {
   const [reminder, setReminder] = useState(null);
@@ -23,15 +15,11 @@ const ReminderBanner = () => {
     setIsRefreshing(true);
     try {
       const data = await getRandomReminder();
-      if (data && (data.text || data.content || data.message || data.title)) {
+      if (data && data.text) {
         setReminder(data);
-      } else {
-        const randomFallback = FALLBACK_REMINDERS[Math.floor(Math.random() * FALLBACK_REMINDERS.length)];
-        setReminder(randomFallback);
       }
     } catch (err) {
-      const randomFallback = FALLBACK_REMINDERS[Math.floor(Math.random() * FALLDACK_REMINDERS?.length || 5)];
-      setReminder(randomFallback);
+      console.error("فشل في جلب الذكر من الـ API:", err);
     } finally {
       setIsRefreshing(false);
     }
@@ -45,16 +33,13 @@ const ReminderBanner = () => {
       await fetchReminder();
       setIsVisible(true);
 
-      // إخفاء البانر بعد 10 ثوانٍ
       timerHide = setTimeout(() => {
         setIsVisible(false);
       }, DISPLAY_DURATION);
     };
 
-    // التشغيل الأول بعد تحميل الصفحة
     showCycle();
 
-    // التكرار كل دقيقتين (120000 مللي ثانية)
     intervalTimer = setInterval(() => {
       showCycle();
     }, INTERVAL_DURATION);
@@ -67,44 +52,43 @@ const ReminderBanner = () => {
 
   if (!isVisible || !reminder) return null;
 
-  const reminderText = reminder.text || reminder.content || reminder.title || reminder.message;
+  // تحديد التصنيف بناءً على الـ Type أو Category القادم من الباك اند (مثلاً 1 لآية، 2 لذكر)
+  const categoryLabel = reminder.category || (reminder.type === 1 ? 'آية كريمة' : 'ذكر / دعاء');
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 max-w-md w-full animate-fadeIn transition-all duration-300">
-      <div className="rounded-2xl border border-border bg-surface/95 p-4 shadow-2xl backdrop-blur-md">
-        <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/50">
-          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600">
-            <BookOpen size={14} />
-            <span>{reminder.category || 'آية كريمة / ذكر'}</span>
+    <div className="fixed bottom-4 left-4 z-50 w-full max-w-sm animate-in slide-in-from-bottom-4 fade-in duration-500">
+      <div className="rounded-2xl border border-border bg-surface/95 p-3 shadow-xl backdrop-blur-md">
+        <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-2">
+          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600">
+            <BookOpen size={12} />
+            <span>{categoryLabel}</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <button
               onClick={fetchReminder}
               disabled={isRefreshing}
-              className="rounded-lg p-1.5 text-ink-soft hover:bg-canvas hover:text-ink transition disabled:opacity-50"
-              title="تحديث الذكر"
-              aria-label="تحديث الذكر"
+              className="rounded-lg p-1 text-ink-soft hover:bg-canvas hover:text-ink transition disabled:opacity-50"
+              title="تحديث"
             >
-              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
             </button>
             <button
               onClick={() => setIsVisible(false)}
-              className="rounded-lg p-1.5 text-ink-soft hover:bg-canvas hover:text-danger transition"
+              className="rounded-lg p-1 text-ink-soft hover:bg-canvas hover:text-danger transition"
               title="إغلاق"
-              aria-label="إغلاق"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
         </div>
 
-        <div className="py-2 text-right">
-          <p className="text-base font-medium text-ink leading-relaxed" dir="auto">
-            {reminderText}
+        <div className="text-right">
+          <p className="text-sm font-medium text-ink leading-relaxed" dir="auto">
+            {reminder.text}
           </p>
-          {reminder.source && (
-            <p className="mt-2 text-xs text-emerald-600 font-semibold" dir="auto">
-              {reminder.source}
+          {(reminder.source || reminder.surahName) && (
+            <p className="mt-1.5 text-[10px] text-emerald-600/80 font-semibold" dir="auto">
+              {reminder.source} {reminder.surahName ? `(سورة ${reminder.surahName} - آية ${reminder.ayahNumber})` : ''}
             </p>
           )}
         </div>

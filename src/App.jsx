@@ -26,6 +26,7 @@ import ForbiddenPage from './pages/Forbidden/ForbiddenPage'
 import DashboardHome from './pages/Dashboard/DashboardHome'
 import CategoriesPage from './pages/Catalog/CategoriesPage'
 import ProductsPage from './pages/Catalog/ProductsPage'
+import AdminRemindersPage from './pages/Catalog/AdminRemindersPage'
 import InventoryAdjustPage from './pages/Inventory/InventoryAdjustPage'
 import InventoryTransferPage from './pages/Inventory/InventoryTransferPage'
 import CustomersPage from './pages/Customers/CustomersPage'
@@ -95,6 +96,11 @@ export default function App() {
 
             <Route path="catalog/categories" element={<CategoriesPage />} />
             <Route path="catalog/products" element={<ProductsPage />} />
+            
+            {/* 🌟 مسار إدارة الأذكار والآيات (للأدمن والموديريتور) */}
+            <Route path="reminders" element={<ProtectedRoute allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Moderator', 'moderator']} />}>
+              <Route index element={<AdminRemindersPage />} />
+            </Route>
 
             <Route path="inventory/adjust" element={<InventoryAdjustPage />} />
             <Route path="inventory/transfer" element={<InventoryTransferPage />} />
