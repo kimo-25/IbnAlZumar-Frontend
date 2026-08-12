@@ -11,13 +11,6 @@ import { formatCurrency } from '../../utils/catalog'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../../context/AuthContext'
 
-const GOVERNORATES = [
-  'القاهرة', 'الجيزة', 'الإسكندرية', 'القليوبية', 'الشرقية',
-  'الدقهلية', 'الغربية', 'المنوفية', 'البحيرة', 'كفر الشيخ',
-  'دمياط', 'بورسعيد', 'الإسماعيلية', 'السويس', 'بني سويف',
-  'الفيوم', 'المنيا', 'أسيوط', 'سوهاج', 'قنا', 'الأقصر', 'أسوان'
-]
-
 export default function CheckoutPage() {
   const navigate = useNavigate()
   const { items, subtotal, clearCart } = useCart()
@@ -30,6 +23,9 @@ export default function CheckoutPage() {
     deliveryGovernorate: ''
   })
   
+  const [shippingZones, setShippingZones] = useState([])
+  const [selectedZonePrice, setSelectedZonePrice] = useState(0)
+
   const [submitting, setSubmitting] = useState(false)
   const [loadingProfile, setLoadingProfile] = useState(false)
   const [error, setError] = useState(null)
@@ -39,8 +35,10 @@ export default function CheckoutPage() {
   const [user, setUser] = useState(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
 
-  // جلب البيانات عند تحميل الصفحة
+  // جلب مناطق الشحن والبيانات عند تحميل الصفحة
   useEffect(() => {
+    fetchShippingZones()
+
     const token = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
 
@@ -65,19 +63,30 @@ export default function CheckoutPage() {
     }
   }, [])
 
-  // دالة جلب بيانات البروفايل المحدثة من الـ API
+  async function fetchShippingZones() {
+    try {
+      const res = await axiosInstance.get('/ShippingZones')
+      const data = res.data
+      const zones = Array.isArray(data) ? data : (data.$values || data.data || [])
+      setShippingZones(zones)
+    } catch (err) {
+      console.error('تعذر جلب مناطق الشحن', err)
+    }
+  }
+
   async function fetchUserProfile(token) {
     setLoadingProfile(true)
     try {
       const response = await axiosInstance.get('/Auth/profile')
       const data = response.data
       setUser(data)
-      setForm({
+      setForm(prev => ({
+        ...prev,
         guestName: data.fullName || data.name || '',
         guestPhone: data.phone || '',
         shippingAddress: data.address || '',
         deliveryGovernorate: data.governorate || ''
-      })
+      }))
       localStorage.setItem('user', JSON.stringify(data))
     } catch (err) {
       console.error('تعذر جلب بيانات الملف الشخصي من الباك إند', err)
@@ -87,10 +96,18 @@ export default function CheckoutPage() {
   }
 
   function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }))
+    setForm((current) => {
+      const updated = { ...current, [field]: value }
+      if (field === 'deliveryGovernorate') {
+        const found = shippingZones.find(z => z.name === value)
+        setSelectedZonePrice(found ? (found.price || 0) : 0)
+      }
+      return updated
+    })
   }
 
-  // عند تسجيل الدخول بجوجل
+  const grandTotal = subtotal + selectedZonePrice
+
   async function handleGoogleSuccess(credentialResponse) {
     setError(null)
     try {
@@ -120,7 +137,6 @@ export default function CheckoutPage() {
     }
   }
 
-  // تحديث البروفايل في الباك إند تلقائياً
   async function syncProfileData(token, formData) {
     try {
       await axiosInstance.put('/Auth/update-profile', {
@@ -134,18 +150,15 @@ export default function CheckoutPage() {
     }
   }
 
-  // تنفيذ إرسال الطلب
   async function executeOrderSubmission(overrideToken = null, overrideForm = null) {
     setSubmitting(true)
     try {
-      const currentTotal = subtotal
+      const currentTotal = grandTotal
       const token = overrideToken || localStorage.getItem('token')
       const formData = overrideForm || form
 
-      // 1. إنشاء الطلب
-      const order = await createGuestOrder({ ...formData, items }, token)
+      const order = await createGuestOrder({ ...formData, items, totalAmount: currentTotal }, token)
 
-      // 2. تحديث بيانات البروفايل في الباك إند والـ localStorage
       if (token) {
         await syncProfileData(token, formData)
       }
@@ -227,7 +240,7 @@ export default function CheckoutPage() {
               رقم الطلب <span className="font-mono font-bold text-emerald-600">{orderNumber}</span> تم إرساله إلى النظام. سيقوم فريق المبيعات بالتواصل معك لتأكيد تفاصيل التوصيل والدفع عند الاستلام.
             </p>
             <div className="rounded-xl border border-border bg-canvas px-6 py-3 my-1">
-              <span className="text-xs text-ink-soft block mb-0.5">إجمالي الطلب:</span>
+              <span className="text-xs text-ink-soft block mb-0.5">إجمالي الطلب (شامل الشحن):</span>
               <span className="text-lg font-mono font-bold text-ink">{formatCurrency(completedTotal)}</span>
             </div>
             
@@ -261,7 +274,6 @@ export default function CheckoutPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <Card title="بيانات العميل">
-          {/* تنبيه محسّن لحالة المستخدم واكتفاء التعبئة تلقائياً للمرات القادمة */}
           {user && (
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-900 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -283,9 +295,7 @@ export default function CheckoutPage() {
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="guestName">
-                الاسم الكامل
-              </label>
+              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="guestName">الاسم الكامل</label>
               <input
                 id="guestName"
                 value={form.guestName}
@@ -296,9 +306,7 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="guestPhone">
-                رقم الهاتف
-              </label>
+              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="guestPhone">رقم الهاتف</label>
               <input
                 id="guestPhone"
                 type="tel"
@@ -310,9 +318,7 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="shippingAddress">
-                العنوان بالتفصيل
-              </label>
+              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="shippingAddress">العنوان بالتفصيل</label>
               <textarea
                 id="shippingAddress"
                 rows={3}
@@ -324,19 +330,17 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="deliveryGovernorate">
-                المحافظة
-              </label>
+              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="deliveryGovernorate">المنطقة / المحافظة</label>
               <select
                 id="deliveryGovernorate"
                 value={form.deliveryGovernorate}
                 onChange={(event) => updateField('deliveryGovernorate', event.target.value)}
                 className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink outline-none transition focus:border-amber focus:ring-2 focus:ring-amber/20"
               >
-                <option value="">اختر المحافظة</option>
-                {GOVERNORATES.map((governorate) => (
-                  <option key={governorate} value={governorate}>
-                    {governorate}
+                <option value="">اختر المنطقة أو المحافظة</option>
+                {shippingZones.map((zone) => (
+                  <option key={zone.id || zone.name} value={zone.name}>
+                    {zone.name} {zone.price ? `(${formatCurrency(zone.price)})` : ''}
                   </option>
                 ))}
               </select>
@@ -360,6 +364,14 @@ export default function CheckoutPage() {
               <span className="font-mono text-base font-semibold text-ink">{formatCurrency(subtotal)}</span>
             </div>
             <div className="flex items-center justify-between text-sm text-ink-soft">
+              <span>تكلفة الشحن</span>
+              <span className="font-mono text-base font-semibold text-ink">{formatCurrency(selectedZonePrice)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm font-bold text-ink border-t border-border pt-3">
+              <span>الإجمالي الكلي</span>
+              <span className="font-mono text-lg text-emerald-600">{formatCurrency(grandTotal)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm text-ink-soft">
               <span>طريقة الدفع</span>
               <span className="font-medium text-ink">الدفع عند الاستلام</span>
             </div>
@@ -378,7 +390,6 @@ export default function CheckoutPage() {
         </Card>
       </div>
 
-      {/* مودال تسجيل الدخول الإجباري */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs" dir="rtl">
           <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl border border-border relative">
