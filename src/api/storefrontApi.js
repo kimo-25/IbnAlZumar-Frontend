@@ -33,10 +33,14 @@ export async function getCategories() {
  * @param {String} [token] - توكن المصادقة اختياري (JWT)
  */
 export async function createGuestOrder(orderData, token = null) {
+  // استخدام التوكن المُمرر أو جحبه تلقائياً من الـ localStorage كاحتياطي إضافي
+  const activeToken = token || localStorage.getItem('token')
   const headers = {}
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
+  
+  if (activeToken) {
+    headers['Authorization'] = `Bearer ${activeToken}`
   }
+
   const response = await axiosInstance.post('/Orders', orderData, { headers })
   return response.data
 }
