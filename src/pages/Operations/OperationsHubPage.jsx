@@ -61,7 +61,7 @@ export default function OperationsHubPage() {
   async function fetchShippingZones() {
     try {
       setLoadingZones(true)
-      const res = await axiosInstance.get('/ShippingZones') // تأكد من الـ Endpoint المتفق عليها للـ ShippingZones
+      const res = await axiosInstance.get('/ShippingZones')
       const data = res.data
       setShippingZones(Array.isArray(data) ? data : (data.$values || data.data || []))
     } catch (err) {
@@ -176,7 +176,7 @@ export default function OperationsHubPage() {
           {loading ? (
             <div className="flex justify-center py-12"><Loader2 size={32} className="animate-spin text-emerald-600" /></div>
           ) : error ? (
-            <div className="rounded-xl bg-danger/10 p-4 text-danger text-sm">{error}</div>
+            <div className="rounded-xl bg-red-50 p-4 text-red-700 text-sm border border-red-200">{error}</div>
           ) : (
             <div className="rounded-2xl border border-border bg-surface shadow-xs overflow-hidden">
               <table className="w-full text-right text-xs">
@@ -304,7 +304,7 @@ export default function OperationsHubPage() {
                         <td className="p-3 text-center">
                           <button 
                             onClick={() => handleDeleteZone(zone.id)}
-                            className="p-1.5 rounded-lg text-danger hover:bg-danger/10 transition cursor-pointer"
+                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition cursor-pointer"
                             title="حذف المنطقة"
                           >
                             <Trash2 size={14} />

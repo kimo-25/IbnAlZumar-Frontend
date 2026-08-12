@@ -133,7 +133,7 @@ export default function CheckoutPage() {
 
       await executeOrderSubmission(data.token, updatedForm)
     } catch (err) {
-      setError(err?.message || 'حدث خطأ أثناء تسجيل الدخول بجوجل.')
+      setError(err?.response?.data?.message || err?.message || 'حدث خطأ أثناء تسجيل الدخول بجوجل.')
     }
   }
 
@@ -152,6 +152,7 @@ export default function CheckoutPage() {
 
   async function executeOrderSubmission(overrideToken = null, overrideForm = null) {
     setSubmitting(true)
+    setError(null)
     try {
       const currentTotal = grandTotal
       const token = overrideToken || localStorage.getItem('token')
@@ -181,7 +182,8 @@ export default function CheckoutPage() {
       setOrderNumber(order?.orderNumber || order?.id || null)
       clearCart()
     } catch (err) {
-      setError(err?.message || 'تعذر إرسال الطلب، يرجى المحاولة مرة أخرى.')
+      console.error('Order submission error:', err)
+      setError(err?.response?.data?.message || err?.response?.data || err?.message || 'تعذر إرسال الطلب، يرجى المحاولة مرة أخرى.')
     } finally {
       setSubmitting(false)
     }
@@ -288,9 +290,9 @@ export default function CheckoutPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {error && (
-              <div className="flex items-start gap-2 rounded-xl border border-danger/20 bg-danger/5 p-3 text-sm text-danger">
+              <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                <span>{error}</span>
+                <span>{typeof error === 'string' ? error : JSON.stringify(error)}</span>
               </div>
             )}
 
@@ -422,9 +424,9 @@ export default function CheckoutPage() {
             </div>
 
             {error && (
-              <div className="mt-4 flex items-center gap-2 rounded-xl bg-danger/10 p-3 text-xs text-danger border border-danger/20">
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-xs text-red-700 border border-red-200">
                 <AlertCircle size={16} className="shrink-0" />
-                <span>{error}</span>
+                <span>{typeof error === 'string' ? error : JSON.stringify(error)}</span>
               </div>
             )}
           </div>
