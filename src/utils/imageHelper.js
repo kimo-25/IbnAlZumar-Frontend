@@ -3,13 +3,24 @@
 // صورة افتراضية محترفة ومناسبة للمتجر في حال فشل تحميل الصورة
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600&auto=format&fit=crop';
 
+// رابط سيرفر Azure الأساسي للإنتاج في حال لم يتم قراءة متغيرات البيئة على GitHub Pages
+const DEFAULT_PROD_API_URL = 'https://ibnalzumar-api-bub8fyaceheggxec.southafricanorth-01.azurewebsites.net/api';
+
 /**
- * الحصول على رابط الـ API الأساسي من متغيرات البيئة
+ * الحصول على رابط الـ API الأساسي من متغيرات البيئة أو السيرفر الجديد
  * @returns {string} - رابط الـ API
  */
 export function getApiBaseUrl() {
-  const url = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5211';
+  const url = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || DEFAULT_PROD_API_URL;
   return url.replace(/\/+$/, ''); // تنظيف السلاش الأخيرة
+}
+
+/**
+ * استخراج الـ Origin الخاص بالسيرفر بدون /api (للصور والملفَات الثابتة)
+ * @returns {string}
+ */
+export function getApiOrigin() {
+  return getApiBaseUrl().replace(/\/api\/?$/i, '');
 }
 
 /**
@@ -47,11 +58,11 @@ export function getImageUrl(imageInput) {
     return trimmed;
   }
 
-  // 5. الحصول على رابط الـ API الأساسي وتنظيف المسارات
-  const apiBaseUrl = getApiBaseUrl();
+  // 5. الحصول على الـ Origin الخاص بسيرفر Azure للصور وتنظيف المسارات
+  const apiOrigin = getApiOrigin();
   const cleanPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
 
-  return `${apiBaseUrl}/${cleanPath}`;
+  return `${apiOrigin}/${cleanPath}`;
 }
 
 /**
