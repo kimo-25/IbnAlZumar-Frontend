@@ -8,19 +8,18 @@ const DEFAULT_PROD_API_URL = 'https://ibnalzumar-api-bub8fyaceheggxec.southafric
 const DEFAULT_DEV_API_URL = 'https://localhost:7223/api';
 
 /**
- * الحصول على رابط الـ API الأساسي شاملاً /api
+ * الحصول على رابط الـ API الأساسي شاملاً /api مع الحماية ضد التكرار
  * @returns {string} - رابط الـ API
  */
 export function getApiBaseUrl() {
   const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
   let url = envUrl || (import.meta.env.DEV ? DEFAULT_DEV_API_URL : DEFAULT_PROD_API_URL);
   
-  // التأكد من أن الرابط ينتهي بـ /api بدون سلاش زائدة في النهاية
-  url = url.replace(/\/+$/, '');
-  if (!url.endsWith('/api')) {
-    url = `${url}/api`;
-  }
-  return url;
+  // التأكد من إزالة أي سلاشات زائدة أو /api مكررة من النهاية أولاً
+  url = url.replace(/\/+$/, '').replace(/\/api\/?$/i, '');
+  
+  // إعادة إضافة /api مرة واحدة فقط بشكل مضمون
+  return `${url}/api`;
 }
 
 /**
@@ -33,7 +32,7 @@ export function getApiOrigin() {
 
 /**
  * الحصول على الرابط الكامل للصورة مع التعامل مع الروابط النسبية والكاملة
- * ותوفير صورة افتراضية في حال عدم توفر الصورة
+ * وتوفير صورة افتراضية في حال عدم توفر الصورة
  * @param {string|object} imageInput - مسار أو رابط الصورة، أو كائن المنتج مباشرة
  * @returns {string} - الرابط الكامل أو صورة Placeholder افتراضية
  */
