@@ -9,12 +9,12 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://ibn-al-zumar-backend-production-f3dc.up.railway.app',
+        target: 'https://ibnalzumar-api-bub8fyaceheggxec.southafricanorth-01.azurewebsites.net',
         changeOrigin: true,
         secure: true,
       },
       '/uploads': {
-        target: 'https://ibn-al-zumar-backend-production-f3dc.up.railway.app',
+        target: 'https://ibnalzumar-api-bub8fyaceheggxec.southafricanorth-01.azurewebsites.net',
         changeOrigin: true,
         secure: true,
       },
