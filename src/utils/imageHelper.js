@@ -67,7 +67,12 @@ export function getImageUrl(imageInput) {
 
   // 5. الحصول على الـ Origin الخاص بسيرفر Azure للصور وتنظيف المسارات
   const apiOrigin = getApiOrigin();
-  const cleanPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
+  let cleanPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
+
+  // 6. توجيه المسارات القصيرة (أسماء الصور مباشرة) إلى مجلد التخزين الصحيح في الباك إند
+  if (!cleanPath.startsWith('uploads/')) {
+    cleanPath = `uploads/products/${cleanPath}`;
+  }
 
   return `${apiOrigin}/${cleanPath}`;
 }
