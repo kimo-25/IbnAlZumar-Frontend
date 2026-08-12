@@ -5,18 +5,26 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1581092160607-ee22621d
 
 // رابط سيرفر Azure الأساسي للإنتاج في حال لم يتم قراءة متغيرات البيئة على GitHub Pages
 const DEFAULT_PROD_API_URL = 'https://ibnalzumar-api-bub8fyaceheggxec.southafricanorth-01.azurewebsites.net/api';
+const DEFAULT_DEV_API_URL = 'https://localhost:7223/api';
 
 /**
- * الحصول على رابط الـ API الأساسي من متغيرات البيئة أو السيرفر الجديد
+ * الحصول على رابط الـ API الأساسي شاملاً /api
  * @returns {string} - رابط الـ API
  */
 export function getApiBaseUrl() {
-  const url = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || DEFAULT_PROD_API_URL;
-  return url.replace(/\/+$/, ''); // تنظيف السلاش الأخيرة
+  const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+  let url = envUrl || (import.meta.env.DEV ? DEFAULT_DEV_API_URL : DEFAULT_PROD_API_URL);
+  
+  // التأكد من أن الرابط ينتهي بـ /api بدون سلاش زائدة في النهاية
+  url = url.replace(/\/+$/, '');
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
 }
 
 /**
- * استخراج الـ Origin الخاص بالسيرفر بدون /api (للصور والملفَات الثابتة)
+ * استخراج الـ Origin الخاص بالسيرفر بدون /api (للصور والملفات الثابتة)
  * @returns {string}
  */
 export function getApiOrigin() {
@@ -25,7 +33,7 @@ export function getApiOrigin() {
 
 /**
  * الحصول على الرابط الكامل للصورة مع التعامل مع الروابط النسبية والكاملة
- * وتوفير صورة افتراضية في حال عدم توفر الصورة
+ * ותوفير صورة افتراضية في حال عدم توفر الصورة
  * @param {string|object} imageInput - مسار أو رابط الصورة، أو كائن المنتج مباشرة
  * @returns {string} - الرابط الكامل أو صورة Placeholder افتراضية
  */
@@ -66,27 +74,22 @@ export function getImageUrl(imageInput) {
 }
 
 /**
- * استخراج مسار الصورة من كائن المنتج الذكي (سواء كان يحتوي على primaryImage أو variants أو غير ذلك)
+ * استخراج مسار الصورة من كائن المنتج الذكي
  * @param {object|string} product - كائن المنتج أو مسار الصورة المباشر
  * @returns {string} - المسار المباشر قبل المعالجة
  */
 export function getProductImagePath(product) {
   if (!product) return FALLBACK_IMAGE;
 
-  // إذا تم إرسال النص مباشرة
   if (typeof product === 'string') return product;
 
-  // 1. فحص الصورة الأساسية
   if (product.primaryImage) return product.primaryImage;
 
-  // 2. فحص الـ Default Variant
   const defaultVariant = product.variants?.find((v) => v.isDefault) || product.variants?.[0];
   if (defaultVariant?.imageUrl) return defaultVariant.imageUrl;
 
-  // 3. فحص حقل imageUrl المباشر على مستوى المنتج
   if (product.imageUrl) return product.imageUrl;
 
-  // 4. Fallback
   return FALLBACK_IMAGE;
 }
 
@@ -98,10 +101,10 @@ export function getProductImageFallbackUrl() {
 }
 
 /**
- * التعامل مع أخطاء تحميل الصور وعرض صورة بديلة (Fallback) مباشرة على عنصر الـ img
+ * التعامل مع أخطاء تحميل الصور وعرض صورة بديلة مباشرة على عنصر الـ img
  * @param {Event} e - حدث الخطأ للـ Image
  */
 export function handleImageError(e) {
-  e.target.onerror = null; // لمنع التكرار اللانهائي في حال فشل الصورة البديلة أيضاً
+  e.target.onerror = null;
   e.target.src = FALLBACK_IMAGE;
 }

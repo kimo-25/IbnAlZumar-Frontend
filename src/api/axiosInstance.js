@@ -1,10 +1,11 @@
 // File: src/api/axiosInstance.js
 import axios from 'axios'
 import { getStoredAuth, clearStoredAuth, isAuthExpired } from '../utils/auth'
+import { getApiBaseUrl } from '../utils/imageHelper'
 
 const axiosInstance = axios.create({
-  // تم إضافة /api هنا لضمان توجيه كل الريكويستات بشكل صحيح وسليم للـ Backend
-  baseURL: 'https://ibn-al-zumar-backend-production-f3dc.up.railway.app/api',
+  // تم الربط بالدالة الديناميكية لقراءة رابط Azure من متغيرات البيئة بدلاً من Railway
+  baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
 })
 
