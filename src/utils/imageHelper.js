@@ -65,11 +65,11 @@ export function getImageUrl(imageInput) {
     return trimmed;
   }
 
-  // 5. الحصول على الـ Origin الخاص بسيرفر Azure للصور وتنظيف المسارات
+  // 5. الحصول على الـ Origin الخاص بسيرفر Azure للصور وتنظيف المسارات (تحويل السلاشات المعكوسة)
   const apiOrigin = getApiOrigin();
   let cleanPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
 
-  // 6. توجيه المسارات القصيرة (أسماء الصور مباشرة) إلى مجلد التخزين الصحيح في الباك إند
+  // 6. إذا كان المسار يبدأ بـ uploads مباشرة أو يحتوي عليها يتم التعامل معه، وإلا يتم توجيهه لمجلد المنتجات
   if (!cleanPath.startsWith('uploads/')) {
     cleanPath = `uploads/products/${cleanPath}`;
   }
@@ -87,12 +87,13 @@ export function getProductImagePath(product) {
 
   if (typeof product === 'string') return product;
 
+  // فحص الخصائص المختلفة التي قد يحمل فيها مسار الصورة حسب شكل الـ API
+  if (product.mainImageUrl) return product.mainImageUrl;
+  if (product.imageUrl) return product.imageUrl;
   if (product.primaryImage) return product.primaryImage;
 
   const defaultVariant = product.variants?.find((v) => v.isDefault) || product.variants?.[0];
   if (defaultVariant?.imageUrl) return defaultVariant.imageUrl;
-
-  if (product.imageUrl) return product.imageUrl;
 
   return FALLBACK_IMAGE;
 }
