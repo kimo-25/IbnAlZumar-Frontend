@@ -1,4 +1,3 @@
-// File: src/components/storefront/ProductCard.jsx
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { Check, ShoppingBag } from 'lucide-react'
@@ -26,12 +25,12 @@ export default function ProductCard({ product }) {
     e.preventDefault() // لمنع أي سلوك افتراضي مزعج
     addItem(
       {
-        id: defaultVariant?.id || product.id,
+        id: product.id, // استخدام معرف المنتج الأساسي دائماً لضمان صحة الأوردر
+        variantId: defaultVariant?.id || null, // الاحتفاظ بمعرف المتغير بشكل مستقل
         name: displayName,
         sku: defaultVariant?.sku || product.sku,
         price,
         imageUrl: rawImagePath,
-        variantId: defaultVariant?.id || null,
         variantLabel: buildVariantLabel(defaultVariant),
         selectedOptions: defaultVariant?.attributes || {},
       },
