@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // دالة تحديد المسار المستهدف بناءً على دور المستخدم والصفحة القادم منها
+  // دالة تحديد المسار المستهدف بناءً على دور المستخدم الفعلي فقط دون افتراضات خاطئة
   const determineDestination = (userData) => {
     // 1. إذا كان تم تحويل المستخدم من صفحة محمية سابقة (مثل /admin/operations)
     const fromPath = location.state?.from?.pathname
@@ -35,7 +35,7 @@ export default function LoginPage() {
 
     const normalizedRoles = roles.map((r) => String(r).toUpperCase().trim())
 
-    // 3. التوجيه بناءً على الدور الفعلي
+    // 3. التوجيه بناءً على الدور الفعلي الصارم فقط
     if (normalizedRoles.includes('ONLINE_MANAGER')) {
       return '/admin/operations'
     }
@@ -48,13 +48,12 @@ export default function LoginPage() {
       ['ADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'STORE_OWNER', 'OWNER'].includes(r)
     )
 
-    const isLoginFromAdminPage = location.pathname === '/admin/login'
-
-    if (isAdminOrOwner || isLoginFromAdminPage) {
+    // تم إزالة الاعتماد تماماً على مسار الـ URL لمنع دخول الزوار العاديين للوحة التحكم
+    if (isAdminOrOwner) {
       return '/admin/dashboard'
     }
 
-    // 4. الافتراضي للعميل العادي (Customer)
+    // 4. الافتراضي الحتمي للعميل العادي (Customer)
     return '/profile'
   }
 
@@ -94,7 +93,7 @@ export default function LoginPage() {
 
       const targetPath = determineDestination(data)
       navigate(targetPath, { replace: true })
-      // إعادة تحميل خفيفة أو تحديث الصفحة لضمان قراءة AuthContext للبيانات الجديدة
+      // إعادة تحميل خفيفة لضمان قراءة AuthContext للبيانات الجديدة
       window.location.href = targetPath;
     } catch (err) {
       setError(err?.message || 'حدث خطأ أثناء المصادقة مع جوجل.')

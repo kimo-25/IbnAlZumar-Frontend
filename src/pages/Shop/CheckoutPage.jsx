@@ -158,7 +158,22 @@ export default function CheckoutPage() {
       const token = overrideToken || localStorage.getItem('token')
       const formData = overrideForm || form
 
-      const order = await createGuestOrder({ ...formData, items, totalAmount: currentTotal }, token)
+      // 🛠️ مطابقة البيانات بدقة مع CreateOrderDto في الـ C# Backend
+      const formattedItems = items.map(item => ({
+        productId: Number(item.id),
+        quantity: Number(item.quantity || 1),
+        unitPrice: Number(item.price) // مطابقة لـ UnitPrice في DTO
+      }))
+
+      const orderPayload = {
+        customerName: formData.guestName,       // مطابقة لـ CustomerName
+        customerPhone: formData.guestPhone,     // مطابقة لـ CustomerPhone
+        shippingAddress: formData.shippingAddress, // مطابقة لـ ShippingAddress
+        notes: `المحافظة: ${formData.deliveryGovernorate} - الإجمالي الكلي: ${currentTotal}`, // حفظ المحافظة والإجمالي داخل Notes
+        items: formattedItems
+      }
+
+      const order = await createGuestOrder(orderPayload, token)
 
       if (token) {
         await syncProfileData(token, formData)
@@ -246,7 +261,7 @@ export default function CheckoutPage() {
               <span className="text-lg font-mono font-bold text-ink">{formatCurrency(completedTotal)}</span>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-3 mt-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-2 mt-2 w-full sm:w-auto">
               <Link
                 to="/profile?tab=orders"
                 className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 shadow-xs"
