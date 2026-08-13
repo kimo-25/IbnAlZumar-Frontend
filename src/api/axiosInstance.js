@@ -7,6 +7,7 @@ const axiosInstance = axios.create({
   // تم الربط بالدالة الديناميكية لقراءة رابط Azure من متغيرات البيئة بدلاً من Railway
   baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // <-- هذا السطر ضروري جداً ليتوافق مع إعدادات الباك إند
 })
 
 // Attach the JWT to every outgoing request
