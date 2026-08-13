@@ -43,19 +43,16 @@ export default function Navbar({ onMenuClick }) {
   const primaryRole = user?.roles?.[0]
   const displayName = getUserName(user?.fullName || user?.name)
 
-  // تحديد رابط الملف الشخصي/اللوحة حسب رتبة المستخدم
+  // تحديد رابط البروفايل بدقة بحسب الرتبة
   const getProfileLink = () => {
     if (!user?.roles || user.roles.length === 0) return '/profile'
     const rolesStr = user.roles.map(r => r.toString().toLowerCase()).join(' ')
-    
-    if (rolesStr.includes('admin') || rolesStr.includes('owner') || rolesStr.includes('store_owner')) {
-      return '/admin/dashboard'
-    }
+
     if (rolesStr.includes('moderator')) {
-      return '/admin/moderator'
+      return '/moderator/profile'
     }
-    if (rolesStr.includes('manager') || rolesStr.includes('online')) {
-      return '/admin/operations'
+    if (rolesStr.includes('admin') || rolesStr.includes('owner') || rolesStr.includes('store_owner')) {
+      return '/admin/profile'
     }
     
     return '/profile'
@@ -75,8 +72,12 @@ export default function Navbar({ onMenuClick }) {
             onClick={() => setIsMenuOpen((v) => !v)}
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-canvas"
           >
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-graphite-900 text-xs font-medium text-white">
-              {displayName?.charAt(0)?.toUpperCase() ?? <UserIcon size={14} />}
+            <div className="grid h-8 w-8 place-items-center overflow-hidden rounded-full bg-graphite-900 text-xs font-medium text-white">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+              ) : (
+                displayName?.charAt(0)?.toUpperCase() ?? <UserIcon size={14} />
+              )}
             </div>
             
             <span className="hidden text-sm font-medium text-ink sm:block">
@@ -111,7 +112,7 @@ export default function Navbar({ onMenuClick }) {
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-canvas"
                 >
                   <UserIcon size={16} className="text-ink-soft" />
-                  <span>الملف الشخصي / اللوحة</span>
+                  <span>الملف الشخصي</span>
                 </Link>
 
                 <button

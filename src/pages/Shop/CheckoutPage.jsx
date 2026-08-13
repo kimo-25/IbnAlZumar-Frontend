@@ -1,5 +1,5 @@
 // File: src/pages/Checkout/CheckoutPage.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, LogIn, UserCheck } from 'lucide-react'
 import Card from '../../components/ui/Card'
@@ -11,6 +11,26 @@ import { formatCurrency } from '../../utils/catalog'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../../context/AuthContext'
 
+function extractErrorMessage(err) {
+  if (!err) return 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.'
+  if (typeof err === 'string') return err
+
+  const responseData = err?.response?.data
+  if (!responseData) return err?.message || 'تعذر الاتصال بالسيرفر.'
+
+  if (typeof responseData === 'string') return responseData
+  if (responseData?.message) return responseData.message
+  if (responseData?.title) return responseData.title
+
+  // معالجة أخطاء C# Validation (ASP.NET Core ModelState / FluentValidation)
+  if (responseData?.errors && typeof responseData.errors === 'object') {
+    const messages = Object.values(responseData.errors).flat()
+    if (messages.length > 0) return messages.join(' | ')
+  }
+
+  return 'تعذر إرسال الطلب، يرجى مراجعة البيانات والمحاولة مرة أخرى.'
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate()
   const { items, subtotal, clearCart } = useCart()
@@ -20,9 +40,9 @@ export default function CheckoutPage() {
     guestName: '',
     guestPhone: '',
     shippingAddress: '',
-    deliveryGovernorate: ''
+    deliveryGovernorate: '',
   })
-  
+
   const [shippingZones, setShippingZones] = useState([])
   const [selectedZonePrice, setSelectedZonePrice] = useState(0)
 
@@ -35,7 +55,41 @@ export default function CheckoutPage() {
   const [user, setUser] = useState(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
 
-  // جلب مناطق الشحن والبيانات عند تحميل الصفحة
+  // 1. جلب مناطق الشحن
+  const fetchShippingZones = useCallback(async () => {
+    try {
+      const res = await axiosInstance.get('/ShippingZones')
+      const data = res.data
+      const zones = Array.isArray(data) ? data : data?.$values || data?.data || []
+      setShippingZones(zones)
+    } catch (err) {
+      console.error('تعذر جلب مناطق الشحن:', err)
+    }
+  }, [])
+
+  // 2. جلب ملف المستخدم الحالي من الباك إند
+  const fetchUserProfile = useCallback(async () => {
+    setLoadingProfile(true)
+    try {
+      const response = await axiosInstance.get('/Auth/profile')
+      const data = response.data
+      setUser(data)
+      setForm((prev) => ({
+        ...prev,
+        guestName: data.fullName || data.name || prev.guestName,
+        guestPhone: data.phone || prev.guestPhone,
+        shippingAddress: data.address || prev.shippingAddress,
+        deliveryGovernorate: data.governorate || prev.deliveryGovernorate,
+      }))
+      localStorage.setItem('user', JSON.stringify(data))
+    } catch (err) {
+      console.error('تعذر جلب بيانات الملف الشخصي:', err)
+    } finally {
+      setLoadingProfile(false)
+    }
+  }, [])
+
+  // التحميل المبدئي للبيانات
   useEffect(() => {
     fetchShippingZones()
 
@@ -46,67 +100,107 @@ export default function CheckoutPage() {
       try {
         const parsed = JSON.parse(storedUser)
         setUser(parsed)
-        setForm(prev => ({
+        setForm((prev) => ({
           ...prev,
           guestName: parsed.fullName || parsed.name || '',
           guestPhone: parsed.phone || '',
           shippingAddress: parsed.address || '',
-          deliveryGovernorate: parsed.governorate || ''
+          deliveryGovernorate: parsed.governorate || '',
         }))
       } catch (e) {
-        console.error('فشل قراءة البيانات من localStorage', e)
+        console.error('فشل قراءة البيانات من localStorage:', e)
       }
     }
 
     if (token) {
-      fetchUserProfile(token)
+      fetchUserProfile()
     }
-  }, [])
+  }, [fetchShippingZones, fetchUserProfile])
 
-  async function fetchShippingZones() {
-    try {
-      const res = await axiosInstance.get('/ShippingZones')
-      const data = res.data
-      const zones = Array.isArray(data) ? data : (data.$values || data.data || [])
-      setShippingZones(zones)
-    } catch (err) {
-      console.error('تعذر جلب مناطق الشحن', err)
+  // 3. مزامنة تكلفة الشحن تلقائياً بمجرد اختيار أو تغير المحافظة أو تحميل مناطق الشحن
+  useEffect(() => {
+    if (form.deliveryGovernorate && shippingZones.length > 0) {
+      const found = shippingZones.find(
+        (z) => z.name?.trim().toLowerCase() === form.deliveryGovernorate?.trim().toLowerCase()
+      )
+      setSelectedZonePrice(found ? Number(found.price || 0) : 0)
+    } else {
+      setSelectedZonePrice(0)
     }
-  }
-
-  async function fetchUserProfile(token) {
-    setLoadingProfile(true)
-    try {
-      const response = await axiosInstance.get('/Auth/profile')
-      const data = response.data
-      setUser(data)
-      setForm(prev => ({
-        ...prev,
-        guestName: data.fullName || data.name || '',
-        guestPhone: data.phone || '',
-        shippingAddress: data.address || '',
-        deliveryGovernorate: data.governorate || ''
-      }))
-      localStorage.setItem('user', JSON.stringify(data))
-    } catch (err) {
-      console.error('تعذر جلب بيانات الملف الشخصي من الباك إند', err)
-    } finally {
-      setLoadingProfile(false)
-    }
-  }
+  }, [form.deliveryGovernorate, shippingZones])
 
   function updateField(field, value) {
-    setForm((current) => {
-      const updated = { ...current, [field]: value }
-      if (field === 'deliveryGovernorate') {
-        const found = shippingZones.find(z => z.name === value)
-        setSelectedZonePrice(found ? (found.price || 0) : 0)
-      }
-      return updated
-    })
+    setForm((current) => ({ ...current, [field]: value }))
   }
 
   const grandTotal = subtotal + selectedZonePrice
+
+  async function syncProfileData(token, formData) {
+    try {
+      await axiosInstance.put('/Auth/update-profile', {
+        fullName: formData.guestName,
+        phone: formData.guestPhone,
+        address: formData.shippingAddress,
+        governorate: formData.deliveryGovernorate,
+      })
+    } catch (e) {
+      console.error('فشل تحديث ملف المستخدم في الباك إند:', e)
+    }
+  }
+
+  async function executeOrderSubmission(overrideToken = null, overrideForm = null) {
+    setSubmitting(true)
+    setError(null)
+    try {
+      const currentTotal = grandTotal
+      const token = overrideToken || localStorage.getItem('token')
+      const formData = overrideForm || form
+
+      // مطابقة العناصر مع CreateOrderDto في الـ Backend
+      const formattedItems = items.map((item) => ({
+        productId: Number(item.id || item.productId),
+        quantity: Number(item.quantity || 1),
+        unitPrice: Number(item.price || 0),
+      }))
+
+      const orderPayload = {
+        customerName: formData.guestName,
+        customerPhone: formData.guestPhone,
+        shippingAddress: formData.shippingAddress,
+        notes: `المحافظة: ${formData.deliveryGovernorate} - الإجمالي الكلي: ${currentTotal}`,
+        items: formattedItems,
+      }
+
+      const order = await createGuestOrder(orderPayload, token)
+
+      if (token) {
+        await syncProfileData(token, formData)
+      }
+
+      const currentStored = JSON.parse(localStorage.getItem('user') || '{}')
+      const updatedUser = {
+        ...currentStored,
+        fullName: formData.guestName,
+        phone: formData.guestPhone,
+        address: formData.shippingAddress,
+        governorate: formData.deliveryGovernorate,
+      }
+
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      if (typeof updateAuthUser === 'function') {
+        updateAuthUser(updatedUser)
+      }
+
+      setCompletedTotal(currentTotal)
+      setOrderNumber(order?.orderNumber || order?.id || 'OK')
+      clearCart()
+    } catch (err) {
+      console.error('Order submission error:', err)
+      setError(extractErrorMessage(err))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   async function handleGoogleSuccess(credentialResponse) {
     setError(null)
@@ -125,7 +219,7 @@ export default function CheckoutPage() {
         guestName: data.fullName || data.name || form.guestName,
         guestPhone: data.phone || form.guestPhone,
         shippingAddress: data.address || form.shippingAddress,
-        deliveryGovernorate: data.governorate || form.deliveryGovernorate
+        deliveryGovernorate: data.governorate || form.deliveryGovernorate,
       }
 
       setForm(updatedForm)
@@ -133,74 +227,7 @@ export default function CheckoutPage() {
 
       await executeOrderSubmission(data.token, updatedForm)
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'حدث خطأ أثناء تسجيل الدخول بجوجل.')
-    }
-  }
-
-  async function syncProfileData(token, formData) {
-    try {
-      await axiosInstance.put('/Auth/update-profile', {
-        fullName: formData.guestName,
-        phone: formData.guestPhone,
-        address: formData.shippingAddress,
-        governorate: formData.deliveryGovernorate
-      })
-    } catch (e) {
-      console.error('فشل تحديث ملف المستخدم في الباك إند', e)
-    }
-  }
-
-  async function executeOrderSubmission(overrideToken = null, overrideForm = null) {
-    setSubmitting(true)
-    setError(null)
-    try {
-      const currentTotal = grandTotal
-      const token = overrideToken || localStorage.getItem('token')
-      const formData = overrideForm || form
-
-      // 🛠️ مطابقة البيانات بدقة مع CreateOrderDto في الـ C# Backend
-      const formattedItems = items.map(item => ({
-        productId: Number(item.id),
-        quantity: Number(item.quantity || 1),
-        unitPrice: Number(item.price) // مطابقة لـ UnitPrice في DTO
-      }))
-
-      const orderPayload = {
-        customerName: formData.guestName,       // مطابقة لـ CustomerName
-        customerPhone: formData.guestPhone,     // مطابقة لـ CustomerPhone
-        shippingAddress: formData.shippingAddress, // مطابقة لـ ShippingAddress
-        notes: `المحافظة: ${formData.deliveryGovernorate} - الإجمالي الكلي: ${currentTotal}`, // حفظ المحافظة والإجمالي داخل Notes
-        items: formattedItems
-      }
-
-      const order = await createGuestOrder(orderPayload, token)
-
-      if (token) {
-        await syncProfileData(token, formData)
-      }
-
-      const currentStored = JSON.parse(localStorage.getItem('user') || '{}')
-      const updatedUser = {
-        ...currentStored,
-        fullName: formData.guestName,
-        phone: formData.guestPhone,
-        address: formData.shippingAddress,
-        governorate: formData.deliveryGovernorate
-      }
-      
-      localStorage.setItem('user', JSON.stringify(updatedUser))
-      if (typeof updateAuthUser === 'function') {
-        updateAuthUser(updatedUser)
-      }
-
-      setCompletedTotal(currentTotal)
-      setOrderNumber(order?.orderNumber || order?.id || null)
-      clearCart()
-    } catch (err) {
-      console.error('Order submission error:', err)
-      setError(err?.response?.data?.message || err?.response?.data || err?.message || 'تعذر إرسال الطلب، يرجى المحاولة مرة أخرى.')
-    } finally {
-      setSubmitting(false)
+      setError(extractErrorMessage(err))
     }
   }
 
@@ -213,7 +240,12 @@ export default function CheckoutPage() {
       return
     }
 
-    if (!form.guestName.trim() || !form.guestPhone.trim() || !form.shippingAddress.trim() || !form.deliveryGovernorate.trim()) {
+    if (
+      !form.guestName.trim() ||
+      !form.guestPhone.trim() ||
+      !form.shippingAddress.trim() ||
+      !form.deliveryGovernorate.trim()
+    ) {
       setError('يرجى إكمال جميع بيانات التوصيل (الاسم، الهاتف، العنوان، المحافظة).')
       return
     }
@@ -227,6 +259,7 @@ export default function CheckoutPage() {
     await executeOrderSubmission()
   }
 
+  // شاشة السلة الفارغة
   if (!items.length && !orderNumber) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:py-12" dir="rtl">
@@ -235,7 +268,10 @@ export default function CheckoutPage() {
           title="لا توجد منتجات لإتمام الطلب"
           description="أضف منتجات إلى السلة أولاً ثم ارجع لهذه الصفحة لإكمال بيانات التوصيل."
           action={
-            <Link to="/" className="rounded-xl bg-graphite-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-graphite-800">
+            <Link
+              to="/"
+              className="rounded-xl bg-graphite-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-graphite-800"
+            >
               العودة للمنتجات
             </Link>
           }
@@ -244,6 +280,7 @@ export default function CheckoutPage() {
     )
   }
 
+  // شاشة نجاح إرسال الطلب
   if (orderNumber) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6" dir="rtl">
@@ -260,7 +297,7 @@ export default function CheckoutPage() {
               <span className="text-xs text-ink-soft block mb-0.5">إجمالي الطلب (شامل الشحن):</span>
               <span className="text-lg font-mono font-bold text-ink">{formatCurrency(completedTotal)}</span>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-2 mt-2 w-full sm:w-auto">
               <Link
                 to="/profile?tab=orders"
@@ -270,6 +307,7 @@ export default function CheckoutPage() {
                 متابعة حالة الطلب
               </Link>
               <button
+                type="button"
                 onClick={() => navigate('/')}
                 className="rounded-xl bg-graphite-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-graphite-800 cursor-pointer"
               >
@@ -282,6 +320,7 @@ export default function CheckoutPage() {
     )
   }
 
+  // النموذج الرئيسي
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-10 relative" dir="rtl">
       <div className="mb-6">
@@ -296,7 +335,7 @@ export default function CheckoutPage() {
               <div className="flex items-center gap-2">
                 <UserCheck size={18} className="text-amber-700 shrink-0" />
                 <span>
-                  أهلاً <strong>{user.fullName || user.name}</strong>، يرجى استكمال الهاتف والعنوان لأول مرة وسيتم حفظها لطلباتك القادمة تلقائياً.
+                  أهلاً <strong>{user.fullName || user.name}</strong>، يرجى استكمال الهاتف والعنوان وسيتم حفظها لطلباتك القادمة تلقائياً.
                 </span>
               </div>
               {loadingProfile && <Loader2 size={14} className="animate-spin text-amber-800 shrink-0" />}
@@ -307,12 +346,14 @@ export default function CheckoutPage() {
             {error && (
               <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                <span>{typeof error === 'string' ? error : JSON.stringify(error)}</span>
+                <span>{error}</span>
               </div>
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="guestName">الاسم الكامل</label>
+              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="guestName">
+                الاسم الكامل
+              </label>
               <input
                 id="guestName"
                 value={form.guestName}
@@ -323,7 +364,9 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="guestPhone">رقم الهاتف</label>
+              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="guestPhone">
+                رقم الهاتف
+              </label>
               <input
                 id="guestPhone"
                 type="tel"
@@ -335,7 +378,9 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="shippingAddress">العنوان بالتفصيل</label>
+              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="shippingAddress">
+                العنوان بالتفصيل
+              </label>
               <textarea
                 id="shippingAddress"
                 rows={3}
@@ -347,7 +392,9 @@ export default function CheckoutPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="deliveryGovernorate">المنطقة / المحافظة</label>
+              <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="deliveryGovernorate">
+                المنطقة / المحافظة
+              </label>
               <select
                 id="deliveryGovernorate"
                 value={form.deliveryGovernorate}
@@ -396,10 +443,16 @@ export default function CheckoutPage() {
               بعد إرسال الطلب سيظهر رقم مرجعي، وسيتم التأكيد هاتفيًا قبل الشحن.
             </div>
             <div className="flex flex-col gap-2">
-              <Link to="/cart" className="rounded-xl border border-border bg-surface px-4 py-3 text-center text-sm font-semibold text-ink transition hover:border-amber/60">
+              <Link
+                to="/cart"
+                className="rounded-xl border border-border bg-surface px-4 py-3 text-center text-sm font-semibold text-ink transition hover:border-amber/60"
+              >
                 العودة إلى السلة
               </Link>
-              <Link to="/" className="rounded-xl bg-graphite-900 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-graphite-800">
+              <Link
+                to="/"
+                className="rounded-xl bg-graphite-900 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-graphite-800"
+              >
                 مواصلة التصفح
               </Link>
             </div>
@@ -411,6 +464,7 @@ export default function CheckoutPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs" dir="rtl">
           <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl border border-border relative">
             <button
+              type="button"
               onClick={() => setShowLoginModal(false)}
               className="absolute left-4 top-4 rounded-lg p-1 text-ink-soft hover:text-ink hover:bg-canvas transition cursor-pointer"
             >
@@ -441,7 +495,7 @@ export default function CheckoutPage() {
             {error && (
               <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-xs text-red-700 border border-red-200">
                 <AlertCircle size={16} className="shrink-0" />
-                <span>{typeof error === 'string' ? error : JSON.stringify(error)}</span>
+                <span>{error}</span>
               </div>
             )}
           </div>

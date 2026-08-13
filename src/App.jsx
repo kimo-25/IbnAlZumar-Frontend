@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { StorefrontSearchProvider } from './context/StorefrontSearchContext'
 
-// 🌟 الـ Component الجمالي للأذكار والآيات (يعمل للجميع هنا)
+// 🌟 الـ Component الجمالي للأذكار والآيات
 import ReminderBanner from './components/ui/ReminderBanner'
 
 // Public storefront
@@ -40,14 +40,16 @@ import OwnerHubPage from './pages/Owner/OwnerHubPage'
 import ModeratorHubPage from './pages/Moderator/ModeratorHubPage'
 import ModeratorCatalogPage from './pages/Moderator/ModeratorCatalogPage'
 
+// Profile Page
+import AdminProfilePage from './pages/Profile/AdminProfilePage'
+
 export default function App() {
   return (
     <>
-      {/* 🟢 يظهر هنا للجميع (زائر، كاستمر، أدمن، موديريتور) بدون تكرار */}
       <ReminderBanner />
 
       <Routes>
-        {/* ---------------- Public storefront (no login) ---------------- */}
+        {/* Storefront */}
         <Route
           element={
             <CartProvider>
@@ -62,7 +64,6 @@ export default function App() {
           <Route path="/products/:productId" element={<ProductDetailsPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
-          
           <Route path="/profile" element={<CustomerProfilePage />} />
           <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
         </Route>
@@ -70,17 +71,29 @@ export default function App() {
         {/* Auth Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-
-        {/* ---------------- Admin ---------------- */}
         <Route path="/admin/login" element={<LoginPage />} />
         <Route path="/admin/forbidden" element={<ForbiddenPage />} />
-        <Route path="/reports" element={<Navigate to="/admin/reports" replace />} />
 
+        {/* ---------------- MODERATOR ROUTES (بدون كلمة admin في URL) ---------------- */}
+        <Route
+          path="/moderator"
+          element={<ProtectedRoute allowRoles={['moderator', 'Moderator', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']} />}
+        >
+          <Route element={<DashboardLayout />}>
+            <Route index element={<ModeratorHubPage />} />
+            <Route path="dashboard" element={<ModeratorHubPage />} />
+            <Route path="catalog" element={<ModeratorCatalogPage />} />
+            <Route path="profile" element={<AdminProfilePage />} />
+          </Route>
+        </Route>
+
+        {/* ---------------- ADMIN ROUTES ---------------- */}
         <Route path="/admin" element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardHome />} />
-            
+            <Route path="profile" element={<AdminProfilePage />} />
+
             <Route path="operations" element={<ProtectedRoute allowRoles={['ONLINE_MANAGER', 'Moderator', 'moderator', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager']} />}>
               <Route index element={<OperationsHubPage />} />
             </Route>
@@ -89,25 +102,17 @@ export default function App() {
               <Route index element={<OwnerHubPage />} />
             </Route>
 
-            <Route path="moderator" element={<ProtectedRoute allowRoles={['moderator', 'Moderator', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']} />}>
-              <Route index element={<ModeratorHubPage />} />
-              <Route path="catalog" element={<ModeratorCatalogPage />} />
-            </Route>
-
             <Route path="catalog/categories" element={<CategoriesPage />} />
             <Route path="catalog/products" element={<ProductsPage />} />
-            
-            {/* 🌟 مسار إدارة الأذكار والآيات (للأدمن والموديريتور) */}
+
             <Route path="reminders" element={<ProtectedRoute allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Moderator', 'moderator']} />}>
               <Route index element={<AdminRemindersPage />} />
             </Route>
 
             <Route path="inventory/adjust" element={<InventoryAdjustPage />} />
             <Route path="inventory/transfer" element={<InventoryTransferPage />} />
-
             <Route path="customers" element={<CustomersPage />} />
             <Route path="purchasing" element={<PurchaseOrdersPage />} />
-
             <Route path="pos" element={<PosCheckoutPage />} />
             <Route path="reports" element={<ProtectedRoute permission="Reports.View" allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'admin']} />}>
               <Route index element={<ReportsPage />} />

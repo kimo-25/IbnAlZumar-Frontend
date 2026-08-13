@@ -1,7 +1,8 @@
+// File: src/utils/catalog.js
 import { getApiBaseUrl, getProductImageFallbackUrl } from './imageHelper'
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Configuration & Helpers
 // ---------------------------------------------------------------------------
 const API_BASE_URL = getApiBaseUrl()
 
@@ -19,7 +20,10 @@ export function formatCurrency(value) {
 export function asArray(value) {
   if (Array.isArray(value)) return value
   if (value == null) return []
-  return Array.isArray(value.items) ? value.items : Array.isArray(value.data) ? value.data : []
+  if (Array.isArray(value.$values)) return value.$values // دعم لكائنات System.Text.Json في C#
+  if (Array.isArray(value.items)) return value.items
+  if (Array.isArray(value.data)) return value.data
+  return []
 }
 
 function readFirst(...values) {
@@ -36,12 +40,10 @@ function readString(...values) {
 
 function normalizeImageUrl(url) {
   let trimmed = readString(url)
-  // حماية من الأخطاء والتأكد من إن المتغير نصي وغير فارغ
   if (!trimmed || typeof trimmed !== 'string') return ''
 
   trimmed = trimmed.replace(/\\/g, '/')
 
-  // إذا كان الرابط مكتمل بالفعل من البداية
   if (
     trimmed.startsWith('http://') ||
     trimmed.startsWith('https://') ||
@@ -51,11 +53,10 @@ function normalizeImageUrl(url) {
     return trimmed
   }
 
-  // التعديل: تنظيف السلاش لضمان عدم حدوث تكرار (Double Slash)
   const cleanApiBase = (API_BASE_URL || '').replace(/\/+$/, '')
   const cleanPath = trimmed.replace(/^\/+/, '')
 
-  return `${cleanApiBase}/${cleanPath}`
+  return cleanApiBase ? `${cleanApiBase}/${cleanPath}` : `/${cleanPath}`
 }
 
 function readNumber(...values) {
@@ -86,6 +87,7 @@ function resolvePriceFields(source = {}) {
     source.price,
     source.Price
   )
+
   const discountPercentage =
     readOptionalNumber(
       source.discountPercentage,
@@ -106,7 +108,9 @@ function resolvePriceFields(source = {}) {
   const computedOriginal = originalPrice ?? explicitPrice ?? 0
   const computedPrice =
     explicitPrice ??
-    (discountPercentage > 0 ? Math.max(0, computedOriginal - (computedOriginal * discountPercentage) / 100) : computedOriginal)
+    (discountPercentage > 0
+      ? Math.max(0, computedOriginal - (computedOriginal * discountPercentage) / 100)
+      : computedOriginal)
 
   return {
     originalPrice: computedOriginal,
@@ -116,17 +120,18 @@ function resolvePriceFields(source = {}) {
 }
 
 function normalizeAttributeSource(variant, key) {
+  if (!variant) return ''
   const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1)
   return readString(
-    variant?.[key],
-    variant?.[capitalizedKey],
-    variant?.attributes?.[key],
-    variant?.Attributes?.[key],
-    variant?.variantAttributes?.[key],
-    variant?.options?.[key],
-    variant?.[`${key}Name`],
-    variant?.[`${capitalizedKey}Name`],
-    variant?.[`${key}_name`]
+    variant[key],
+    variant[capitalizedKey],
+    variant.attributes?.[key],
+    variant.Attributes?.[key],
+    variant.variantAttributes?.[key],
+    variant.options?.[key],
+    variant[`${key}Name`],
+    variant[`${capitalizedKey}Name`],
+    variant[`${key}_name`]
   )
 }
 
@@ -142,11 +147,15 @@ function normalizeSpecsSource(specs) {
       .filter((item) => item.key || item.label || item.value)
   }
 
-  return Object.entries(specs).map(([label, value]) => ({
-    key: label,
-    label,
-    value: Array.isArray(value) ? value.join(', ') : readString(value),
-  }))
+  if (typeof specs === 'object') {
+    return Object.entries(specs).map(([label, value]) => ({
+      key: label,
+      label,
+      value: Array.isArray(value) ? value.join(', ') : readString(value),
+    }))
+  }
+
+  return []
 }
 
 function parseDescriptionSpecs(description) {
@@ -170,6 +179,10 @@ function parseDescriptionSpecs(description) {
     .filter(Boolean)
 }
 
+// ---------------------------------------------------------------------------
+// Main Exported Normalizers
+// ---------------------------------------------------------------------------
+
 export function normalizeVariant(variant = {}) {
   const priceFields = resolvePriceFields(variant)
   const attributes = {
@@ -179,53 +192,109 @@ export function normalizeVariant(variant = {}) {
     material: normalizeAttributeSource(variant, 'material'),
   }
 
-  const imageUrl = normalizeImageUrl(readString(
-    variant.imageUrl, variant.ImageUrl,
-    variant.image, variant.Image,
-    variant.imagePath, variant.ImagePath,
-    variant.thumbnailUrl, variant.ThumbnailUrl,
-    variant.filePath, variant.FilePath,
-    variant.url, variant.Url,
-    variant.img, variant.Img,
-    variant.path, variant.Path
-  )) || getProductImageFallbackUrl()
+  const imageUrl =
+    normalizeImageUrl(
+      readString(
+        variant.imageUrl,
+        variant.ImageUrl,
+        variant.image,
+        variant.Image,
+        variant.imagePath,
+        variant.ImagePath,
+        variant.thumbnailUrl,
+        variant.ThumbnailUrl,
+        variant.filePath,
+        variant.FilePath,
+        variant.url,
+        variant.Url,
+        variant.img,
+        variant.Img,
+        variant.path,
+        variant.Path
+      )
+    ) || getProductImageFallbackUrl()
 
   return {
     ...variant,
-    id: readFirst(variant.id, variant.Id, variant.variantId, variant.VariantId, variant.productVariantId, variant.ProductVariantId, variant.sku, variant.Sku),
+    id: readFirst(
+      variant.id,
+      variant.Id,
+      variant.variantId,
+      variant.VariantId,
+      variant.productVariantId,
+      variant.ProductVariantId,
+      variant.sku,
+      variant.Sku
+    ),
     sku: readString(variant.sku, variant.Sku, variant.code, variant.Code, variant.variantSku, variant.VariantSku),
     name: readString(variant.name, variant.Name, variant.variantName, variant.VariantName),
     ...priceFields,
     imageUrl,
-    stock: readNumber(variant.stock, variant.Stock, variant.inStock, variant.InStock, variant.quantityOnHand, variant.QuantityOnHand),
+    stock: readNumber(
+      variant.stock,
+      variant.Stock,
+      variant.inStock,
+      variant.InStock,
+      variant.quantityOnHand,
+      variant.QuantityOnHand
+    ),
     isDefault: Boolean(variant.isDefault || variant.Default),
     attributes,
-    specs: normalizeSpecsSource(variant.specs || variant.Specs || variant.specifications || variant.Specifications || variant.specification),
+    specs: normalizeSpecsSource(
+      variant.specs || variant.Specs || variant.specifications || variant.Specifications || variant.specification
+    ),
   }
 }
 
 export function normalizeProduct(rawProduct = {}) {
   const product =
-    rawProduct?.data && (rawProduct.data.id || rawProduct.data.Id || rawProduct.data.name || rawProduct.data.Name) ? rawProduct.data :
-    rawProduct?.product && (rawProduct.product.id || rawProduct.product.Id || rawProduct.product.name || rawProduct.product.Name) ? rawProduct.product :
-    rawProduct?.item && (rawProduct.item.id || rawProduct.item.Id) ? rawProduct.item :
-    rawProduct?.result && (rawProduct.result.id || rawProduct.result.Id) ? rawProduct.result :
-    rawProduct
+    rawProduct?.data && (rawProduct.data.id || rawProduct.data.Id || rawProduct.data.name || rawProduct.data.Name)
+      ? rawProduct.data
+      : rawProduct?.product && (rawProduct.product.id || rawProduct.product.Id || rawProduct.product.name || rawProduct.product.Name)
+      ? rawProduct.product
+      : rawProduct?.item && (rawProduct.item.id || rawProduct.item.Id)
+      ? rawProduct.item
+      : rawProduct?.result && (rawProduct.result.id || rawProduct.result.Id)
+      ? rawProduct.result
+      : rawProduct
 
   const variants = asArray(
     product.variants || product.Variants || product.variantList || product.VariantList || product.productVariants || product.ProductVariants
   ).map(normalizeVariant)
 
   const gallery = asArray(
-    product.galleryImages || product.GalleryImages || product.images || product.Images || product.imageUrls || product.ImageUrls || product.media || product.Media || product.productImages || product.ProductImages || product.attachments || product.Attachments
-  ).map((item) => normalizeImageUrl(readString(
-    item?.url, item?.Url,
-    item?.imageUrl, item?.ImageUrl,
-    item?.imagePath, item?.ImagePath,
-    item?.src, item,
-    item?.filePath, item?.FilePath,
-    item?.path, item?.Path
-  ))).filter(Boolean)
+    product.galleryImages ||
+      product.GalleryImages ||
+      product.images ||
+      product.Images ||
+      product.imageUrls ||
+      product.ImageUrls ||
+      product.media ||
+      product.Media ||
+      product.productImages ||
+      product.ProductImages ||
+      product.attachments ||
+      product.Attachments
+  )
+    .map((item) =>
+      normalizeImageUrl(
+        readString(
+          item?.url,
+          item?.Url,
+          item?.imageUrl,
+          item?.ImageUrl,
+          item?.imagePath,
+          item?.ImagePath,
+          item?.src,
+          item,
+          item?.filePath,
+          item?.FilePath,
+          item?.path,
+          item?.Path
+        )
+      )
+    )
+    .filter(Boolean)
 
   const priceFields = resolvePriceFields(product)
 
@@ -262,20 +331,14 @@ export function normalizeProduct(rawProduct = {}) {
     )
   )
 
-  if (!baseImage && gallery.length > 0) {
-    baseImage = gallery[0]
-  }
+  if (!baseImage && gallery.length > 0) baseImage = gallery[0]
 
   if (!baseImage && variants.length > 0) {
     const variantWithImage = variants.find((v) => v.imageUrl)
-    if (variantWithImage) {
-      baseImage = variantWithImage.imageUrl
-    }
+    if (variantWithImage) baseImage = variantWithImage.imageUrl
   }
 
-  if (!baseImage) {
-    baseImage = getProductImageFallbackUrl()
-  }
+  if (!baseImage) baseImage = getProductImageFallbackUrl()
 
   if (baseImage && !gallery.includes(baseImage)) {
     gallery.unshift(baseImage)
@@ -295,12 +358,7 @@ export function normalizeProduct(rawProduct = {}) {
       product.productName,
       product.ProductName
     ),
-    nameAr: readString(
-      product.nameAr,
-      product.NameAr,
-      product.arabicName,
-      product.ArabicName
-    ),
+    nameAr: readString(product.nameAr, product.NameAr, product.arabicName, product.ArabicName),
     nameEn: readString(
       product.name,
       product.Name,
@@ -332,7 +390,14 @@ export function normalizeProduct(rawProduct = {}) {
     gallery,
     specs: [
       ...parseDescriptionSpecs(product.description || product.Description),
-      ...normalizeSpecsSource(product.specs || product.Specs || product.specifications || product.Specifications || product.attributes || product.Attributes),
+      ...normalizeSpecsSource(
+        product.specs ||
+          product.Specs ||
+          product.specifications ||
+          product.Specifications ||
+          product.attributes ||
+          product.Attributes
+      ),
     ],
   }
 }
@@ -345,35 +410,53 @@ export function normalizeCategoriesResponse(data) {
   return asArray(data)
 }
 
-export function resolveVariantByAttributes(variants, selectedAttributes) {
+export function resolveVariantByAttributes(variants = [], selectedAttributes = {}) {
   if (!variants.length) return null
 
-  const keys = Object.keys(selectedAttributes || {}).filter((key) => selectedAttributes[key])
+  const keys = Object.keys(selectedAttributes).filter((key) => selectedAttributes[key])
   if (!keys.length) {
     return variants.find((variant) => variant.isDefault) || variants[0]
   }
 
   return (
     variants.find((variant) =>
-      keys.every((key) => String(variant.attributes?.[key] || '').toLowerCase() === String(selectedAttributes[key]).toLowerCase())
-    ) || variants.find((variant) => variant.isDefault) || variants[0]
+      keys.every(
+        (key) => String(variant.attributes?.[key] || '').toLowerCase() === String(selectedAttributes[key]).toLowerCase()
+      )
+    ) ||
+    variants.find((variant) => variant.isDefault) ||
+    variants[0]
   )
 }
 
 export function buildVariantLabel(variant) {
   if (!variant) return ''
-  const parts = [variant.attributes?.color, variant.attributes?.finish, variant.attributes?.size, variant.attributes?.material]
+  const parts = [
+    variant.attributes?.color,
+    variant.attributes?.finish,
+    variant.attributes?.size,
+    variant.attributes?.material,
+  ]
     .map((part) => readString(part))
     .filter(Boolean)
+
   return parts.join(' · ')
 }
 
-export function collectUniqueValues(products, key) {
+export function collectUniqueValues(products = [], key = '') {
+  if (!key) return []
   const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1)
   return Array.from(
     new Set(
       products
-        .map((product) => readString(product?.[key], product?.[capitalizedKey], product?.[`${key}Name`], product?.[`${capitalizedKey}Name`]))
+        .map((product) =>
+          readString(
+            product?.[key],
+            product?.[capitalizedKey],
+            product?.[`${key}Name`],
+            product?.[`${capitalizedKey}Name`]
+          )
+        )
         .filter(Boolean)
     )
   ).sort((a, b) => a.localeCompare(b, 'ar'))
