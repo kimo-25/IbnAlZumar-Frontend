@@ -79,11 +79,19 @@ export default function OperationsHubPage() {
     }
     try {
       setAddingZone(true)
+      
+      const costValue = parseFloat(newZone.price) || 0;
+      
+      // مطابقة كاملة مع الخصائص الموجودة في Entity الباك إند
       await axiosInstance.post('/ShippingZones', {
         name: newZone.name,
-        price: parseFloat(newZone.price),
-        estimatedDays: parseInt(newZone.estimatedDays || 1)
+        governorate: newZone.name,
+        shippingCost: costValue,
+        shippingFee: costValue,
+        estimatedDays: parseInt(newZone.estimatedDays || 1),
+        isActive: true
       })
+      
       setNewZone({ name: '', price: '', estimatedDays: '' })
       await fetchShippingZones()
     } catch (err) {
@@ -298,8 +306,8 @@ export default function OperationsHubPage() {
                   ) : (
                     shippingZones.map(zone => (
                       <tr key={zone.id} className="hover:bg-canvas/50">
-                        <td className="p-3 font-bold text-ink">{zone.name}</td>
-                        <td className="p-3 font-mono">{formatCurrency(zone.price || 0)}</td>
+                        <td className="p-3 font-bold text-ink">{zone.name || zone.governorate}</td>
+                        <td className="p-3 font-mono">{formatCurrency(zone.shippingCost ?? zone.shippingFee ?? zone.price ?? 0)}</td>
                         <td className="p-3">{zone.estimatedDays ? `${zone.estimatedDays} أيام` : 'غير محدد'}</td>
                         <td className="p-3 text-center">
                           <button 
