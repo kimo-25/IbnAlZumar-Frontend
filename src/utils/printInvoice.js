@@ -9,7 +9,7 @@ export const printInvoice = (order, customerUser = {}) => {
     return
   }
 
-  // 1. استخراج بيانات العميل بدقة من جميع الخصائص المحتملة
+  // 1. استخراج بيانات العميل بدقة (التحقق من الكائن المدمج user أو customer أو الـ props المباشرة)
   const customerName =
     order.customerName ||
     order.fullName ||
@@ -21,11 +21,13 @@ export const printInvoice = (order, customerUser = {}) => {
     customerUser.name ||
     'عميل المتجر'
 
+  // تم توسيع حقول البحث عن البريد الإلكتروني لتشمل كائن user المربوط بالطلب في قاعدة البيانات
   const customerEmail =
     order.customerEmail ||
     order.email ||
     order.customer?.email ||
     order.user?.email ||
+    order.appUser?.email ||
     customerUser.email ||
     'غير مسجل'
 
@@ -40,11 +42,12 @@ export const printInvoice = (order, customerUser = {}) => {
     customerUser.phoneNumber ||
     'غير مسجل'
 
-  // 2. معالجة العنوان (سواء كان نص عادي أو Object يحتوي تفاصيل)
+  // 2. معالجة العنوان (سواء كان نص عادي أو Object أو حقل shippingAddress/address مباشرة من الطلب)
   let address = 'العنوان المسجل بالحساب'
   const rawAddr =
     order.shippingAddress ||
     order.address ||
+    order.customer?.shippingAddress ||
     order.customer?.address ||
     order.user?.address ||
     customerUser.address
@@ -52,7 +55,7 @@ export const printInvoice = (order, customerUser = {}) => {
   if (typeof rawAddr === 'string' && rawAddr.trim() !== '') {
     address = rawAddr
   } else if (rawAddr && typeof rawAddr === 'object') {
-    const addrParts = [rawAddr.street, rawAddr.city, rawAddr.state, rawAddr.governorate].filter(Boolean)
+    const addrParts = [rawAddr.street, rawAddr.city, rawAddr.state, rawAddr.governorate, rawAddr.details].filter(Boolean)
     address = addrParts.length > 0 ? addrParts.join(', ') : 'غير محدد'
   }
 
@@ -72,16 +75,18 @@ export const printInvoice = (order, customerUser = {}) => {
   if (rawPayment === 'CARD' || rawPayment === 'ONLINE') paymentMethodDisplay = 'CARD'
   else if (rawPayment === 'CASH' || rawPayment === 'COD') paymentMethodDisplay = 'الدفع عند الاستلام (CASH)'
 
-  // 5. الحسابات والمنتجات
+  // 5. الحسابات والمنتجات (دعم جميع أسماء الـ Arrays والخصائص المحتملة للـ Items لضمان ظهور المنتجات وتفاصيلها بدقة)
   const items = Array.isArray(order.items)
     ? order.items
-    : (Array.isArray(order.orderItems) ? order.orderItems : [])
+    : (Array.isArray(order.orderItems) 
+        ? order.orderItems 
+        : (Array.isArray(order.orderDetails) ? order.orderDetails : []))
 
   const totalAmount = Number(order.totalAmount || order.total || 0)
 
-  // حساب المجموع الفرعي
+  // حساب المجموع الفرعي من المنتجات الفعلية إن وجدت
   const subtotal = items.length > 0
-    ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)), 0)
+    ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || item.productPrice || 0) * Number(item.quantity || item.qty || 1)), 0)
     : (Number(order.subTotal || order.subtotal || totalAmount))
 
   // حساب الشحن
@@ -91,14 +96,14 @@ export const printInvoice = (order, customerUser = {}) => {
     (totalAmount > subtotal ? totalAmount - subtotal : 0)
   )
 
-  // بناء أسطر الجدول
+  // بناء أسطر الجدول بالتفاصيل الكاملة لكل منتج طلبه العميل (الاسم، السعر، الكمية، الإجمالي)
   const itemsTableRows = items.length > 0
     ? items.map((item, index) => {
-        const uPrice = Number(item.unitPrice || item.price || 0)
-        const qty = Number(item.quantity || 1)
+        const uPrice = Number(item.unitPrice || item.price || item.productPrice || 0)
+        const qty = Number(item.quantity || item.qty || 1)
         const itemTotal = uPrice * qty
-        const pName = item.productName || item.name || item.title || `منتج رقم ${index + 1}`
-        const pSku = item.sku || item.productId || item.id || `prod-${index + 1}`
+        const pName = item.productName || item.name || item.title || item.product?.name || `منتج رقم ${index + 1}`
+        const pSku = item.sku || item.productId || item.product?.sku || item.id || `prod-${index + 1}`
 
         return `
           <tr>
