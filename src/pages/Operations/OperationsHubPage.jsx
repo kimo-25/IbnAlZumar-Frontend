@@ -23,7 +23,7 @@ import Card from '../../components/ui/Card'
 import { formatCurrency } from '../../utils/catalog'
 import { getOnlineOrders } from '../../api/adminApi'
 import axiosInstance from '../../api/axiosInstance'
-// استيراد دالة الطباعة الخارجية (تأكد من صحة المسار حسب مشروعك)
+// استيراد دالة الطباعة الخارجية بمسارها الصحيح لتعمل بكفاءة مع بيانات الطلب والعميل
 import { printOrderInvoice } from '../../utils/printInvoice'
 
 // ==========================================
@@ -551,19 +551,19 @@ export default function OperationsHubPage() {
   }
 
   function handlePrintInvoice(order) {
-    // استخدام دالة الطباعة المستوردة مباشرة من printInvoice.js
+    // استدعاء دالة الطباعة الخارجية المستوردة مباشرة لتوليد الفاتورة بدقة
     if (typeof printOrderInvoice === 'function') {
       printOrderInvoice(order)
       return
     }
     
-    // Fallback احتياطي في حال عدم توفر الدالة المستوردة
+    // Fallback احتياطي في حال واجهت أي مشكلة مؤقتة في دالة الملف الخارجي
     const printWindow = window.open('', '_blank', 'width=850,height=900')
     if (!printWindow) {
       alert('لتتمكن من طباعة الفاتورة يرجى السماح بالنافذة المنبثقة.')
       return
     }
-    printWindow.document.write(`<html><body dir="rtl"><h2>فاتورة الطلب #${order.orderNumber || order.id}</h2><p>يرجى التأكد من تصدير دالة printOrderInvoice في ملف printInvoice.js</p></body></html>`)
+    printWindow.document.write(`<html><body dir="rtl"><h2>فاتورة الطلب #${order.orderNumber || order.id}</h2><p>يرجى التأكد من تصدير دالة printOrderInvoice في ملف printInvoice.js بالشكل الصحيح.</p></body></html>`)
     printWindow.document.close()
     printWindow.print()
   }
