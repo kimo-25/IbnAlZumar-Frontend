@@ -1,4 +1,3 @@
-// File: src/components/layout/Navbar.jsx
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ChevronDown, LogOut, Menu, User as UserIcon } from 'lucide-react'
@@ -13,6 +12,7 @@ function getRoleLabel(role) {
     'Super Admin': 'المشرف العام',
     Moderator: 'المشرف',
     moderator: 'المشرف',
+    MODERATOR: 'المشرف',
     Manager: 'المدير',
     STORE_OWNER: 'المالك',
     ONLINE_MANAGER: 'مدير العمليات',
@@ -40,13 +40,15 @@ export default function Navbar({ onMenuClick }) {
     navigate('/login', { replace: true })
   }
 
-  const primaryRole = user?.roles?.[0]
+  const rawRoles = user?.roles || user?.role || []
+  const userRoles = Array.isArray(rawRoles) ? rawRoles : [rawRoles]
+  const primaryRole = userRoles[0]
   const displayName = getUserName(user?.fullName || user?.name)
 
   // تحديد رابط البروفايل بدقة بحسب الرتبة
   const getProfileLink = () => {
-    if (!user?.roles || user.roles.length === 0) return '/profile'
-    const rolesStr = user.roles.map(r => r.toString().toLowerCase()).join(' ')
+    if (userRoles.length === 0) return '/profile'
+    const rolesStr = userRoles.map(r => String(r).toLowerCase()).join(' ')
 
     if (rolesStr.includes('moderator')) {
       return '/moderator/profile'
@@ -54,7 +56,7 @@ export default function Navbar({ onMenuClick }) {
     if (rolesStr.includes('admin') || rolesStr.includes('owner') || rolesStr.includes('store_owner')) {
       return '/admin/profile'
     }
-    
+
     return '/profile'
   }
 
@@ -99,9 +101,9 @@ export default function Navbar({ onMenuClick }) {
               <div className="absolute start-0 lg:start-auto lg:end-0 z-20 mt-2 w-52 rounded-lg border border-border bg-surface py-1 shadow-lg">
                 <div className="border-b border-border px-3 py-2 text-start">
                   <p className="truncate text-sm font-medium text-ink">{displayName}</p>
-                  {user?.roles && (
+                  {userRoles.length > 0 && (
                     <p className="truncate text-xs text-ink-soft">
-                      {user.roles.map(getRoleLabel).join('، ')}
+                      {userRoles.map(getRoleLabel).join('، ')}
                     </p>
                   )}
                 </div>

@@ -17,43 +17,37 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // دالة تحديد المسار المستهدف بناءً على دور المستخدم الفعلي فقط دون افتراضات خاطئة
+  // دالة تحديد المسار المستهدف بناءً على دور المستخدم الفعلي
   const determineDestination = (userData) => {
-    // 1. إذا كان تم تحويل المستخدم من صفحة محمية سابقة (مثل /admin/operations)
+    // 1. إذا كان تم تحويل المستخدم من صفحة محمية سابقة
     const fromPath = location.state?.from?.pathname
-    if (fromPath && fromPath !== '/login' && fromPath !== '/admin/login') {
+    if (fromPath && !['/login', '/admin/login', '/'].includes(fromPath)) {
       return fromPath
     }
 
-    // 2. تجميع الأدوار المسجلة للمستخدم بطريقة مرنة
-    const roles = []
-    if (userData?.roles && Array.isArray(userData.roles)) {
-      roles.push(...userData.roles)
-    } else if (userData?.roles) {
-      roles.push(userData.roles)
-    }
+    // 2. استخراج الأدوار المسجلة بمرونة عالية
+    const rawRoles = userData?.roles || userData?.role || userData?.user?.roles || userData?.user?.role || []
+    const rolesArray = Array.isArray(rawRoles) ? rawRoles : [rawRoles]
+    const normalizedRoles = rolesArray.map((r) => String(r).toUpperCase().trim())
 
-    const normalizedRoles = roles.map((r) => String(r).toUpperCase().trim())
-
-    // 3. التوجيه بناءً على الدور الفعلي الصارم فقط
+    // 3. التوجيه الدقيق حسب الرتبة
     if (normalizedRoles.includes('ONLINE_MANAGER')) {
       return '/admin/operations'
     }
     
     if (normalizedRoles.includes('MODERATOR')) {
-      return '/admin/moderator'
+      return '/moderator' // ✅ التوجيه الصحيح إلى صفحة الموديريتور
     }
 
     const isAdminOrOwner = normalizedRoles.some((r) =>
       ['ADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'STORE_OWNER', 'OWNER'].includes(r)
     )
 
-    // تم إزالة الاعتماد تماماً على مسار الـ URL لمنع دخول الزوار العاديين للوحة التحكم
     if (isAdminOrOwner) {
       return '/admin/dashboard'
     }
 
-    // 4. الافتراضي الحتمي للعميل العادي (Customer)
+    // 4. الافتراضي للعميل العادي
     return '/profile'
   }
 
@@ -87,14 +81,10 @@ export default function LoginPage() {
       })
 
       const data = response.data
-
-      // استخدام الميثود الموحدة للحفظ لضمان التزامن مع AuthContext
       setStoredAuth(data)
 
       const targetPath = determineDestination(data)
-      navigate(targetPath, { replace: true })
-      // إعادة تحميل خفيفة لضمان قراءة AuthContext للبيانات الجديدة
-      window.location.href = targetPath;
+      window.location.href = targetPath
     } catch (err) {
       setError(err?.message || 'حدث خطأ أثناء المصادقة مع جوجل.')
     } finally {

@@ -18,7 +18,9 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Send
+  Send,
+  RotateCcw,
+  Ban
 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import axiosInstance from '../../api/axiosInstance'
@@ -74,10 +76,7 @@ function getStatusBadge(status) {
     }
   }
   
-  const defaultLabel = TRACKING_STEPS[step - 1]?.label || 'قيد المراجعة'
-  const label = typeof status === 'string' && status.trim() && isNaN(Number(status))
-    ? status 
-    : defaultLabel
+  const label = TRACKING_STEPS[step - 1]?.label || 'قيد المراجعة'
 
   return {
     label,
@@ -105,11 +104,13 @@ export default function CustomerProfilePage() {
   })
   
   const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loadingOrders, setLoadingOrders] = useState(true)
+  const [ordersError, setOrdersError] = useState(null)
+  
   const [updating, setUpdating] = useState(false)
   const [message, setMessage] = useState(null)
-
   const [expandedOrders, setExpandedOrders] = useState({})
+  const [cancelingOrderId, setCancelingOrderId] = useState(null)
 
   const [reviewModal, setReviewModal] = useState({
     isOpen: false,
@@ -127,12 +128,13 @@ export default function CustomerProfilePage() {
       try {
         const response = await axiosInstance.get('/Auth/profile')
         if (response.data) {
+          const fetched = response.data
           setUser({
-            fullName: response.data.fullName || response.data.name || authUser?.fullName || '',
-            email: response.data.email || authUser?.email || '',
-            phone: response.data.phone || authUser?.phone || '',
-            governorate: response.data.governorate || authUser?.governorate || '',
-            address: response.data.address || authUser?.address || ''
+            fullName: fetched.fullName || fetched.name || authUser?.fullName || '',
+            email: fetched.email || authUser?.email || '',
+            phone: fetched.phone || authUser?.phone || '',
+            governorate: fetched.governorate || authUser?.governorate || '',
+            address: fetched.address || authUser?.address || ''
           })
         }
       } catch (err) {
@@ -157,17 +159,21 @@ export default function CustomerProfilePage() {
   }, [])
 
   async function fetchCustomerOrders() {
+    setLoadingOrders(true)
+    setOrdersError(null)
     try {
       const response = await axiosInstance.get('/Orders/my-orders')
-      setOrders(response.data)
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        const firstId = response.data[0].id || response.data[0].orderNumber
+      const data = Array.isArray(response.data) ? response.data : []
+      setOrders(data)
+      if (data.length > 0) {
+        const firstId = data[0].id || data[0].orderNumber
         setExpandedOrders({ [firstId]: true })
       }
     } catch (err) {
       console.error('فشل جلب الطلبات', err)
+      setOrdersError('حدث خطأ أثناء تحميل سجل الطلبات. يرجى المحاولة مرة أخرى.')
     } finally {
-      setLoading(false)
+      setLoadingOrders(false)
     }
   }
 
@@ -178,18 +184,52 @@ export default function CustomerProfilePage() {
     }))
   }
 
+  // إلغاء الطلب (متاح للطلبات قيد المراجعة فقط)
+  async function handleCancelOrder(orderId) {
+    if (!window.confirm('هل أنت تأكد من رغبتك في إلغاء هذا الطلب؟')) return
+
+    setCancelingOrderId(orderId)
+    try {
+      await axiosInstance.put(`/Orders/${orderId}/cancel`)
+      
+      // تحديث الحالة محلياً
+      setOrders(prev =>
+        prev.map(o => {
+          const currentId = o.id || o.orderNumber
+          if (currentId === orderId) {
+            return { ...o, status: -1, statusText: 'تم إلغاء الطلب' }
+          }
+          return o;
+        })
+      )
+    } catch (err) {
+      alert(err.response?.data?.message || 'تعذر إلغاء الطلب حالياً. يرجى التواصل مع الدعم.')
+    } finally {
+      setCancelingOrderId(null)
+    }
+  }
+
   async function handleUpdateProfile(e) {
     e.preventDefault()
     setUpdating(true)
     setMessage(null)
 
     try {
-      // إرسال التحديثات للباك إند أولاً واعتماد الرد الرسمي
       const response = await axiosInstance.put('/Auth/update-profile', user)
       const updatedData = response.data?.user || response.data || { ...user }
 
+      const updatedUserObj = {
+        ...user,
+        fullName: updatedData.fullName || updatedData.name || user.fullName,
+        phone: updatedData.phone || user.phone,
+        governorate: updatedData.governorate || user.governorate,
+        address: updatedData.address || user.address
+      }
+
+      setUser(updatedUserObj)
+
       const currentStored = JSON.parse(localStorage.getItem('user') || '{}')
-      const newStoredData = { ...currentStored, ...updatedData }
+      const newStoredData = { ...currentStored, ...updatedUserObj }
       localStorage.setItem('user', JSON.stringify(newStoredData))
 
       if (typeof updateAuthUser === 'function') {
@@ -217,6 +257,10 @@ export default function CustomerProfilePage() {
     })
   }
 
+  const closeReviewModal = () => {
+    setReviewModal(prev => ({ ...prev, isOpen: false }))
+  }
+
   const handleSubmitReview = async (e) => {
     e.preventDefault()
     setReviewModal(prev => ({ ...prev, submitting: true, errorMsg: null }))
@@ -235,7 +279,7 @@ export default function CustomerProfilePage() {
       }))
 
       setTimeout(() => {
-        setReviewModal(prev => ({ ...prev, isOpen: false }))
+        closeReviewModal()
       }, 2000)
     } catch (err) {
       setReviewModal(prev => ({
@@ -248,6 +292,7 @@ export default function CustomerProfilePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10" dir="rtl">
+      {/* Header & Tabs */}
       <div className="mb-6 border-b border-border pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">
@@ -290,11 +335,24 @@ export default function CustomerProfilePage() {
         </div>
       </div>
 
+      {/* Tab 1: Orders */}
       {activeTab === 'orders' && (
         <Card title="سجل الطلبات وتتبع الحالة">
-          {loading ? (
+          {loadingOrders ? (
             <div className="flex justify-center py-16">
               <Loader2 size={28} className="animate-spin text-amber" />
+            </div>
+          ) : ordersError ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center text-sm text-rose-600 space-y-3">
+              <AlertCircle size={36} />
+              <p>{ordersError}</p>
+              <button
+                onClick={fetchCustomerOrders}
+                className="inline-flex items-center gap-2 bg-surface border border-border px-4 py-2 rounded-xl text-xs font-semibold text-ink hover:bg-canvas transition cursor-pointer"
+              >
+                <RotateCcw size={14} />
+                إعادة المحاولة
+              </button>
             </div>
           ) : orders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center text-sm text-ink-soft">
@@ -317,6 +375,7 @@ export default function CustomerProfilePage() {
                     key={orderKey}
                     className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs transition hover:border-amber/40"
                   >
+                    {/* Header Card */}
                     <div 
                       onClick={() => toggleOrderExpand(orderKey)}
                       className="flex flex-wrap items-center justify-between gap-3 bg-canvas/80 p-4 border-b border-border text-xs cursor-pointer select-none"
@@ -355,16 +414,38 @@ export default function CustomerProfilePage() {
                       </div>
                     </div>
 
+                    {/* Details Accordion */}
                     {isExpanded && (
                       <div className="p-4 sm:p-6 space-y-6">
                         {currentStep === -1 ? (
                           <div className="rounded-xl bg-rose-50 p-3.5 text-xs text-rose-700 flex items-center gap-2 border border-rose-200">
-                            <XCircle size={18} />
+                            <XCircle size={18} className="shrink-0" />
                             <span>تم إلغاء هذا الطلب. إذا كان لديك استفسار يرجى التواصل مع الدعم الفني.</span>
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-border/80 bg-canvas/40 p-4">
-                            <span className="text-xs font-bold text-ink mb-4 block">تتبع مراحل الشحنة</span>
+                            <div className="flex items-center justify-between mb-4">
+                              <span className="text-xs font-bold text-ink block">تتبع مراحل الشحنة</span>
+                              
+                              {/* زر إلغاء الطلب في مرحلة المراجعة فقط */}
+                              {currentStep === 1 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleCancelOrder(orderKey)
+                                  }}
+                                  disabled={cancelingOrderId === orderKey}
+                                  className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg border border-rose-200 transition cursor-pointer disabled:opacity-50"
+                                >
+                                  {cancelingOrderId === orderKey ? (
+                                    <Loader2 size={13} className="animate-spin" />
+                                  ) : (
+                                    <Ban size={13} />
+                                  )}
+                                  <span>إلغاء الطلب</span>
+                                </button>
+                              )}
+                            </div>
                             
                             <div className="relative py-2">
                               <div className="absolute top-4 right-6 left-6 h-0.5 bg-border -z-0">
@@ -424,13 +505,15 @@ export default function CustomerProfilePage() {
                                     </div>
                                   </div>
 
-                                  <button
-                                    onClick={() => openReviewModal(item)}
-                                    className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition shrink-0 cursor-pointer"
-                                  >
-                                    <Star size={12} className="fill-emerald-600 text-emerald-600" />
-                                    أضف تقييماً
-                                  </button>
+                                  {currentStep === 5 && (
+                                    <button
+                                      onClick={() => openReviewModal(item)}
+                                      className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition shrink-0 cursor-pointer"
+                                    >
+                                      <Star size={12} className="fill-emerald-600 text-emerald-600" />
+                                      أضف تقييماً
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -452,6 +535,7 @@ export default function CustomerProfilePage() {
         </Card>
       )}
 
+      {/* Tab 2: Profile Settings */}
       {activeTab === 'profile' && (
         <div className="max-w-2xl mx-auto">
           <Card title="بيانات الحساب والملف الشخصي">
@@ -473,9 +557,10 @@ export default function CustomerProfilePage() {
                   <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
                   <input
                     type="text"
+                    disabled={updating}
                     value={user.fullName}
                     onChange={e => setUser({ ...user, fullName: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition"
+                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
                     placeholder="أدخل اسمك الكامل"
                     required
                   />
@@ -498,9 +583,10 @@ export default function CustomerProfilePage() {
                   <Phone size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
                   <input
                     type="tel"
+                    disabled={updating}
                     value={user.phone}
                     onChange={e => setUser({ ...user, phone: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition"
+                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
                     placeholder="01xxxxxxxxx"
                   />
                 </div>
@@ -512,9 +598,10 @@ export default function CustomerProfilePage() {
                   <Building2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
                   <input
                     type="text"
+                    disabled={updating}
                     value={user.governorate}
                     onChange={e => setUser({ ...user, governorate: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition"
+                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
                     placeholder="القاهرة، الإسكندرية..."
                   />
                 </div>
@@ -526,9 +613,10 @@ export default function CustomerProfilePage() {
                   <MapPin size={16} className="absolute right-3 top-3 text-ink-soft" />
                   <textarea
                     rows={3}
+                    disabled={updating}
                     value={user.address}
                     onChange={e => setUser({ ...user, address: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber resize-none transition"
+                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber resize-none transition disabled:opacity-60"
                     placeholder="تفاصيل العنوان..."
                   />
                 </div>
@@ -547,11 +635,19 @@ export default function CustomerProfilePage() {
         </div>
       )}
 
+      {/* Review Modal */}
       {reviewModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs" dir="rtl">
-          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative">
+        <div 
+          onClick={closeReviewModal}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs" 
+          dir="rtl"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative"
+          >
             <button
-              onClick={() => setReviewModal(prev => ({ ...prev, isOpen: false }))}
+              onClick={closeReviewModal}
               className="absolute left-4 top-4 text-ink-soft hover:text-ink cursor-pointer"
             >
               <X size={20} />
@@ -599,9 +695,10 @@ export default function CustomerProfilePage() {
                   <label className="block text-xs font-semibold text-ink mb-1">تعليقك / رأيك بالمنتج:</label>
                   <textarea
                     rows={3}
+                    disabled={reviewModal.submitting}
                     value={reviewModal.comment}
                     onChange={(e) => setReviewModal(prev => ({ ...prev, comment: e.target.value }))}
-                    className="w-full rounded-xl border border-border bg-canvas p-3 text-sm text-ink outline-none focus:border-amber transition resize-none"
+                    className="w-full rounded-xl border border-border bg-canvas p-3 text-sm text-ink outline-none focus:border-amber transition resize-none disabled:opacity-60"
                     placeholder="اكتب انطباعك عن جودة المنتج والتوصيل..."
                   />
                 </div>
@@ -609,7 +706,7 @@ export default function CustomerProfilePage() {
                 <button
                   type="submit"
                   disabled={reviewModal.submitting}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-60 cursor-pointer"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {reviewModal.submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   إرسال التقييم

@@ -1,9 +1,8 @@
-// File: src/App.jsx
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { StorefrontSearchProvider } from './context/StorefrontSearchContext'
 
-// 🌟 الـ Component الجمالي للأذكار والآيات
+// الـ Component الجمالي للأذكار والآيات
 import ReminderBanner from './components/ui/ReminderBanner'
 
 // Public storefront
@@ -74,10 +73,14 @@ export default function App() {
         <Route path="/admin/login" element={<LoginPage />} />
         <Route path="/admin/forbidden" element={<ForbiddenPage />} />
 
-        {/* ---------------- MODERATOR ROUTES (بدون كلمة admin في URL) ---------------- */}
+        {/* ---------------- MODERATOR ROUTES ---------------- */}
         <Route
           path="/moderator"
-          element={<ProtectedRoute allowRoles={['moderator', 'Moderator', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']} />}
+          element={
+            <ProtectedRoute
+              allowRoles={['moderator', 'Moderator', 'MODERATOR', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']}
+            />
+          }
         >
           <Route element={<DashboardLayout />}>
             <Route index element={<ModeratorHubPage />} />
@@ -94,7 +97,7 @@ export default function App() {
             <Route path="dashboard" element={<DashboardHome />} />
             <Route path="profile" element={<AdminProfilePage />} />
 
-            <Route path="operations" element={<ProtectedRoute allowRoles={['ONLINE_MANAGER', 'Moderator', 'moderator', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager']} />}>
+            <Route path="operations" element={<ProtectedRoute allowRoles={['ONLINE_MANAGER', 'Moderator', 'moderator', 'MODERATOR', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager']} />}>
               <Route index element={<OperationsHubPage />} />
             </Route>
 
@@ -105,7 +108,7 @@ export default function App() {
             <Route path="catalog/categories" element={<CategoriesPage />} />
             <Route path="catalog/products" element={<ProductsPage />} />
 
-            <Route path="reminders" element={<ProtectedRoute allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Moderator', 'moderator']} />}>
+            <Route path="reminders" element={<ProtectedRoute allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Moderator', 'moderator', 'MODERATOR']} />}>
               <Route index element={<AdminRemindersPage />} />
             </Route>
 

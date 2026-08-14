@@ -10,10 +10,11 @@ export function AuthProvider({ children }) {
     return stored && !isAuthExpired(stored) ? stored : null
   })
 
-  const normalizedRoles = useMemo(
-    () => (auth?.roles ?? []).map((role) => String(role).toLowerCase().trim()),
-    [auth]
-  )
+  const normalizedRoles = useMemo(() => {
+    const rawRoles = auth?.roles || auth?.role || auth?.user?.roles || []
+    const rolesArray = Array.isArray(rawRoles) ? rawRoles : [rawRoles]
+    return rolesArray.map((role) => String(role).toLowerCase().trim())
+  }, [auth])
 
   const login = useCallback(async (username, password) => {
     const { data } = await axiosInstance.post('/Auth/login', { username, password })
@@ -28,19 +29,19 @@ export function AuthProvider({ children }) {
   }, [])
 
   const hasPermission = useCallback((code) => !code || Boolean(auth?.permissions?.includes(code)), [auth])
-  
+
   const hasRole = useCallback(
     (role) => {
       if (!role) return true
-      
+
       const checkRole = String(role).toLowerCase().trim()
 
-      // الأدمن والـ Super Admin يمتلكون صلاحية الوصول لكل شيء
       if (
         normalizedRoles.includes('admin') ||
         normalizedRoles.includes('superadmin') ||
         normalizedRoles.includes('super admin') ||
-        normalizedRoles.includes('owner')
+        normalizedRoles.includes('owner') ||
+        normalizedRoles.includes('store_owner')
       ) {
         return true
       }
