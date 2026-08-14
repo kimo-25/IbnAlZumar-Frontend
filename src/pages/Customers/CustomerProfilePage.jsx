@@ -1,4 +1,5 @@
 // File: src/pages/Customer/CustomerProfilePage.jsx
+import { printInvoice } from '../utils/printInvoice'; // عدل المسار حسب مكان الملف لديك
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
