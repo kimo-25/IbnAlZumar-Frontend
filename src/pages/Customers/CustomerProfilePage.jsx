@@ -1,5 +1,5 @@
 // File: src/pages/Customer/CustomerProfilePage.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Clock,
@@ -27,23 +27,23 @@ import axiosInstance from '../../api/axiosInstance'
 import { formatCurrency } from '../../utils/catalog'
 import { useAuth } from '../../context/AuthContext'
 
-// مراحل تتبع الطلب (5 مراحل)
+// ==========================================
+// Constants & Helper Functions
+// ==========================================
 const TRACKING_STEPS = [
   { step: 1, label: 'قيد المراجعة' },
   { step: 2, label: 'تم التأكيد' },
   { step: 3, label: 'جاري التجهيز' },
   { step: 4, label: 'في الطريق إليك' },
-  { step: 5, label: 'تم التوصيل بنجاح' }
+  { step: 5, label: 'تم التوصيل' }
 ]
 
-// تحويل حالة الطلب القادمة من الـ Backend إلى رقم المرحلة
 function getStepNumber(status) {
   if (status === null || status === undefined) return 1
 
   if (typeof status === 'number') {
-    if (status === -1) return -1
-    if (status >= 0 && status <= 4) return status + 1
-    if (status >= 1 && status <= 5) return status
+    if (status === -1 || status === 5) return -1 // ملغى أو مرفوض
+    if (status >= 0 && status <= 4) return status + 1 // تحويل 0..4 إلى 1..5
     return 1
   }
 
@@ -54,40 +54,346 @@ function getStepNumber(status) {
   if (s.includes('prep') || s.includes('process') || s.includes('تجهيز')) return 3
   if (s.includes('ship') || s.includes('way') || s.includes('طريق') || s.includes('شحن')) return 4
   if (s.includes('complet') || s.includes('deliver') || s.includes('تم') || s.includes('مكتمل') || s.includes('توصيل')) return 5
-  
+
   return 1
 }
 
-// دالة تنسيق حالة الطلب ولونها والشارة الخاصة بها
 function getStatusBadge(status) {
   const step = getStepNumber(status)
   if (step === -1) {
     return {
       label: 'تم إلغاء الطلب',
-      className: 'bg-rose-50 text-rose-700 border border-rose-200',
+      className: 'bg-rose-50 text-rose-700 border-rose-200',
       icon: XCircle
     }
   }
   if (step === 5) {
     return {
       label: 'تم التوصيل بنجاح',
-      className: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+      className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       icon: CheckCircle2
     }
   }
-  
-  const label = TRACKING_STEPS[step - 1]?.label || 'قيد المراجعة'
 
+  const label = TRACKING_STEPS[step - 1]?.label || 'قيد المراجعة'
   return {
     label,
-    className: 'bg-amber-50 text-amber-800 border border-amber-200',
+    className: 'bg-amber-50 text-amber-800 border-amber-200',
     icon: Clock
   }
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return new Date().toLocaleDateString('ar-EG')
+  try {
+    const d = new Date(dateStr)
+    return isNaN(d.getTime())
+      ? dateStr
+      : d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return dateStr
+  }
+}
+
+// ==========================================
+// Sub-Components
+// ==========================================
+
+// شريط تتبع حالة الطلب
+function TrackingProgress({ currentStep, orderId, onCancel, isCanceling }) {
+  if (currentStep === -1) {
+    return (
+      <div className="rounded-xl bg-rose-50 p-3.5 text-xs text-rose-700 flex items-center gap-2 border border-rose-200">
+        <XCircle size={18} className="shrink-0" />
+        <span>تم إلغاء هذا الطلب. إذا كان لديك أي استفسار يرجى التواصل مع الدعم الفني.</span>
+      </div>
+    )
+  }
+
+  const progressPercentage = Math.max(
+    0,
+    Math.min(100, ((currentStep - 1) / (TRACKING_STEPS.length - 1)) * 100)
+  )
+
+  return (
+    <div className="rounded-2xl border border-border/80 bg-canvas/40 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-xs font-bold text-ink block">تتبع مراحل الشحنة</span>
+        {currentStep === 1 && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isCanceling}
+            className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg border border-rose-200 transition cursor-pointer disabled:opacity-50"
+          >
+            {isCanceling ? <Loader2 size={13} className="animate-spin" /> : <Ban size={13} />}
+            <span>إلغاء الطلب</span>
+          </button>
+        )}
+      </div>
+
+      <div className="relative py-2">
+        <div className="absolute top-4 right-6 left-6 h-0.5 bg-border -z-0">
+          <div
+            className="h-full bg-emerald-600 transition-all duration-500"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+
+        <div className="grid grid-cols-5 gap-1 text-center relative z-10">
+          {TRACKING_STEPS.map((s) => {
+            const isCompleted = currentStep >= s.step
+            const isCurrent = currentStep === s.step
+            return (
+              <div key={s.step} className="flex flex-col items-center">
+                <div
+                  className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                    isCompleted
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-surface text-ink-soft border border-border'
+                  } ${isCurrent ? 'ring-4 ring-emerald-100 border-emerald-600 scale-105' : ''}`}
+                >
+                  {isCompleted ? <Check size={16} /> : s.step}
+                </div>
+                <span
+                  className={`mt-2 text-[10px] sm:text-[11px] leading-tight ${
+                    isCompleted ? 'text-emerald-700 font-bold' : 'text-ink-soft'
+                  }`}
+                >
+                  {s.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// كارت الطلب الموحد
+function OrderCard({ order, isExpanded, onToggle, onCancel, cancelingOrderId, onOpenReview, fallbackAddress }) {
+  const orderId = order.id ?? order.orderNumber
+  const currentStep = getStepNumber(order.status)
+  const items = order.items || order.orderItems || []
+  const badge = getStatusBadge(order.statusText || order.status)
+  const StatusIcon = badge.icon
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs transition hover:border-amber/40">
+      <div
+        onClick={onToggle}
+        className="flex flex-wrap items-center justify-between gap-3 bg-canvas/80 p-4 border-b border-border text-xs cursor-pointer select-none"
+      >
+        <div className="flex items-center gap-4">
+          <div>
+            <span className="text-ink-soft block text-[11px]">رقم الطلب</span>
+            <span className="font-mono font-bold text-emerald-600 text-sm">
+              {order.orderNumber || `ORD-${order.id}`}
+            </span>
+          </div>
+          <div className="hidden sm:block">
+            <span className="text-ink-soft block text-[11px]">التاريخ</span>
+            <span className="font-semibold text-ink">{formatDate(order.createdAt)}</span>
+          </div>
+          <div>
+            <span className="text-ink-soft block text-[11px]">الإجمالي الكلي</span>
+            <span className="font-mono font-bold text-ink text-sm">
+              {formatCurrency(order.totalAmount || order.total || 0)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${badge.className}`}>
+            <StatusIcon size={14} />
+            {badge.label}
+          </span>
+          <button type="button" className="text-ink-soft hover:text-ink p-1">
+            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="p-4 sm:p-6 space-y-6">
+          <TrackingProgress
+            currentStep={currentStep}
+            orderId={orderId}
+            onCancel={() => onCancel(orderId)}
+            isCanceling={cancelingOrderId === orderId}
+          />
+
+          {items.length > 0 && (
+            <div>
+              <span className="text-xs font-bold text-ink mb-3 block">منتجات الطلب ({items.length})</span>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {items.map((item, idx) => (
+                  <div key={item.id || item.productId || idx} className="flex items-center justify-between gap-3 rounded-xl bg-canvas p-3 border border-border/70">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-10 w-10 rounded-xl bg-surface flex items-center justify-center border border-border shrink-0">
+                        <Package size={18} className="text-amber" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-ink truncate">{item.productName || item.name || 'منتج'}</p>
+                        <p className="text-[11px] text-ink-soft font-mono mt-0.5">
+                          الكمية: {item.quantity} × {formatCurrency(item.unitPrice || item.price || 0)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {currentStep === 5 && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenReview(item)}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition shrink-0 cursor-pointer"
+                      >
+                        <Star size={12} className="fill-emerald-600 text-emerald-600" />
+                        أضف تقييماً
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-xl bg-canvas p-3.5 flex items-center gap-2 text-xs text-ink border border-border/60">
+            <MapPin size={16} className="text-emerald-600 shrink-0" />
+            <span className="font-bold text-ink shrink-0">عنوان التوصيل:</span>
+            <span className="truncate text-ink-soft">{order.shippingAddress || fallbackAddress || 'العنوان المسجل بالحساب'}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// نافذة تقييم المنتج Modal
+function ReviewModal({ isOpen, item, onClose, onSubmit }) {
+  const [rating, setRating] = useState(5)
+  const [comment, setComment] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [status, setStatus] = useState({ success: null, error: null })
+
+  useEffect(() => {
+    if (isOpen) {
+      setRating(5)
+      setComment('')
+      setStatus({ success: null, error: null })
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setStatus({ success: null, error: null })
+
+    try {
+      await onSubmit({
+        productId: item?.productId || item?.id,
+        rating,
+        comment
+      })
+      setStatus({ success: 'تم إرسال تقييمك بنجاح! شكراً لمشاركتك.', error: null })
+      setTimeout(onClose, 1800)
+    } catch (err) {
+      setStatus({ success: null, error: err.response?.data?.message || err.message || 'تعذر إرسال التقييم حالياً.' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+      dir="rtl"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute left-4 top-4 text-ink-soft hover:text-ink cursor-pointer"
+        >
+          <X size={20} />
+        </button>
+
+        <h3 className="text-lg font-bold text-ink mb-1">إضافة تقييم للمنتج</h3>
+        <p className="text-xs text-ink-soft mb-4">
+          المنتج: <span className="font-semibold text-ink">{item?.productName || item?.name}</span>
+        </p>
+
+        {status.success ? (
+          <div className="p-4 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm flex items-center gap-2">
+            <CheckCircle2 size={18} />
+            <span>{status.success}</span>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {status.error && (
+              <div className="p-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs flex items-center gap-2">
+                <AlertCircle size={16} />
+                <span>{status.error}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-2">تقييمك بالنجوم:</label>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setRating(star)}
+                    className="p-1 hover:scale-110 transition cursor-pointer"
+                  >
+                    <Star
+                      size={24}
+                      className={star <= rating ? 'fill-amber text-amber' : 'text-border'}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1">تعليقك / رأيك بالمنتج:</label>
+              <textarea
+                rows={3}
+                disabled={submitting}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className="w-full rounded-xl border border-border bg-canvas p-3 text-sm text-ink outline-none focus:border-amber transition resize-none disabled:opacity-60"
+                placeholder="اكتب انطباعك عن جودة المنتج والتوصيل..."
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              إرسال التقييم
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ==========================================
+// Main Component
+// ==========================================
 export default function CustomerProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  
   const activeTab = searchParams.get('tab') === 'profile' ? 'profile' : 'orders'
 
   const handleTabChange = (tab) => {
@@ -102,31 +408,25 @@ export default function CustomerProfilePage() {
     governorate: '',
     address: ''
   })
-  
+
   const [orders, setOrders] = useState([])
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [ordersError, setOrdersError] = useState(null)
-  
+
   const [updating, setUpdating] = useState(false)
   const [message, setMessage] = useState(null)
   const [expandedOrders, setExpandedOrders] = useState({})
   const [cancelingOrderId, setCancelingOrderId] = useState(null)
 
-  const [reviewModal, setReviewModal] = useState({
-    isOpen: false,
-    item: null,
-    rating: 5,
-    comment: '',
-    submitting: false,
-    successMsg: null,
-    errorMsg: null
-  })
+  const [reviewModalItem, setReviewModalItem] = useState(null)
 
-  // جلب بيانات الحساب الشخصي من الـ Backend مباشرة عند التحميل
+  // جلب البيانات الشخصية عند التحميل
   useEffect(() => {
+    const controller = new AbortController()
+
     async function fetchProfile() {
       try {
-        const response = await axiosInstance.get('/Auth/profile')
+        const response = await axiosInstance.get('/Auth/profile', { signal: controller.signal })
         if (response.data) {
           const fetched = response.data
           setUser({
@@ -138,27 +438,27 @@ export default function CustomerProfilePage() {
           })
         }
       } catch (err) {
-        console.error('فشل جلب بيانات الحساب من الخادم، يتم استخدام البيانات المحلية', err)
-        if (authUser) {
-          setUser({
-            fullName: authUser.fullName || authUser.name || '',
-            email: authUser.email || '',
-            phone: authUser.phone || '',
-            governorate: authUser.governorate || '',
-            address: authUser.address || ''
-          })
+        if (err.name !== 'CanceledError') {
+          console.error('فشل جلب بيانات الحساب من الخادم، يتم استخدام البيانات المحلية', err)
+          if (authUser) {
+            setUser({
+              fullName: authUser.fullName || authUser.name || '',
+              email: authUser.email || '',
+              phone: authUser.phone || '',
+              governorate: authUser.governorate || '',
+              address: authUser.address || ''
+            })
+          }
         }
       }
     }
+
     fetchProfile()
+    return () => controller.abort()
   }, [authUser])
 
   // جلب الطلبات
-  useEffect(() => {
-    fetchCustomerOrders()
-  }, [])
-
-  async function fetchCustomerOrders() {
+  const fetchCustomerOrders = useCallback(async () => {
     setLoadingOrders(true)
     setOrdersError(null)
     try {
@@ -166,40 +466,42 @@ export default function CustomerProfilePage() {
       const data = Array.isArray(response.data) ? response.data : []
       setOrders(data)
       if (data.length > 0) {
-        const firstId = data[0].id || data[0].orderNumber
+        const firstId = data[0].id ?? data[0].orderNumber
         setExpandedOrders({ [firstId]: true })
       }
     } catch (err) {
       console.error('فشل جلب الطلبات', err)
       setOrdersError('حدث خطأ أثناء تحميل سجل الطلبات. يرجى المحاولة مرة أخرى.')
-    } finally {
+    } fontally {
       setLoadingOrders(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchCustomerOrders()
+  }, [fetchCustomerOrders])
 
   const toggleOrderExpand = (id) => {
-    setExpandedOrders(prev => ({
+    setExpandedOrders((prev) => ({
       ...prev,
       [id]: !prev[id]
     }))
   }
 
-  // إلغاء الطلب (متاح للطلبات قيد المراجعة فقط)
+  // إلغاء الطلب
   async function handleCancelOrder(orderId) {
-    if (!window.confirm('هل أنت تأكد من رغبتك في إلغاء هذا الطلب؟')) return
+    if (!window.confirm('هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟')) return
 
     setCancelingOrderId(orderId)
     try {
       await axiosInstance.put(`/Orders/${orderId}/cancel`)
-      
-      // تحديث الحالة محلياً
-      setOrders(prev =>
-        prev.map(o => {
-          const currentId = o.id || o.orderNumber
+      setOrders((prev) =>
+        prev.map((o) => {
+          const currentId = o.id ?? o.orderNumber
           if (currentId === orderId) {
             return { ...o, status: -1, statusText: 'تم إلغاء الطلب' }
           }
-          return o;
+          return o
         })
       )
     } catch (err) {
@@ -209,6 +511,7 @@ export default function CustomerProfilePage() {
     }
   }
 
+  // تحديث الحساب الشخصي
   async function handleUpdateProfile(e) {
     e.preventDefault()
     setUpdating(true)
@@ -245,49 +548,9 @@ export default function CustomerProfilePage() {
     }
   }
 
-  const openReviewModal = (item) => {
-    setReviewModal({
-      isOpen: true,
-      item,
-      rating: 5,
-      comment: '',
-      submitting: false,
-      successMsg: null,
-      errorMsg: null
-    })
-  }
-
-  const closeReviewModal = () => {
-    setReviewModal(prev => ({ ...prev, isOpen: false }))
-  }
-
-  const handleSubmitReview = async (e) => {
-    e.preventDefault()
-    setReviewModal(prev => ({ ...prev, submitting: true, errorMsg: null }))
-
-    try {
-      await axiosInstance.post('/Reviews', {
-        productId: reviewModal.item?.productId || reviewModal.item?.id,
-        rating: reviewModal.rating,
-        comment: reviewModal.comment
-      })
-
-      setReviewModal(prev => ({
-        ...prev,
-        submitting: false,
-        successMsg: 'تم إرسال تقييمك بنجاح! شكراً لمشاركتك.'
-      }))
-
-      setTimeout(() => {
-        closeReviewModal()
-      }, 2000)
-    } catch (err) {
-      setReviewModal(prev => ({
-        ...prev,
-        submitting: false,
-        errorMsg: err.response?.data?.message || err.message || 'تعذر إرسال التقييم حالياً.'
-      }))
-    }
+  // تقديم التقييم
+  const handleReviewSubmit = async (reviewData) => {
+    await axiosInstance.post('/Reviews', reviewData)
   }
 
   return (
@@ -305,6 +568,7 @@ export default function CustomerProfilePage() {
 
         <div className="flex items-center gap-2 bg-canvas p-1.5 rounded-2xl border border-border shrink-0">
           <button
+            type="button"
             onClick={() => handleTabChange('orders')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
               activeTab === 'orders'
@@ -320,8 +584,9 @@ export default function CustomerProfilePage() {
               </span>
             )}
           </button>
-          
+
           <button
+            type="button"
             onClick={() => handleTabChange('profile')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
               activeTab === 'profile'
@@ -347,6 +612,7 @@ export default function CustomerProfilePage() {
               <AlertCircle size={36} />
               <p>{ordersError}</p>
               <button
+                type="button"
                 onClick={fetchCustomerOrders}
                 className="inline-flex items-center gap-2 bg-surface border border-border px-4 py-2 rounded-xl text-xs font-semibold text-ink hover:bg-canvas transition cursor-pointer"
               >
@@ -362,172 +628,19 @@ export default function CustomerProfilePage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {orders.map(order => {
-                const orderKey = order.id || order.orderNumber
-                const isExpanded = expandedOrders[orderKey]
-                const currentStep = getStepNumber(order.status)
-                const items = order.items || order.orderItems || []
-                const badge = getStatusBadge(order.statusText || order.status)
-                const StatusIcon = badge.icon
-
+              {orders.map((order, idx) => {
+                const orderKey = order.id ?? order.orderNumber ?? idx
                 return (
-                  <div
+                  <OrderCard
                     key={orderKey}
-                    className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs transition hover:border-amber/40"
-                  >
-                    {/* Header Card */}
-                    <div 
-                      onClick={() => toggleOrderExpand(orderKey)}
-                      className="flex flex-wrap items-center justify-between gap-3 bg-canvas/80 p-4 border-b border-border text-xs cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <span className="text-ink-soft block">رقم الطلب</span>
-                          <span className="font-mono font-bold text-emerald-600 text-sm">
-                            {order.orderNumber || `ORD-${order.id}`}
-                          </span>
-                        </div>
-                        <div className="hidden sm:block">
-                          <span className="text-ink-soft block">التاريخ</span>
-                          <span className="font-semibold text-ink">
-                            {order.createdAt
-                              ? new Date(order.createdAt).toLocaleDateString('ar-EG')
-                              : new Date().toLocaleDateString('ar-EG')}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-ink-soft block">الإجمالي الكلي</span>
-                          <span className="font-mono font-bold text-ink text-sm">
-                            {formatCurrency(order.totalAmount || order.total || 0)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}>
-                          <StatusIcon size={14} />
-                          {badge.label}
-                        </span>
-                        <button className="text-ink-soft hover:text-ink p-1">
-                          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Details Accordion */}
-                    {isExpanded && (
-                      <div className="p-4 sm:p-6 space-y-6">
-                        {currentStep === -1 ? (
-                          <div className="rounded-xl bg-rose-50 p-3.5 text-xs text-rose-700 flex items-center gap-2 border border-rose-200">
-                            <XCircle size={18} className="shrink-0" />
-                            <span>تم إلغاء هذا الطلب. إذا كان لديك استفسار يرجى التواصل مع الدعم الفني.</span>
-                          </div>
-                        ) : (
-                          <div className="rounded-2xl border border-border/80 bg-canvas/40 p-4">
-                            <div className="flex items-center justify-between mb-4">
-                              <span className="text-xs font-bold text-ink block">تتبع مراحل الشحنة</span>
-                              
-                              {/* زر إلغاء الطلب في مرحلة المراجعة فقط */}
-                              {currentStep === 1 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleCancelOrder(orderKey)
-                                  }}
-                                  disabled={cancelingOrderId === orderKey}
-                                  className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg border border-rose-200 transition cursor-pointer disabled:opacity-50"
-                                >
-                                  {cancelingOrderId === orderKey ? (
-                                    <Loader2 size={13} className="animate-spin" />
-                                  ) : (
-                                    <Ban size={13} />
-                                  )}
-                                  <span>إلغاء الطلب</span>
-                                </button>
-                              )}
-                            </div>
-                            
-                            <div className="relative py-2">
-                              <div className="absolute top-4 right-6 left-6 h-0.5 bg-border -z-0">
-                                <div 
-                                  className="h-full bg-emerald-600 transition-all duration-500"
-                                  style={{
-                                    width: `${Math.max(0, Math.min(100, ((currentStep - 1) / (TRACKING_STEPS.length - 1)) * 100))}%`
-                                  }}
-                                />
-                              </div>
-
-                              <div className="grid grid-cols-5 gap-2 text-center relative z-10">
-                                {TRACKING_STEPS.map((s) => {
-                                  const isCompleted = currentStep >= s.step
-                                  const isCurrent = currentStep === s.step
-                                  return (
-                                    <div key={s.step} className="flex flex-col items-center">
-                                      <div
-                                        className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                                          isCompleted
-                                            ? 'bg-emerald-600 text-white shadow-xs'
-                                            : 'bg-surface text-ink-soft border border-border'
-                                        } ${isCurrent ? 'ring-4 ring-emerald-100 ring-offset-1 border-emerald-600 scale-105' : ''}`}
-                                      >
-                                        {isCompleted ? <Check size={16} /> : s.step}
-                                      </div>
-                                      <span
-                                        className={`mt-2 text-[11px] leading-tight ${
-                                          isCompleted ? 'text-emerald-700 font-bold' : 'text-ink-soft'
-                                        }`}
-                                      >
-                                        {s.label}
-                                      </span>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {items.length > 0 && (
-                          <div>
-                            <span className="text-xs font-bold text-ink mb-3 block">منتجات الطلب ({items.length})</span>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {items.map((item, idx) => (
-                                <div key={item.id || idx} className="flex items-center justify-between gap-3 rounded-xl bg-canvas p-3 border border-border/70">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <div className="h-10 w-10 rounded-xl bg-surface flex items-center justify-center border border-border shrink-0">
-                                      <Package size={18} className="text-amber" />
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="text-xs font-bold text-ink truncate">{item.productName || item.name || 'منتج'}</p>
-                                      <p className="text-[11px] text-ink-soft font-mono mt-0.5">
-                                        الكمية: {item.quantity} × {formatCurrency(item.unitPrice || item.price || 0)}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  {currentStep === 5 && (
-                                    <button
-                                      onClick={() => openReviewModal(item)}
-                                      className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition shrink-0 cursor-pointer"
-                                    >
-                                      <Star size={12} className="fill-emerald-600 text-emerald-600" />
-                                      أضف تقييماً
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="rounded-xl bg-canvas p-3.5 flex items-center gap-2 text-xs text-ink border border-border/60">
-                          <MapPin size={16} className="text-emerald-600 shrink-0" />
-                          <span className="font-bold text-ink shrink-0">عنوان التوصيل:</span>
-                          <span className="truncate text-ink-soft">{order.shippingAddress || user.address || 'العنوان المسجل بالحساب'}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    order={order}
+                    isExpanded={!!expandedOrders[orderKey]}
+                    onToggle={() => toggleOrderExpand(orderKey)}
+                    onCancel={handleCancelOrder}
+                    cancelingOrderId={cancelingOrderId}
+                    onOpenReview={(item) => setReviewModalItem(item)}
+                    fallbackAddress={user.address}
+                  />
                 )
               })}
             </div>
@@ -541,11 +654,13 @@ export default function CustomerProfilePage() {
           <Card title="بيانات الحساب والملف الشخصي">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               {message && (
-                <div className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
-                  message.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-700 border border-rose-200'
-                }`}>
+                <div
+                  className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
+                    message.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  }`}
+                >
                   {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
                   <span>{message.text}</span>
                 </div>
@@ -559,7 +674,7 @@ export default function CustomerProfilePage() {
                     type="text"
                     disabled={updating}
                     value={user.fullName}
-                    onChange={e => setUser({ ...user, fullName: e.target.value })}
+                    onChange={(e) => setUser({ ...user, fullName: e.target.value })}
                     className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
                     placeholder="أدخل اسمك الكامل"
                     required
@@ -585,7 +700,7 @@ export default function CustomerProfilePage() {
                     type="tel"
                     disabled={updating}
                     value={user.phone}
-                    onChange={e => setUser({ ...user, phone: e.target.value })}
+                    onChange={(e) => setUser({ ...user, phone: e.target.value })}
                     className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
                     placeholder="01xxxxxxxxx"
                   />
@@ -600,7 +715,7 @@ export default function CustomerProfilePage() {
                     type="text"
                     disabled={updating}
                     value={user.governorate}
-                    onChange={e => setUser({ ...user, governorate: e.target.value })}
+                    onChange={(e) => setUser({ ...user, governorate: e.target.value })}
                     className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
                     placeholder="القاهرة، الإسكندرية..."
                   />
@@ -615,7 +730,7 @@ export default function CustomerProfilePage() {
                     rows={3}
                     disabled={updating}
                     value={user.address}
-                    onChange={e => setUser({ ...user, address: e.target.value })}
+                    onChange={(e) => setUser({ ...user, address: e.target.value })}
                     className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber resize-none transition disabled:opacity-60"
                     placeholder="تفاصيل العنوان..."
                   />
@@ -635,87 +750,13 @@ export default function CustomerProfilePage() {
         </div>
       )}
 
-      {/* Review Modal */}
-      {reviewModal.isOpen && (
-        <div 
-          onClick={closeReviewModal}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs" 
-          dir="rtl"
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative"
-          >
-            <button
-              onClick={closeReviewModal}
-              className="absolute left-4 top-4 text-ink-soft hover:text-ink cursor-pointer"
-            >
-              <X size={20} />
-            </button>
-
-            <h3 className="text-lg font-bold text-ink mb-1">إضافة تقييم للمنتج</h3>
-            <p className="text-xs text-ink-soft mb-4">
-              المنتج: <span className="font-semibold text-ink">{reviewModal.item?.productName || reviewModal.item?.name}</span>
-            </p>
-
-            {reviewModal.successMsg ? (
-              <div className="p-4 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm flex items-center gap-2">
-                <CheckCircle2 size={18} />
-                <span>{reviewModal.successMsg}</span>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitReview} className="space-y-4">
-                {reviewModal.errorMsg && (
-                  <div className="p-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs flex items-center gap-2">
-                    <AlertCircle size={16} />
-                    <span>{reviewModal.errorMsg}</span>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-semibold text-ink mb-2">تقييمك بالنجوم:</label>
-                  <div className="flex items-center gap-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setReviewModal(prev => ({ ...prev, rating: star }))}
-                        className="p-1 hover:scale-110 transition cursor-pointer"
-                      >
-                        <Star
-                          size={24}
-                          className={star <= reviewModal.rating ? 'fill-amber text-amber' : 'text-border'}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-ink mb-1">تعليقك / رأيك بالمنتج:</label>
-                  <textarea
-                    rows={3}
-                    disabled={reviewModal.submitting}
-                    value={reviewModal.comment}
-                    onChange={(e) => setReviewModal(prev => ({ ...prev, comment: e.target.value }))}
-                    className="w-full rounded-xl border border-border bg-canvas p-3 text-sm text-ink outline-none focus:border-amber transition resize-none disabled:opacity-60"
-                    placeholder="اكتب انطباعك عن جودة المنتج والتوصيل..."
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={reviewModal.submitting}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
-                >
-                  {reviewModal.submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                  إرسال التقييم
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Modal التقييم */}
+      <ReviewModal
+        isOpen={!!reviewModalItem}
+        item={reviewModalItem}
+        onClose={() => setReviewModalItem(null)}
+        onSubmit={handleReviewSubmit}
+      />
     </div>
   )
 }
