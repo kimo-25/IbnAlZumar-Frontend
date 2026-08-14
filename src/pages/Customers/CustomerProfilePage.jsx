@@ -38,6 +38,15 @@ const TRACKING_STEPS = [
   { step: 5, label: 'تم التوصيل' }
 ]
 
+// دالة لحساب تكلفة الشحن بناءً على المحافظة
+function calculateShippingCost(governorate) {
+  if (!governorate) return 50 // تكلفة افتراضية
+  const gov = governorate.trim().toLowerCase()
+  if (gov.includes('إسكندرية') || gov.includes('alexandria')) return 40
+  if (gov.includes('قاهرة') || gov.includes('cairo') || gov.includes('جيزة') || gov.includes('giza')) return 50
+  return 70 // باقي المحافظات
+}
+
 function getStepNumber(status) {
   if (status === null || status === undefined) return 1
 
@@ -186,6 +195,9 @@ function OrderCard({
   const badge = getStatusBadge(order.statusText || order.status)
   const StatusIcon = badge.icon
 
+  // حساب الشحنة المرتبطة بالطلب أو بناءً على محافظة العميل
+  const shippingCost = order.shippingCost ?? calculateShippingCost(order.governorate || userInfo.governorate)
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs transition hover:border-amber/40">
       <div
@@ -234,7 +246,19 @@ function OrderCard({
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={() => onPrintInvoice(order, userInfo)}
+              onClick={() => {
+                // دمج بيانات المستخدم الحالية مع بيانات الطلب لضمان ظهور البريد والمنتجات بشكل سليم في الفاتورة
+                const fullOrderData = {
+                  ...order,
+                  items: items,
+                  shippingCost: shippingCost
+                };
+                const fullUserData = {
+                  ...userInfo,
+                  email: userInfo.email || order.email
+                };
+                onPrintInvoice(fullOrderData, fullUserData);
+              }}
               className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition cursor-pointer"
             >
               <Package size={16} />
@@ -276,10 +300,16 @@ function OrderCard({
             </div>
           )}
 
-          <div className="rounded-xl bg-canvas p-3.5 flex items-center gap-2 text-xs text-ink border border-border/60">
-            <MapPin size={16} className="text-emerald-600 shrink-0" />
-            <span className="font-bold text-ink shrink-0">عنوان التوصيل:</span>
-            <span className="truncate text-ink-soft">{order.shippingAddress || userInfo.address || 'العنوان المسجل بالحساب'}</span>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl bg-canvas p-3.5 flex items-center gap-2 text-xs text-ink border border-border/60">
+              <MapPin size={16} className="text-emerald-600 shrink-0" />
+              <span className="font-bold text-ink shrink-0">عنوان التوصيل:</span>
+              <span className="truncate text-ink-soft">{order.shippingAddress || userInfo.address || 'العنوان المسجل بالحساب'}</span>
+            </div>
+            <div className="rounded-xl bg-canvas p-3.5 flex items-center justify-between text-xs text-ink border border-border/60">
+              <span className="font-bold text-ink">تكلفة الشحن:</span>
+              <span className="font-mono font-semibold text-emerald-600">{formatCurrency(shippingCost)}</span>
+            </div>
           </div>
         </div>
       )}
@@ -752,7 +782,7 @@ export default function CustomerProfilePage() {
                 disabled={updating}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-graphite-800 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
               >
-                {updating && <Loader2 size5={16} className="animate-spin" />}
+                {updating && <Loader2 size={16} className="animate-spin" />}
                 حفظ التعديلات
               </button>
             </form>

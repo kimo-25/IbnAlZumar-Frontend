@@ -60,9 +60,50 @@ function getStatusBadge(status) {
 // Helper: Print Invoice HTML Generator
 // ==========================================
 function generateInvoiceHTML(order) {
-  const rawItems = order.items || order.orderDetails || order.orderItems || []
+  if (!order) return ''
+
+  // 1. استخراج بيانات المنتجات بدقة من كافة الأشكال المتوقعة
+  const rawItems = order.items || order.orderDetails || order.orderItems || order.products || []
   const items = Array.isArray(rawItems) ? rawItems : (rawItems.$values || [])
-  const orderNum = order.orderNumber || `ORD-${order.id}`
+
+  // 2. استخراج بيانات العميل بدقة
+  const customerName =
+    order.customerName ||
+    order.fullName ||
+    order.customer?.fullName ||
+    order.customer?.name ||
+    order.user?.fullName ||
+    order.user?.name ||
+    'عميل المتجر'
+
+  const customerPhone =
+    order.phone ||
+    order.customerPhone ||
+    order.customer?.phoneNumber ||
+    order.customer?.phone ||
+    order.user?.phone ||
+    order.user?.phoneNumber ||
+    'غير مسجل'
+
+  const customerEmail =
+    order.customerEmail ||
+    order.email ||
+    order.customer?.email ||
+    order.user?.email ||
+    ''
+
+  // 3. استخراج العنوان
+  let address = 'استلام من مقر المعرض'
+  const rawAddr = order.shippingAddress || order.address || order.customer?.address || order.user?.address
+  if (typeof rawAddr === 'string' && rawAddr.trim() !== '') {
+    address = rawAddr
+  } else if (rawAddr && typeof rawAddr === 'object') {
+    const parts = [rawAddr.street, rawAddr.city, rawAddr.state, rawAddr.governorate].filter(Boolean)
+    if (parts.length > 0) address = parts.join('، ')
+  }
+
+  // 4. تفاصيل الفاتورة العامة
+  const orderNum = order.orderNumber || `ORD-${order.id || '0000'}`
   const orderDate = new Date(order.createdAt || order.orderDate || Date.now()).toLocaleDateString('ar-EG', {
     year: 'numeric',
     month: 'long',
@@ -70,15 +111,31 @@ function generateInvoiceHTML(order) {
   })
   const printDate = new Date().toLocaleString('ar-EG')
 
-  const subtotal = order.subtotal || order.totalAmount || order.total || 0
-  const shippingCost = order.shippingCost || order.shippingFee || 0
-  const grandTotal = order.totalAmount || order.total || (subtotal + shippingCost)
+  // 5. المبالغ والأسعار
+  const totalAmount = Number(order.totalAmount || order.total || order.grandTotal || 0)
+  
+  // حساب الإجمالي الفرعي إما من المنتجات أو من الحقل
+  const subtotal = items.length > 0
+    ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1)), 0)
+    : Number(order.subtotal || totalAmount)
 
+  const shippingCost = Number(order.shippingCost || order.shippingFee || (totalAmount > subtotal ? totalAmount - subtotal : 0))
+  const grandTotal = totalAmount > 0 ? totalAmount : (subtotal + shippingCost)
+
+  // 6. طريقة الدفع وتنسيق الحالات
+  const rawPayment = order.paymentMethod || 'COD'
+  const paymentMethod = rawPayment === 'CARD' 
+    ? 'بطاقة ائتمانية / دفع إلكتروني' 
+    : (rawPayment === 'COD' || rawPayment === 'CASH' ? 'الدفع عند الاستلام (COD)' : rawPayment)
+
+  const statusText = order.statusText || getStatusBadge(order.status || order.statusValue || 1).label
+
+  // 7. إنشاء صفوف المنتجات
   const itemsRows = items.map((item, idx) => {
-    const itemName = item.productName || item.name || item.product?.name || 'معدة / أداة ورشة'
-    const qty = item.quantity || 1
-    const unitPrice = item.unitPrice || item.price || 0
-    const totalItemPrice = unitPrice * qty
+    const itemName = item.productName || item.name || item.product?.name || `منتج رقم ${idx + 1}`
+    const qty = Number(item.quantity || item.qty || 1)
+    const unitPrice = Number(item.unitPrice || item.price || 0)
+    const totalPrice = unitPrice * qty
 
     return `
       <tr>
@@ -87,11 +144,11 @@ function generateInvoiceHTML(order) {
           ${itemName}
         </td>
         <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: 600; font-size: 13px;">${qty}</td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-family: monospace; font-size: 13px;">
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-family: monospace; font-size: 13px;" dir="ltr">
           ${formatCurrency(unitPrice)}
         </td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-family: monospace; font-weight: 700; color: #0f172a; font-size: 13px;">
-          ${formatCurrency(totalItemPrice)}
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-family: monospace; font-weight: 700; color: #0f172a; font-size: 13px;" dir="ltr">
+          ${formatCurrency(totalPrice)}
         </td>
       </tr>
     `
@@ -118,7 +175,7 @@ function generateInvoiceHTML(order) {
         .invoice-num { margin: 4px 0 0; font-size: 14px; color: #059669; font-family: monospace; font-weight: 700; }
         .grid-details { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; padding: 18px 20px; border-radius: 14px; margin-bottom: 24px; border: 1px solid #f1f5f9; font-size: 13px; }
         .details-block h4 { margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
-        .details-row { margin-bottom: 4px; color: #334155; }
+        .details-row { margin-bottom: 4px; color: #334155; word-break: break-word; }
         .details-row strong { color: #0f172a; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
         th { background: #f1f5f9; padding: 12px; text-align: right; border-bottom: 2px solid #cbd5e1; color: #334155; font-weight: 800; font-size: 12px; }
@@ -149,15 +206,16 @@ function generateInvoiceHTML(order) {
         <div class="grid-details">
           <div class="details-block">
             <h4>بيانات العميل والتوصيل</h4>
-            <div class="details-row"><strong>العميل:</strong> ${order.customerName || order.customer?.fullName || 'عميل كاش'}</div>
-            <div class="details-row"><strong>رقم الهاتف:</strong> ${order.phone || order.customer?.phoneNumber || '-'}</div>
-            <div class="details-row"><strong>عنوان الشحن:</strong> ${order.shippingAddress || order.address || 'استلام من مقر المعرض'}</div>
+            <div class="details-row"><strong>العميل:</strong> ${customerName}</div>
+            <div class="details-row"><strong>رقم الهاتف:</strong> ${customerPhone}</div>
+            ${customerEmail ? `<div class="details-row"><strong>البريد الإلكتروني:</strong> ${customerEmail}</div>` : ''}
+            <div class="details-row"><strong>عنوان الشحن:</strong> ${address}</div>
           </div>
           <div class="details-block">
             <h4>تفاصيل الفاتورة والطلب</h4>
             <div class="details-row"><strong>تاريخ الطلب:</strong> ${orderDate}</div>
-            <div class="details-row"><strong>حالة الطلب:</strong> ${order.statusText || 'معتمد'}</div>
-            <div class="details-row"><strong>طريقة الدفع:</strong> ${order.paymentMethod || 'الدفع عند الاستلام (COD)'}</div>
+            <div class="details-row"><strong>حالة الطلب:</strong> ${statusText}</div>
+            <div class="details-row"><strong>طريقة الدفع:</strong> ${paymentMethod}</div>
           </div>
         </div>
 
@@ -172,7 +230,7 @@ function generateInvoiceHTML(order) {
             </tr>
           </thead>
           <tbody>
-            ${itemsRows.length > 0 ? itemsRows : '<tr><td colspan="5" style="text-align:center; padding: 20px; color: #94a3b8;">تم تسجيل عناصر الطلب بنجاح.</td></tr>'}
+            ${itemsRows.length > 0 ? itemsRows : '<tr><td colspan="5" style="text-align:center; padding: 20px; color: #94a3b8;">لا توجد تفاصيل أصناف لهذا الطلب.</td></tr>'}
           </tbody>
         </table>
 
@@ -180,23 +238,23 @@ function generateInvoiceHTML(order) {
           <div class="summary-box">
             <div class="summary-row">
               <span>إجمالي الأصناف:</span>
-              <span style="font-family: monospace;">${formatCurrency(subtotal)}</span>
+              <span style="font-family: monospace;" dir="ltr">${formatCurrency(subtotal)}</span>
             </div>
             ${shippingCost > 0 ? `
             <div class="summary-row">
               <span>مصاريف الشحن والتوصيل:</span>
-              <span style="font-family: monospace;">${formatCurrency(shippingCost)}</span>
+              <span style="font-family: monospace;" dir="ltr">${formatCurrency(shippingCost)}</span>
             </div>
             ` : ''}
             <div class="summary-row total">
               <span>صافي المبلغ المستحق:</span>
-              <span style="font-family: monospace;">${formatCurrency(grandTotal)}</span>
+              <span style="font-family: monospace;" dir="ltr">${formatCurrency(grandTotal)}</span>
             </div>
           </div>
         </div>
 
         <div class="footer">
-          <p style="margin: 0; font-weight: 700; color: #1e293b;">نشكر اختياركم متجر ابن الزمر — ضمان وجودة في خدمتكم دائماً</p>
+          <p style="margin: 0; font-weight: 700; color: #1e293b;">نشكر اختياركم متجر ابن الزمر — ضمان وجودة في خدمة الورش دائماً</p>
           <p style="margin: 6px 0 0; font-size: 11px; color: #94a3b8;">تاريخ الطباعة: ${printDate}</p>
         </div>
       </div>
@@ -269,11 +327,15 @@ function OrdersTab({ orders, loading, error, processingId, onUpdateStatus, onPri
                     {order.orderNumber || `ORD-${order.id}`}
                   </td>
                   <td className="p-4">
-                    <div className="font-bold text-ink">{order.customerName || 'عميل كاش'}</div>
-                    <div className="font-mono text-[11px] text-ink-soft mt-0.5">{order.phone || '-'}</div>
+                    <div className="font-bold text-ink">
+                      {order.customerName || order.fullName || order.customer?.fullName || 'عميل المتجر'}
+                    </div>
+                    <div className="font-mono text-[11px] text-ink-soft mt-0.5">
+                      {order.phone || order.customerPhone || order.customer?.phoneNumber || '-'}
+                    </div>
                   </td>
-                  <td className="p-4 max-w-xs truncate text-ink-soft" title={order.shippingAddress || ''}>
-                    {order.shippingAddress || '-'}
+                  <td className="p-4 max-w-xs truncate text-ink-soft" title={order.shippingAddress || order.address || ''}>
+                    {order.shippingAddress || order.address || '-'}
                   </td>
                   <td className="p-4 font-mono font-bold text-ink">
                     {formatCurrency(order.totalAmount || order.total || 0)}
@@ -457,7 +519,6 @@ function ProductsVisibilityTab({ products, loading, searchTerm, setSearchTerm, o
 
   return (
     <div className="space-y-6">
-      {/* Search Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-surface border border-border p-4 rounded-2xl shadow-xs">
         <div className="relative w-full sm:w-96">
           <Search size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
@@ -560,24 +621,21 @@ function ProductsVisibilityTab({ products, loading, searchTerm, setSearchTerm, o
 // Main Component: OperationsHubPage
 // ==========================================
 export default function OperationsHubPage() {
-  const [activeTab, setActiveTab] = useState('orders') // 'orders' | 'inquiries' | 'shipping' | 'products'
+  const [activeTab, setActiveTab] = useState('orders')
   const [orders, setOrders] = useState([])
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [ordersError, setOrdersError] = useState(null)
   const [processingId, setProcessingId] = useState(null)
 
-  // حالة مناطق الشحن
   const [shippingZones, setShippingZones] = useState([])
   const [loadingZones, setLoadingZones] = useState(false)
   const [newZone, setNewZone] = useState({ name: '', price: '', estimatedDays: '' })
   const [addingZone, setAddingZone] = useState(false)
 
-  // حالة ظهور المنتجات
   const [products, setProducts] = useState([])
   const [loadingProducts, setLoadingProducts] = useState(false)
   const [productSearch, setProductSearch] = useState('')
 
-  // جلب الطلبات
   const fetchOrders = useCallback(async () => {
     try {
       setLoadingOrders(true)
@@ -593,7 +651,6 @@ export default function OperationsHubPage() {
     }
   }, [])
 
-  // جلب مناطق الشحن
   const fetchShippingZones = useCallback(async () => {
     try {
       setLoadingZones(true)
@@ -607,7 +664,6 @@ export default function OperationsHubPage() {
     }
   }, [])
 
-  // جلب المنتجات للتحكم بالظهور
   const fetchProducts = useCallback(async () => {
     try {
       setLoadingProducts(true)
@@ -631,7 +687,6 @@ export default function OperationsHubPage() {
     }
   }, [activeTab, fetchOrders, fetchShippingZones, fetchProducts])
 
-  // إضافة منطقة شحن جديدة
   async function handleAddZone(e) {
     e.preventDefault()
     if (!newZone.name || !newZone.price) {
@@ -662,7 +717,6 @@ export default function OperationsHubPage() {
     }
   }
 
-  // حذف منطقة شحن
   async function handleDeleteZone(id) {
     if (!window.confirm('هل أنت متأكد من حذف منطقة الشحن هذه؟')) return
     try {
@@ -674,7 +728,6 @@ export default function OperationsHubPage() {
     }
   }
 
-  // تحديث حالة الطلب
   async function handleUpdateStatus(orderId, newStatusValue) {
     if (!newStatusValue) return
     try {
@@ -696,7 +749,6 @@ export default function OperationsHubPage() {
     }
   }
 
-  // تبديل حالة ظهور المنتج للعملاء
   async function handleToggleProductVisibility(productId, newVisibility) {
     try {
       try {
@@ -711,7 +763,7 @@ export default function OperationsHubPage() {
     }
   }
 
-  // طباعة الفاتورة
+  // طباعة الفاتورة بالشكل المطابق لزر الفاتورة الخاص بالموديريتور
   function handlePrintInvoice(order) {
     const printWindow = window.open('', '_blank', 'width=850,height=900')
     if (!printWindow) {
@@ -726,7 +778,6 @@ export default function OperationsHubPage() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6" dir="rtl">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <h1 className="text-2xl font-bold text-ink">مركز عمليات متجر ابن الزمر</h1>
@@ -747,7 +798,6 @@ export default function OperationsHubPage() {
         </button>
       </div>
 
-      {/* Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-border pb-3">
         <button
           type="button"
@@ -794,7 +844,6 @@ export default function OperationsHubPage() {
         </button>
       </div>
 
-      {/* Active Tab Views */}
       {activeTab === 'orders' && (
         <OrdersTab
           orders={orders}
