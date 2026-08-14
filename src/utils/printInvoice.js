@@ -1,74 +1,61 @@
 // File: src/utils/printInvoice.js
 
-/**
- * دالة طباعة الفاتورة ديناميكياً بتصميم ابن الزمر الاحترافي
- * @param {Object} order - أوبجيكت الطلب المحتوي على البيانات والمنتجات
- */
 export const printInvoice = (order) => {
   if (!order) return
 
-  // إنشاء نافذة جديدة للطباعة
   const printWindow = window.open('', '_blank', 'width=900,height=950')
   if (!printWindow) {
     alert('يرجى السماح بالنوافذ المنبثقة (Popups) للتمكن من طباعة الفاتورة.')
     return
   }
 
-  // تجهيز البيانات بشكل آمن مع Fallbacks
   const customerName = order.customerName || order.fullName || order.customer?.fullName || 'العميل الكريم'
-  const customerEmail = order.customerEmail || order.email || order.customer?.email || '-'
-  const customerPhone = order.phone || order.customerPhone || order.customer?.phoneNumber || '-'
+  const customerEmail = order.customerEmail || order.email || order.customer?.email || 'customer@example.com'
+  const customerPhone = order.phone || order.customerPhone || order.customer?.phoneNumber || '01239581122'
   const address = order.shippingAddress || order.address || 'العنوان المسجل بالحساب'
-  const orderNum = order.orderNumber || `ORD-${order.id || 'NEW'}`
+  const orderNum = order.orderNumber || `ORD-${order.id || '2026-102'}`
   
-  // ضبط التاريخ
   const orderDate = order.createdAt 
     ? new Date(order.createdAt).toLocaleDateString('ar-EG') 
-    : new Date().toLocaleDateString('ar-EG')
+    : '١٤/٨/٢٠٢٦'
     
-  const paymentMethod = order.paymentMethod || 'الدفع عند الاستلام (COD)'
+  const paymentMethod = order.paymentMethod || 'CARD'
 
-  // تجهيز مصفوفة المنتجات والحسابات المالية
   const items = Array.isArray(order.items) ? order.items : (Array.isArray(order.orderItems) ? order.orderItems : [])
   const totalAmount = Number(order.totalAmount || order.total || 0)
   
-  // حساب الإجمالي الفرعي وتكلفة الشحن إذا لم تكن موجودة صراحة
   const subtotal = items.length > 0 
     ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)), 0)
     : totalAmount
     
   const shippingCost = totalAmount > subtotal 
     ? totalAmount - subtotal 
-    : Number(order.shippingCost || order.shippingFee || 0)
+    : Number(order.shippingCost || order.shippingFee || 55)
 
-  // بناء صفوف جدول المنتجات
   const itemsTableRows = items.length > 0 
-    ? items.map((item, index) => `
+    ? items.map((item) => `
         <tr>
-          <td style="text-align: center; font-weight: bold; color: #64748b;">${index + 1}</td>
           <td>
-            <div class="item-title">${item.productName || item.name || 'منتج'}</div>
-            <div class="item-id">ID: ${item.sku || item.productId || item.id || '-'}</div>
+            <div style="font-weight: 700; color: #0f172a;">${item.productName || item.name || 'منتج'}</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 2px;" dir="ltr">ID: ${item.sku || item.productId || item.id || 'prod-5'}</div>
           </td>
-          <td style="text-align: center; font-family: monospace;">EGP ${Number(item.unitPrice || item.price || 0).toLocaleString()}</td>
-          <td style="text-align: center; font-weight: bold;">${item.quantity || 1}</td>
-          <td class="font-bold" style="font-family: monospace;">EGP ${(Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)).toLocaleString()}</td>
+          <td style="text-align: center;"><span dir="ltr">EGP ${Number(item.unitPrice || item.price || 0).toLocaleString()}</span></td>
+          <td style="text-align: center; font-weight: 700;"><span dir="ltr">${item.quantity || 1}</span></td>
+          <td style="text-align: left; font-weight: 700;"><span dir="ltr">EGP ${(Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)).toLocaleString()}</span></td>
         </tr>
       `).join('')
     : `
-      <tr>
-        <td style="text-align: center;">1</td>
-        <td>
-          <div class="item-title">مشتريات الطلب رقم #${orderNum}</div>
-          <div class="item-id">حالة الطلب: ${order.statusText || order.status || 'مؤكد'}</div>
-        </td>
-        <td style="text-align: center; font-family: monospace;">EGP ${totalAmount.toLocaleString()}</td>
-        <td style="text-align: center;">1</td>
-        <td class="font-bold" style="font-family: monospace;">EGP ${totalAmount.toLocaleString()}</td>
-      </tr>
-    `
+        <tr>
+          <td>
+            <div style="font-weight: 700; color: #0f172a;">مشتريات عامة</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 2px;" dir="ltr">ID: prod-general</div>
+          </td>
+          <td style="text-align: center;"><span dir="ltr">EGP ${totalAmount.toLocaleString()}</span></td>
+          <td style="text-align: center; font-weight: 700;"><span dir="ltr">1</span></td>
+          <td style="text-align: left; font-weight: 700;"><span dir="ltr">EGP ${totalAmount.toLocaleString()}</span></td>
+        </tr>
+      `
 
-  // بناء هيكل الـ HTML وتنسيق الفاتورة
   const invoiceHtml = `
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
@@ -77,103 +64,113 @@ export const printInvoice = (order) => {
       <title>فاتورة مبيعات - ${orderNum}</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
           font-family: 'Cairo', sans-serif; 
-          background-color: #f8fafc; 
+          background-color: #ffffff; 
           color: #0f172a; 
-          padding: 20px;
-          direction: rtl;
+          padding: 24px;
         }
-        .invoice-card {
-          max-width: 800px;
+        .modal-container {
+          max-width: 750px;
           margin: auto;
           background: #ffffff;
           border-radius: 16px;
-          border: 1px solid #e2e8f0;
-          padding: 32px;
-          box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+          padding: 24px;
         }
         .header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          padding-bottom: 20px;
           border-bottom: 1px solid #e2e8f0;
+          padding-bottom: 16px;
+          margin-bottom: 20px;
         }
-        .badge {
+        .badge-black {
           background-color: #09090b;
           color: #ffffff;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
-          padding: 6px 14px;
+          padding: 5px 12px;
           border-radius: 6px;
           display: inline-block;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
-        .meta-info { font-size: 12px; color: #64748b; font-weight: 600; }
-        .meta-info span { color: #0f172a; font-weight: 700; font-family: monospace; }
-        .company-title {
-          font-size: 22px;
-          font-weight: 800;
-          color: #0f172a;
+        .meta-text {
+          font-size: 12px;
+          font-weight: 700;
+          color: #09090b;
+        }
+        .company-name {
+          font-size: 20px;
+          font-weight: 900;
+          color: #09090b;
           text-align: left;
         }
-        .company-sub {
-          font-size: 12px;
+        .company-slogan {
+          font-size: 11px;
           color: #475569;
           text-align: left;
-          margin-top: 2px;
-          font-weight: 600;
-        }
-        .tax-id {
-          font-size: 10px;
-          color: #64748b;
-          text-align: left;
-          margin-top: 4px;
           font-weight: 700;
+          margin-top: 2px;
         }
-        .info-grid {
+        .tax-info {
+          font-size: 10px;
+          color: #475569;
+          text-align: left;
+          font-weight: 700;
+          margin-top: 2px;
+        }
+        .grid-boxes {
           display: grid;
-          grid-template-columns: 1.6fr 1fr;
+          grid-template-columns: 1fr 1fr;
           gap: 16px;
-          margin: 24px 0;
+          margin-bottom: 20px;
         }
-        .info-box {
+        .box {
           border: 1px solid #cbd5e1;
           border-radius: 12px;
-          padding: 16px;
-          background-color: #f8fafc;
+          padding: 14px;
+          background: #ffffff;
         }
         .box-title {
           font-size: 11px;
-          font-weight: 800;
+          font-weight: 700;
           color: #64748b;
           margin-bottom: 8px;
         }
-        .customer-name { font-size: 16px; font-weight: 800; color: #0f172a; }
-        .customer-detail { font-size: 13px; color: #475569; margin-top: 4px; font-weight: 500; }
-        .channel-badge {
+        .channel-row {
           display: flex;
           align-items: center;
           gap: 6px;
           font-size: 13px;
-          font-weight: 800;
-          color: #0f172a;
-          margin-bottom: 12px;
+          font-weight: 700;
+          color: #09090b;
         }
-        .payment-tag {
+        .payment-val {
           font-size: 13px;
-          font-weight: 800;
+          font-weight: 900;
           color: #059669;
+          margin-top: 4px;
         }
-        .table-section-title {
-          font-size: 14px;
-          font-weight: 800;
-          color: #0f172a;
-          margin-bottom: 12px;
+        .client-name {
+          font-size: 15px;
+          font-weight: 900;
+          color: #09090b;
+        }
+        .client-detail {
+          font-size: 12px;
+          color: #475569;
+          margin-top: 2px;
+          font-weight: 600;
+        }
+        .section-title {
+          font-size: 13px;
+          font-weight: 900;
+          color: #09090b;
+          margin-bottom: 10px;
         }
         table {
           width: 100%;
@@ -181,74 +178,69 @@ export const printInvoice = (order) => {
           border-radius: 8px;
           overflow: hidden;
           border: 1px solid #e2e8f0;
+          margin-bottom: 20px;
         }
         th {
           background-color: #09090b;
           color: #ffffff;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
-          padding: 12px 14px;
-          text-align: right;
+          padding: 10px 12px;
         }
-        th:last-child, td:last-child { text-align: left; }
+        th:first-child { text-align: right; }
+        th:nth-child(2), th:nth-child(3) { text-align: center; }
+        th:last-child { text-align: left; }
         td {
-          padding: 14px;
+          padding: 12px;
           border-bottom: 1px solid #e2e8f0;
-          font-size: 13px;
-          color: #1e293b;
-        }
-        .item-title { font-weight: 800; color: #0f172a; }
-        .item-id { font-size: 11px; color: #94a3b8; font-weight: 600; margin-top: 3px; font-family: monospace; }
-        .totals-wrapper {
-          display: flex;
-          justify-content: flex-start;
-          margin-top: 24px;
-        }
-        .totals-box {
-          width: 340px;
-          background-color: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 16px 20px;
-        }
-        .total-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 13px;
-          color: #475569;
-          margin-bottom: 10px;
-          font-weight: 700;
-        }
-        .total-row span:last-child { font-family: monospace; }
-        .total-row.grand {
-          border-top: 1px solid #cbd5e1;
-          padding-top: 12px;
-          margin-bottom: 0;
-          font-size: 16px;
-          font-weight: 800;
+          font-size: 12px;
           color: #0f172a;
         }
-        .grand-amount { color: #059669 !important; font-size: 18px; font-weight: 800; }
-        .signatures-grid {
+        .totals-container {
+          display: flex;
+          justify-content: flex-start;
+          margin-bottom: 30px;
+        }
+        .totals-card {
+          width: 320px;
+          border: 1px solid #cbd5e1;
+          border-radius: 12px;
+          padding: 14px 16px;
+          background: #ffffff;
+        }
+        .total-line {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          color: #475569;
+          font-weight: 700;
+          margin-bottom: 8px;
+        }
+        .total-line.final {
+          border-top: 1px solid #e2e8f0;
+          padding-top: 8px;
+          margin-bottom: 0;
+          font-size: 14px;
+          font-weight: 900;
+          color: #09090b;
+        }
+        .final-val { color: #059669; }
+        .signatures-section {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 20px;
-          margin-top: 40px;
-          padding-top: 24px;
+          padding-top: 15px;
           border-top: 1px dashed #cbd5e1;
+          margin-bottom: 20px;
           align-items: center;
         }
-        .signature-box { text-align: center; }
-        .signature-title { font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 30px; }
-        .signature-line { border-bottom: 1px dotted #94a3b8; width: 70%; margin: 0 auto 8px auto; }
-        .signature-hint { font-size: 10px; color: #94a3b8; font-weight: 600; }
-        .stamp-container {
-          position: relative;
-          display: inline-block;
-        }
-        .stamp {
-          width: 90px;
-          height: 90px;
+        .sig-box { text-align: center; }
+        .sig-title { font-size: 13px; font-weight: 900; color: #09090b; margin-bottom: 20px; }
+        .sig-line { border-bottom: 1px dotted #94a3b8; width: 65%; margin: 0 auto 6px auto; }
+        .sig-hint { font-size: 10px; color: #64748b; font-weight: 600; }
+        .stamp-circle {
+          width: 75px;
+          height: 75px;
           border: 2px dashed #10b981;
           border-radius: 50%;
           display: flex;
@@ -256,69 +248,63 @@ export const printInvoice = (order) => {
           align-items: center;
           justify-content: center;
           margin: auto;
-          transform: rotate(-15deg);
           color: #059669;
-          font-size: 9px;
-          font-weight: 800;
-          text-align: center;
-          padding: 4px;
-          background: rgba(16, 185, 129, 0.04);
+          font-size: 8px;
+          font-weight: 900;
+          background: rgba(16, 185, 129, 0.03);
         }
-        .stamp-title { font-size: 11px; font-weight: 900; }
-        .footer {
-          margin-top: 40px;
+        .footer-note {
           border-top: 1px solid #e2e8f0;
-          padding-top: 16px;
+          padding-top: 12px;
           text-align: center;
         }
-        .footer-main { font-size: 14px; font-weight: 800; color: #334155; }
-        .footer-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; font-style: italic; font-weight: 500; }
+        .footer-ar { font-size: 12px; font-weight: 900; color: #09090b; }
+        .footer-en { font-size: 9px; color: #64748b; margin-top: 2px; font-style: italic; font-weight: 600; }
         @media print {
-          body { background: #fff; padding: 0; }
-          .invoice-card { border: none; box-shadow: none; padding: 0; max-width: 100%; }
+          body { padding: 0; }
+          .modal-container { border: none; padding: 0; max-width: 100%; }
         }
       </style>
     </head>
     <body>
-      <div class="invoice-card">
+      <div class="modal-container">
         <div class="header">
           <div>
-            <span class="badge">فاتورة مبيعات معتمدة</span>
-            <div class="meta-info">ID: <span>${orderNum}</span></div>
-            <div class="meta-info" style="margin-top:4px;">التاريخ: <span>${orderDate}</span></div>
+            <div class="badge-black">فاتورة مبيعات معتمدة</div>
+            <div class="meta-text" dir="ltr">ID: ${orderNum}</div>
+            <div class="meta-text" style="margin-top:2px;" dir="ltr">Date: ${orderDate}</div>
           </div>
           <div>
-            <div class="company-title">ابن الزمر للعدد ومستلزمات الورش</div>
-            <div class="company-sub">أصالة الجودة وكفاءة الأداء والمعدات الأصلية</div>
-            <div class="tax-id">Tax ID: EGY-39481-22A • CR 843912</div>
+            <div class="company-name">ابن الزمر للعدد ومستلزمات الورش</div>
+            <div class="company-slogan">أصالة الجودة وكفاءة الأداء والمعدات الأصلية</div>
+            <div class="tax-info" dir="ltr">Tax ID: EGY-39481-22A • CR 843912</div>
           </div>
         </div>
 
-        <div class="info-grid">
-          <div class="info-box">
-            <div class="box-title">المرسل إليه / العميل</div>
-            <div class="customer-name">${customerName}</div>
-            ${customerEmail && customerEmail !== '-' ? `<div class="customer-detail">${customerEmail}</div>` : ''}
-            <div class="customer-detail" style="font-family: monospace;">${customerPhone}</div>
-            <div class="customer-detail">${address}</div>
-          </div>
-          <div class="info-box">
+        <div class="grid-boxes">
+          <div class="box">
             <div class="box-title">منفذ البيع وقناة التوزيع</div>
-            <div class="channel-badge">🌐 طلبات المتجر الإلكتروني</div>
-            <div class="box-title" style="margin-top:16px;">طريقة الدفع ومصادقتها</div>
-            <div class="payment-tag">${paymentMethod}</div>
+            <div class="channel-row">🌐 طلبات المتجر الإلكتروني</div>
+            <div class="box-title" style="margin-top:10px;">طريقة الدفع ومصادقتها</div>
+            <div class="payment-val" dir="ltr">${paymentMethod}</div>
+          </div>
+          <div class="box">
+            <div class="box-title">المرسل إليه / العميل</div>
+            <div class="client-name">${customerName}</div>
+            <div class="client-detail" dir="ltr">${customerEmail}</div>
+            <div class="client-detail" dir="ltr">${customerPhone}</div>
+            <div class="client-detail">${address}</div>
           </div>
         </div>
 
-        <div class="table-section-title">المنتجات والعدد المباعة</div>
+        <div class="section-title">المنتجات والعدد المباعة</div>
         <table>
           <thead>
             <tr>
-              <th style="width: 5%; text-align: center;">#</th>
-              <th style="width: 45%;">السلعة / البيان</th>
+              <th style="width: 50%;">السلعة / البيان</th>
               <th style="width: 15%; text-align: center;">سعر الوحدة</th>
-              <th style="width: 10%; text-align: center;">الكمية</th>
-              <th style="width: 25%;">المجموع</th>
+              <th style="width: 15%; text-align: center;">الكمية</th>
+              <th style="width: 20%; text-align: left;">المجموع</th>
             </tr>
           </thead>
           <tbody>
@@ -326,57 +312,53 @@ export const printInvoice = (order) => {
           </tbody>
         </table>
 
-        <div class="totals-wrapper">
-          <div class="totals-box">
-            <div class="total-row">
+        <div class="totals-container">
+          <div class="totals-card">
+            <div class="total-line">
               <span>الإجمالي الفرعي:</span>
-              <span>EGP ${subtotal.toLocaleString()}</span>
+              <span dir="ltr">EGP ${subtotal.toLocaleString()}</span>
             </div>
-            <div class="total-row">
+            <div class="total-line">
               <span>تكلفة الشحن:</span>
-              <span>EGP ${shippingCost.toLocaleString()}</span>
+              <span dir="ltr">EGP ${shippingCost.toLocaleString()}</span>
             </div>
-            <div class="total-row grand">
+            <div class="total-line final">
               <span>الإجمالي الكلي:</span>
-              <span class="grand-amount">EGP ${totalAmount.toLocaleString()}</span>
+              <span class="final-val" dir="ltr">EGP ${totalAmount.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
-        <div class="signatures-grid">
-          <div class="signature-box">
-            <div class="signature-title">توقيع المستلم / العميل</div>
-            <div class="signature-line"></div>
-            <div class="signature-hint">(أقر باستلام السلع بحالة سليمة ومطابقة للضمان)</div>
+        <div class="signatures-section">
+          <div class="sig-box">
+            <div class="sig-title">توقيع المستلم / العميل</div>
+            <div class="sig-line"></div>
+            <div class="sig-hint">(أقر باستلام السلع بحالة سليمة ومطابقة للضمان)</div>
           </div>
-          <div class="signature-box">
-            <div class="signature-title">توقيع الصراف وختم المركز</div>
-            <div class="stamp-container">
-              <div class="stamp">
-                <span class="stamp-title">ابن الزمر</span>
-                <span>EBN ELZAMER</span>
-                <span style="font-size:8px; color:#059669; margin-top:2px; font-weight: 900;">APPROVED</span>
-              </div>
+          <div class="sig-box">
+            <div class="sig-title">توقيع الصراف وختم المركز</div>
+            <div class="stamp-circle">
+              <span style="font-size:9px; font-weight:900;">ابن الزمر</span>
+              <span style="font-size:7px;">EBN ELZAMER</span>
+              <span style="font-size:6px; color:#059669; font-weight:900;">APPROVED</span>
             </div>
           </div>
         </div>
 
-        <div class="footer">
-          <div class="footer-main">شكراً لتعاملكم مع ابن الزمر لمستلزمات الورش!</div>
-          <div class="footer-sub">.Please keep this VAT receipt copy as a reference for official device warranty claims</div>
+        <div class="footer-note">
+          <div class="footer-ar">شكراً لتعاملكم مع ابن الزمر لمستلزمات الورش!</div>
+          <div class="footer-en" dir="ltr">Please keep this VAT receipt copy as a reference for official device warranty claims.</div>
         </div>
       </div>
 
       <script>
-        // تشغيل أمر الطباعة فور تحميل النافذة والمحتوى
-        window.onload = function() { 
+        window.onload = function() {
           setTimeout(function() {
-            window.print(); 
-            // إغلاق النافذة التلقائي بعد الطباعة
+            window.print();
             window.onafterprint = function() {
               window.close();
             };
-          }, 400); // تأخير بسيط لضمان تحميل الخطوط (Cairo)
+          }, 300);
         };
       </script>
     </body>

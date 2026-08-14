@@ -1,5 +1,5 @@
 // File: src/pages/Customer/CustomerProfilePage.jsx
-import { printInvoice } from '../utils/printInvoice'; // عدل المسار حسب مكان الملف لديك
+import { printInvoice } from '../../utils/printInvoice';
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -656,85 +656,85 @@ export default function CustomerProfilePage() {
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               {message && (
                 <div
-                  className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
-                    message.type === 'success'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200'
-                  }`}
+                    className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
+                      message.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    }`}
                 >
-                  {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                  <span>{message.text}</span>
+                    {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                    <span>{message.text}</span>
                 </div>
               )}
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">الاسم الكامل</label>
                 <div className="relative">
-                  <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    type="text"
-                    disabled={updating}
-                    value={user.fullName}
-                    onChange={(e) => setUser({ ...user, fullName: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
-                    placeholder="أدخل اسمك الكامل"
-                    required
-                  />
+                    <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                    <input
+                      type="text"
+                      disabled={updating}
+                      value={user.fullName}
+                      onChange={(e) => setUser({ ...user, fullName: e.target.value })}
+                      className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                      placeholder="أدخل اسمك الكامل"
+                      required
+                    />
                 </div>
               </div>
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">البريد الإلكتروني (غير قابل للتعديل)</label>
                 <input
-                  type="email"
-                  disabled
-                  value={user.email}
-                  className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink-soft opacity-70 cursor-not-allowed"
+                    type="email"
+                    disabled
+                    value={user.email}
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink-soft opacity-70 cursor-not-allowed"
                 />
               </div>
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">رقم الهاتف</label>
                 <div className="relative">
-                  <Phone size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    type="tel"
-                    disabled={updating}
-                    value={user.phone}
-                    onChange={(e) => setUser({ ...user, phone: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
-                    placeholder="01xxxxxxxxx"
-                  />
+                    <Phone size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                    <input
+                      type="tel"
+                      disabled={updating}
+                      value={user.phone}
+                      onChange={(e) => setUser({ ...user, phone: e.target.value })}
+                      className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                      placeholder="01xxxxxxxxx"
+                    />
                 </div>
               </div>
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">المحافظة</label>
                 <div className="relative">
-                  <Building2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    type="text"
-                    disabled={updating}
-                    value={user.governorate}
-                    onChange={(e) => setUser({ ...user, governorate: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
-                    placeholder="القاهرة، الإسكندرية..."
-                  />
+                    <Building2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                    <input
+                      type="text"
+                      disabled={updating}
+                      value={user.governorate}
+                      onChange={(e) => setUser({ ...user, governorate: e.target.value })}
+                      className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                      placeholder="القاهرة، الإسكندرية..."
+                    />
                 </div>
               </div>
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">العنوان بالتفصيل</label>
                 <div className="relative">
-                  <MapPin size={16} className="absolute right-3 top-3 text-ink-soft" />
-                  <textarea
-                    rows={3}
-                    disabled={updating}
-                    value={user.address}
-                    onChange={(e) => setUser({ ...user, address: e.target.value })}
-                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber resize-none transition disabled:opacity-60"
-                    placeholder="تفاصيل العنوان..."
-                  />
+                    <MapPin size={16} className="absolute right-3 top-3 text-ink-soft" />
+                    <textarea
+                      rows={3}
+                      disabled={updating}
+                      value={user.address}
+                      onChange={(e) => setUser({ ...user, address: e.target.value })}
+                      className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber resize-none transition disabled:opacity-60"
+                      placeholder="تفاصيل العنوان..."
+                    />
                 </div>
               </div>
 
@@ -745,19 +745,19 @@ export default function CustomerProfilePage() {
               >
                 {updating && <Loader2 size={16} className="animate-spin" />}
                 حفظ التعديلات
-              </button>
-            </form>
-          </Card>
-        </div>
-      )}
+            </button>
+          </form>
+        </Card>
+      </div>
+    )}
 
-      {/* Modal التقييم */}
-      <ReviewModal
-        isOpen={!!reviewModalItem}
-        item={reviewModalItem}
-        onClose={() => setReviewModalItem(null)}
-        onSubmit={handleReviewSubmit}
-      />
-    </div>
-  )
+    {/* Modal التقييم */}
+    <ReviewModal
+      isOpen={!!reviewModalItem}
+      item={reviewModalItem}
+      onClose={() => setReviewModalItem(null)}
+      onSubmit={handleReviewSubmit}
+    />
+  </div>
+)
 }
