@@ -99,7 +99,6 @@ function formatDate(dateStr) {
 // Sub-Components
 // ==========================================
 
-// شريط تتبع حالة الطلب
 function TrackingProgress({ currentStep, orderId, onCancel, isCanceling }) {
   if (currentStep === -1) {
     return (
@@ -171,7 +170,6 @@ function TrackingProgress({ currentStep, orderId, onCancel, isCanceling }) {
   )
 }
 
-// كارت الطلب الموحد
 function OrderCard({
   order,
   isExpanded,
@@ -179,7 +177,7 @@ function OrderCard({
   onCancel,
   cancelingOrderId,
   onOpenReview,
-  fallbackAddress,
+  userInfo,
   onPrintInvoice
 }) {
   const orderId = order.id ?? order.orderNumber
@@ -236,7 +234,7 @@ function OrderCard({
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={() => onPrintInvoice(order)}
+              onClick={() => onPrintInvoice(order, userInfo)}
               className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition cursor-pointer"
             >
               <Package size={16} />
@@ -281,7 +279,7 @@ function OrderCard({
           <div className="rounded-xl bg-canvas p-3.5 flex items-center gap-2 text-xs text-ink border border-border/60">
             <MapPin size={16} className="text-emerald-600 shrink-0" />
             <span className="font-bold text-ink shrink-0">عنوان التوصيل:</span>
-            <span className="truncate text-ink-soft">{order.shippingAddress || fallbackAddress || 'العنوان المسجل بالحساب'}</span>
+            <span className="truncate text-ink-soft">{order.shippingAddress || userInfo.address || 'العنوان المسجل بالحساب'}</span>
           </div>
         </div>
       )}
@@ -289,7 +287,6 @@ function OrderCard({
   )
 }
 
-// نافذة تقييم المنتج Modal
 function ReviewModal({ isOpen, item, onClose, onSubmit }) {
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
@@ -440,7 +437,6 @@ export default function CustomerProfilePage() {
 
   const [reviewModalItem, setReviewModalItem] = useState(null)
 
-  // جلب البيانات الشخصية عند التحميل
   useEffect(() => {
     const controller = new AbortController()
 
@@ -477,7 +473,6 @@ export default function CustomerProfilePage() {
     return () => controller.abort()
   }, [authUser])
 
-  // جلب الطلبات
   const fetchCustomerOrders = useCallback(async () => {
     setLoadingOrders(true)
     setOrdersError(null)
@@ -508,7 +503,6 @@ export default function CustomerProfilePage() {
     }))
   }
 
-  // إلغاء الطلب
   async function handleCancelOrder(orderId) {
     if (!window.confirm('هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟')) return
 
@@ -531,7 +525,6 @@ export default function CustomerProfilePage() {
     }
   }
 
-  // تحديث الحساب الشخصي
   async function handleUpdateProfile(e) {
     e.preventDefault()
     setUpdating(true)
@@ -568,14 +561,12 @@ export default function CustomerProfilePage() {
     }
   }
 
-  // تقديم التقييم
   const handleReviewSubmit = async (reviewData) => {
     await axiosInstance.post('/Reviews', reviewData)
   }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10" dir="rtl">
-      {/* Header & Tabs */}
       <div className="mb-6 border-b border-border pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">
@@ -620,7 +611,6 @@ export default function CustomerProfilePage() {
         </div>
       </div>
 
-      {/* Tab 1: Orders */}
       {activeTab === 'orders' && (
         <Card title="سجل الطلبات وتتبع الحالة">
           {loadingOrders ? (
@@ -659,7 +649,7 @@ export default function CustomerProfilePage() {
                     onCancel={handleCancelOrder}
                     cancelingOrderId={cancelingOrderId}
                     onOpenReview={(item) => setReviewModalItem(item)}
-                    fallbackAddress={user.address}
+                    userInfo={user}
                     onPrintInvoice={printInvoice}
                   />
                 )
@@ -669,7 +659,6 @@ export default function CustomerProfilePage() {
         </Card>
       )}
 
-      {/* Tab 2: Profile Settings */}
       {activeTab === 'profile' && (
         <div className="max-w-2xl mx-auto">
           <Card title="بيانات الحساب والملف الشخصي">
@@ -763,7 +752,7 @@ export default function CustomerProfilePage() {
                 disabled={updating}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-graphite-800 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
               >
-                {updating && <Loader2 size={16} className="animate-spin" />}
+                {updating && <Loader2 size5={16} className="animate-spin" />}
                 حفظ التعديلات
               </button>
             </form>
@@ -771,7 +760,6 @@ export default function CustomerProfilePage() {
         </div>
       )}
 
-      {/* Modal التقييم */}
       <ReviewModal
         isOpen={!!reviewModalItem}
         item={reviewModalItem}

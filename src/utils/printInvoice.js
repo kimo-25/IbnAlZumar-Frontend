@@ -38,14 +38,15 @@ export const printInvoice = (order, customerUser = {}) => {
     customerUser.phoneNumber || 
     '01000000000' // رقم افتراضي مؤقت لو غير مسجل بالطلب
 
-  // معالجة العنوان سواء كان نص أو أوبجكت تفصيلي
+  // معالجة العنوان سواء كان نص أو أوبجكت تفصيلي مع إصلاح خطأ الدمج
   let address = 'العنوان المسجل بالحساب'
   const rawAddr = order.shippingAddress || order.address || order.customer?.address || order.user?.address || customerUser.address
   
   if (typeof rawAddr === 'string' && rawAddr.trim() !== '') {
     address = rawAddr
   } else if (rawAddr && typeof rawAddr === 'object') {
-    address = [rawAddr.street, rawAddr.city, rawAddr.state].filter(Boolean.join(', ')) || 'القاهرة، مصر'
+    const addrParts = [rawAddr.street, rawAddr.city, rawAddr.state].filter(Boolean)
+    address = addrParts.length > 0 ? addrParts.join(', ') : 'القاهرة، مصر'
   }
 
   const orderNum = order.orderNumber || `ORD-${order.id || '2026-102'}`
