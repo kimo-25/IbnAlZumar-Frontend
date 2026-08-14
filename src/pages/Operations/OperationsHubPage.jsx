@@ -23,6 +23,7 @@ import Card from '../../components/ui/Card'
 import { formatCurrency } from '../../utils/catalog'
 import { getOnlineOrders } from '../../api/adminApi'
 import axiosInstance from '../../api/axiosInstance'
+// ملاحظة: تم اعتماد ملف الطباعة الخارجي الفواتير (printInvoice.js)
 
 // ==========================================
 // Constants & Options
@@ -54,218 +55,6 @@ function getStatusBadge(status) {
     default:
       return { label: `حالة (${status})`, className: 'bg-canvas text-ink-soft border-border', icon: Clock }
   }
-}
-
-// ==========================================
-// Helper: Print Invoice HTML Generator
-// ==========================================
-function generateInvoiceHTML(order) {
-  if (!order) return ''
-
-  // 1. استخراج بيانات المنتجات بدقة من كافة الأشكال المتوقعة
-  const rawItems = order.items || order.orderDetails || order.orderItems || order.products || []
-  const items = Array.isArray(rawItems) ? rawItems : (rawItems.$values || [])
-
-  // 2. استخراج بيانات العميل بدقة
-  const customerName =
-    order.customerName ||
-    order.fullName ||
-    order.customer?.fullName ||
-    order.customer?.name ||
-    order.user?.fullName ||
-    order.user?.name ||
-    'عميل المتجر'
-
-  const customerPhone =
-    order.phone ||
-    order.customerPhone ||
-    order.customer?.phoneNumber ||
-    order.customer?.phone ||
-    order.user?.phone ||
-    order.user?.phoneNumber ||
-    'غير مسجل'
-
-  const customerEmail =
-    order.customerEmail ||
-    order.email ||
-    order.customer?.email ||
-    order.user?.email ||
-    ''
-
-  // 3. استخراج العنوان
-  let address = 'استلام من مقر المعرض'
-  const rawAddr = order.shippingAddress || order.address || order.customer?.address || order.user?.address
-  if (typeof rawAddr === 'string' && rawAddr.trim() !== '') {
-    address = rawAddr
-  } else if (rawAddr && typeof rawAddr === 'object') {
-    const parts = [rawAddr.street, rawAddr.city, rawAddr.state, rawAddr.governorate].filter(Boolean)
-    if (parts.length > 0) address = parts.join('، ')
-  }
-
-  // 4. تفاصيل الفاتورة العامة
-  const orderNum = order.orderNumber || `ORD-${order.id || '0000'}`
-  const orderDate = new Date(order.createdAt || order.orderDate || Date.now()).toLocaleDateString('ar-EG', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-  const printDate = new Date().toLocaleString('ar-EG')
-
-  // 5. المبالغ والأسعار
-  const totalAmount = Number(order.totalAmount || order.total || order.grandTotal || 0)
-  
-  // حساب الإجمالي الفرعي إما من المنتجات أو من الحقل
-  const subtotal = items.length > 0
-    ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1)), 0)
-    : Number(order.subtotal || totalAmount)
-
-  const shippingCost = Number(order.shippingCost || order.shippingFee || (totalAmount > subtotal ? totalAmount - subtotal : 0))
-  const grandTotal = totalAmount > 0 ? totalAmount : (subtotal + shippingCost)
-
-  // 6. طريقة الدفع وتنسيق الحالات
-  const rawPayment = order.paymentMethod || 'COD'
-  const paymentMethod = rawPayment === 'CARD' 
-    ? 'بطاقة ائتمانية / دفع إلكتروني' 
-    : (rawPayment === 'COD' || rawPayment === 'CASH' ? 'الدفع عند الاستلام (COD)' : rawPayment)
-
-  const statusText = order.statusText || getStatusBadge(order.status || order.statusValue || 1).label
-
-  // 7. إنشاء صفوف المنتجات
-  const itemsRows = items.map((item, idx) => {
-    const itemName = item.productName || item.name || item.product?.name || `منتج رقم ${idx + 1}`
-    const qty = Number(item.quantity || item.qty || 1)
-    const unitPrice = Number(item.unitPrice || item.price || 0)
-    const totalPrice = unitPrice * qty
-
-    return `
-      <tr>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #64748b;">${idx + 1}</td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700; color: #0f172a; font-size: 13px;">
-          ${itemName}
-        </td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: 600; font-size: 13px;">${qty}</td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-family: monospace; font-size: 13px;" dir="ltr">
-          ${formatCurrency(unitPrice)}
-        </td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-family: monospace; font-weight: 700; color: #0f172a; font-size: 13px;" dir="ltr">
-          ${formatCurrency(totalPrice)}
-        </td>
-      </tr>
-    `
-  }).join('')
-
-  return `
-    <!DOCTYPE html>
-    <html dir="rtl" lang="ar">
-    <head>
-      <meta charset="UTF-8">
-      <title>فاتورة رقم ${orderNum} - ابن الزمر</title>
-      <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-      <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Cairo', sans-serif; margin: 0; padding: 24px; color: #1e293b; background: #fff; line-height: 1.5; }
-        .invoice-card { max-width: 820px; margin: auto; border: 2px solid #e2e8f0; padding: 32px; border-radius: 20px; background: #fff; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #059669; padding-bottom: 20px; margin-bottom: 24px; }
-        .brand-title { font-size: 26px; font-weight: 800; color: #059669; margin: 0; letter-spacing: -0.5px; }
-        .brand-subtitle { font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 600; }
-        .invoice-meta { text-align: left; }
-        .invoice-title { margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; }
-        .invoice-num { margin: 4px 0 0; font-size: 14px; color: #059669; font-family: monospace; font-weight: 700; }
-        .grid-details { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; padding: 18px 20px; border-radius: 14px; margin-bottom: 24px; border: 1px solid #f1f5f9; font-size: 13px; }
-        .details-block h4 { margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
-        .details-row { margin-bottom: 4px; color: #334155; word-break: break-word; }
-        .details-row strong { color: #0f172a; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-        th { background: #f1f5f9; padding: 12px; text-align: right; border-bottom: 2px solid #cbd5e1; color: #334155; font-weight: 800; font-size: 12px; }
-        .summary-wrapper { display: flex; justify-content: flex-end; margin-bottom: 32px; }
-        .summary-box { width: 320px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; font-size: 13px; }
-        .summary-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569; }
-        .summary-row.total { font-size: 16px; font-weight: 800; border-bottom: none; border-top: 2px solid #059669; color: #059669; padding-top: 12px; margin-top: 4px; }
-        .footer { text-align: center; padding-top: 20px; border-top: 1px dashed #cbd5e1; font-size: 12px; color: #64748b; }
-        @media print {
-          body { padding: 0; background: #fff; }
-          .invoice-card { border: none; padding: 0; border-radius: 0; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="invoice-card">
-        <div class="header">
-          <div>
-            <h1 class="brand-title">ابن الزمر</h1>
-            <div class="brand-subtitle">للعدد ومستلزمات الورش والمعدات الصناعية</div>
-          </div>
-          <div class="invoice-meta">
-            <h2 class="invoice-title">فاتورة مبيعات أونلاين</h2>
-            <p class="invoice-num">#${orderNum}</p>
-          </div>
-        </div>
-
-        <div class="grid-details">
-          <div class="details-block">
-            <h4>بيانات العميل والتوصيل</h4>
-            <div class="details-row"><strong>العميل:</strong> ${customerName}</div>
-            <div class="details-row"><strong>رقم الهاتف:</strong> ${customerPhone}</div>
-            ${customerEmail ? `<div class="details-row"><strong>البريد الإلكتروني:</strong> ${customerEmail}</div>` : ''}
-            <div class="details-row"><strong>عنوان الشحن:</strong> ${address}</div>
-          </div>
-          <div class="details-block">
-            <h4>تفاصيل الفاتورة والطلب</h4>
-            <div class="details-row"><strong>تاريخ الطلب:</strong> ${orderDate}</div>
-            <div class="details-row"><strong>حالة الطلب:</strong> ${statusText}</div>
-            <div class="details-row"><strong>طريقة الدفع:</strong> ${paymentMethod}</div>
-          </div>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 45px; text-align: center;">#</th>
-              <th>الصنف / بيان المعدة</th>
-              <th style="text-align: center; width: 70px;">الكمية</th>
-              <th style="text-align: left; width: 120px;">سعر الوحدة</th>
-              <th style="text-align: left; width: 120px;">الإجمالي</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsRows.length > 0 ? itemsRows : '<tr><td colspan="5" style="text-align:center; padding: 20px; color: #94a3b8;">لا توجد تفاصيل أصناف لهذا الطلب.</td></tr>'}
-          </tbody>
-        </table>
-
-        <div class="summary-wrapper">
-          <div class="summary-box">
-            <div class="summary-row">
-              <span>إجمالي الأصناف:</span>
-              <span style="font-family: monospace;" dir="ltr">${formatCurrency(subtotal)}</span>
-            </div>
-            ${shippingCost > 0 ? `
-            <div class="summary-row">
-              <span>مصاريف الشحن والتوصيل:</span>
-              <span style="font-family: monospace;" dir="ltr">${formatCurrency(shippingCost)}</span>
-            </div>
-            ` : ''}
-            <div class="summary-row total">
-              <span>صافي المبلغ المستحق:</span>
-              <span style="font-family: monospace;" dir="ltr">${formatCurrency(grandTotal)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="footer">
-          <p style="margin: 0; font-weight: 700; color: #1e293b;">نشكر اختياركم متجر ابن الزمر — ضمان وجودة في خدمة الورش دائماً</p>
-          <p style="margin: 6px 0 0; font-size: 11px; color: #94a3b8;">تاريخ الطباعة: ${printDate}</p>
-        </div>
-      </div>
-      <script>
-        window.onload = function() {
-          window.print();
-        }
-      </script>
-    </body>
-    </html>
-  `
 }
 
 // ==========================================
@@ -693,11 +482,9 @@ export default function OperationsHubPage() {
       alert('يرجى إدخال اسم المنطقة وسعر الشحن على الأقل.')
       return
     }
-
     try {
       setAddingZone(true)
       const costValue = parseFloat(newZone.price) || 0
-
       await axiosInstance.post('/ShippingZones', {
         name: newZone.name,
         governorate: newZone.name,
@@ -706,7 +493,6 @@ export default function OperationsHubPage() {
         estimatedDays: parseInt(newZone.estimatedDays || 1),
         isActive: true
       })
-
       setNewZone({ name: '', price: '', estimatedDays: '' })
       await fetchShippingZones()
     } catch (err) {
@@ -733,7 +519,7 @@ export default function OperationsHubPage() {
     try {
       setProcessingId(orderId)
       const statusInt = parseInt(newStatusValue)
-
+      
       try {
         await axiosInstance.put(`/Orders/${orderId}/status?status=${statusInt}`)
       } catch {
@@ -743,7 +529,7 @@ export default function OperationsHubPage() {
       await fetchOrders()
     } catch (err) {
       console.error('خطأ أثناء تغيير حالة الطلب:', err)
-      alert('حدث خطأ أثناء تحديث حالة الطلب. يرجى إعادة المحاولة.')
+      alert('حدث خطأ أثناء تعديل حالة الطلب، يرجى إعادة المحاولة.')
     } finally {
       setProcessingId(null)
     }
@@ -758,22 +544,27 @@ export default function OperationsHubPage() {
       }
       await fetchProducts()
     } catch (err) {
-      console.error('فشل تحديث حالة ظهور المنتج:', err)
-      alert('حدث خطأ أثناء تحديث حالة ظهور المنتج.')
+      console.error('فشل تعديل حالة ظهور المنتج:', err)
+      alert('حدث خطأ أثناء تعديل حالة ظهور المنتج.')
     }
   }
 
-  // طباعة الفاتورة بالشكل المطابق لزر الفاتورة الخاص بالموديريتور
   function handlePrintInvoice(order) {
+    // استدعاء دالة الطباعة الخارجية أو التعامل مع طباعة الفاتورة المعزولة
+    if (typeof window.printOrderInvoice === 'function') {
+      window.printOrderInvoice(order);
+      return;
+    }
+    
+    // Fallback مبسط في حال عدم توفر الدالة الخارجية مباشرة
     const printWindow = window.open('', '_blank', 'width=850,height=900')
     if (!printWindow) {
-      alert('يرجى السماح بالنوافذ المنبثقة (Popups) لتتمكن من طباعة الفاتورة.')
+      alert('لتتمكن من طباعة الفاتورة يرجى السماح بالنافذة المنبثقة.')
       return
     }
-
-    const invoiceHtml = generateInvoiceHTML(order)
-    printWindow.document.write(invoiceHtml)
+    printWindow.document.write(`<html><body dir="rtl"><h2>فاتورة الطلب #${order.orderNumber || order.id}</h2><p>يرجى ربط دالة الطباعة الخارجية printInvoice.js</p></body></html>`)
     printWindow.document.close()
+    printWindow.print()
   }
 
   return (
@@ -794,7 +585,8 @@ export default function OperationsHubPage() {
           }}
           className="inline-flex items-center gap-2 rounded-xl bg-surface border border-border px-4 py-2 text-xs font-semibold text-ink shadow-xs hover:bg-canvas transition cursor-pointer"
         >
-          <RefreshCw size={14} /> تحديث البيانات
+          <RefreshCw size={14} />
+          <span>تحديث البيانات</span>
         </button>
       </div>
 
@@ -807,7 +599,7 @@ export default function OperationsHubPage() {
           }`}
         >
           <Package size={15} />
-          الطلبات والأونلاين
+          <span>الطلبات والأونلاين</span>
         </button>
 
         <button
@@ -818,7 +610,7 @@ export default function OperationsHubPage() {
           }`}
         >
           <HelpCircle size={15} />
-          استفسارات الورشة
+          <span>استفسارات الورشة</span>
         </button>
 
         <button
@@ -829,7 +621,7 @@ export default function OperationsHubPage() {
           }`}
         >
           <Truck size={15} />
-          إدارة مناطق الشحن
+          <span>إدارة مناطق الشحن</span>
         </button>
 
         <button
@@ -840,7 +632,7 @@ export default function OperationsHubPage() {
           }`}
         >
           <Eye size={15} />
-          ظهور المنتجات
+          <span>ظهور المنتجات</span>
         </button>
       </div>
 

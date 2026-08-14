@@ -195,7 +195,6 @@ function OrderCard({
   const badge = getStatusBadge(order.statusText || order.status)
   const StatusIcon = badge.icon
 
-  // حساب الشحنة المرتبطة بالطلب أو بناءً على محافظة العميل
   const shippingCost = order.shippingCost ?? calculateShippingCost(order.governorate || userInfo.governorate)
 
   return (
@@ -247,7 +246,6 @@ function OrderCard({
             <button
               type="button"
               onClick={() => {
-                // دمج بيانات المستخدم الحالية مع بيانات الطلب لضمان ظهور البريد والمنتجات بشكل سليم في الفاتورة
                 const fullOrderData = {
                   ...order,
                   items: items,
