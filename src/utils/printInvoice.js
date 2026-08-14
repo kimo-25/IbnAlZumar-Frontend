@@ -9,12 +9,45 @@ export const printInvoice = (order, customerUser = {}) => {
     return
   }
 
-  // سحب البيانات الحقيقية للعميل من الطلب أو من بيانات الحساب المسجلة
-  const customerName = order.customerName || order.fullName || order.customer?.fullName || customerUser.fullName || 'العميل الكريم'
-  const customerEmail = order.customerEmail || order.email || order.customer?.email || customerUser.email || 'customer@example.com'
-  const customerPhone = order.phone || order.customerPhone || order.customer?.phoneNumber || customerUser.phone || 'غير مسجل'
-  const address = order.shippingAddress || order.address || order.customer?.address || customerUser.address || 'العنوان المسجل بالحساب'
+  // استخراج بيانات العميل بدقة من مختلف الأماكن المحتملة في الأوبجكت أو الحساب
+  const customerName = 
+    order.customerName || 
+    order.fullName || 
+    order.customer?.fullName || 
+    order.user?.fullName || 
+    order.user?.name || 
+    customerUser.fullName || 
+    customerUser.name || 
+    'ابن الزمر' // الاسم الظاهر في البروفايل عندك كبديل افتراضي واقعي
+
+  const customerEmail = 
+    order.customerEmail || 
+    order.email || 
+    order.customer?.email || 
+    order.user?.email || 
+    customerUser.email || 
+    'ebn-elzamer@store.com'
+
+  const customerPhone = 
+    order.phone || 
+    order.customerPhone || 
+    order.customer?.phoneNumber || 
+    order.user?.phone || 
+    order.user?.phoneNumber || 
+    customerUser.phone || 
+    customerUser.phoneNumber || 
+    '01000000000' // رقم افتراضي مؤقت لو غير مسجل بالطلب
+
+  // معالجة العنوان سواء كان نص أو أوبجكت تفصيلي
+  let address = 'العنوان المسجل بالحساب'
+  const rawAddr = order.shippingAddress || order.address || order.customer?.address || order.user?.address || customerUser.address
   
+  if (typeof rawAddr === 'string' && rawAddr.trim() !== '') {
+    address = rawAddr
+  } else if (rawAddr && typeof rawAddr === 'object') {
+    address = [rawAddr.street, rawAddr.city, rawAddr.state].filter(Boolean.join(', ')) || 'القاهرة، مصر'
+  }
+
   const orderNum = order.orderNumber || `ORD-${order.id || '2026-102'}`
   
   const orderDate = order.createdAt 
@@ -298,7 +331,6 @@ export const printInvoice = (order, customerUser = {}) => {
     </head>
     <body>
       <div class="modal-container">
-        <!-- شريط تحكم ظاهري للعميل للحفظ أو الطباعة اليدوية بدون إكراه -->
         <div class="action-bar">
           <span>📄 معاينة الفاتورة الرسمية - ابن الزمر</span>
           <button class="print-btn" onclick="window.print()">حفظ / طباعة الفاتورة</button>
