@@ -472,7 +472,7 @@ export default function CustomerProfilePage() {
     } catch (err) {
       console.error('فشل جلب الطلبات', err)
       setOrdersError('حدث خطأ أثناء تحميل سجل الطلبات. يرجى المحاولة مرة أخرى.')
-    } fontally {
+    } finally {
       setLoadingOrders(false)
     }
   }, [])
