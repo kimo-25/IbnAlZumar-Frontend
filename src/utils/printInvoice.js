@@ -540,3 +540,6 @@ export const printInvoice = (order, customerUser = {}) => {
   printWindow.document.write(invoiceHtml)
   printWindow.document.close()
 }
+
+// 🛠️ تم إضافة تصدير الدالة هنا لتتوافق مع ملف الاستيراد OperationsHubPage.jsx
+export const printOrderInvoice = printInvoice
