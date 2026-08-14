@@ -9,7 +9,7 @@ export const printInvoice = (order, customerUser = {}) => {
     return
   }
 
-  // 1. استخراج بيانات العميل بدقة (التحقق من الكائن المدمج user أو customer أو الـ props المباشرة)
+  // 1. استخراج بيانات العميل مع فحص كافة الاحتمالات والهياكل المتداخلة
   const customerName =
     order.customerName ||
     order.fullName ||
@@ -21,17 +21,17 @@ export const printInvoice = (order, customerUser = {}) => {
     customerUser.name ||
     'عميل المتجر'
 
-  // تم توسيع حقول البحث عن البريد الإلكتروني لتشمل كائن user المربوط بالطلب في قاعدة البيانات
-  const customerEmail =
+  const rawEmail =
     order.customerEmail ||
     order.email ||
     order.customer?.email ||
     order.user?.email ||
     order.appUser?.email ||
     customerUser.email ||
-    'غير مسجل'
+    ''
+  const customerEmail = (rawEmail && rawEmail !== 'غير مسجل') ? rawEmail : ''
 
-  const customerPhone =
+  const rawPhone =
     order.phone ||
     order.customerPhone ||
     order.customer?.phoneNumber ||
@@ -40,10 +40,11 @@ export const printInvoice = (order, customerUser = {}) => {
     order.user?.phoneNumber ||
     customerUser.phone ||
     customerUser.phoneNumber ||
-    'غير مسجل'
+    ''
+  const customerPhone = (rawPhone && rawPhone !== 'غير مسجل') ? rawPhone : ''
 
-  // 2. معالجة العنوان (سواء كان نص عادي أو Object أو حقل shippingAddress/address مباشرة من الطلب)
-  let address = 'العنوان المسجل بالحساب'
+  // 2. معالجة العنوان (سواء كان نصاً عادياً أو كائن تفصيلي Object)
+  let address = ''
   const rawAddr =
     order.shippingAddress ||
     order.address ||
@@ -52,11 +53,19 @@ export const printInvoice = (order, customerUser = {}) => {
     order.user?.address ||
     customerUser.address
 
-  if (typeof rawAddr === 'string' && rawAddr.trim() !== '') {
+  if (typeof rawAddr === 'string' && rawAddr.trim() !== '' && rawAddr !== 'العنوان المسجل بالحساب') {
     address = rawAddr
   } else if (rawAddr && typeof rawAddr === 'object') {
-    const addrParts = [rawAddr.street, rawAddr.city, rawAddr.state, rawAddr.governorate, rawAddr.details].filter(Boolean)
-    address = addrParts.length > 0 ? addrParts.join(', ') : 'غير محدد'
+    const addrParts = [
+      rawAddr.street,
+      rawAddr.city,
+      rawAddr.state,
+      rawAddr.governorate,
+      rawAddr.details,
+      rawAddr.buildingNumber,
+      rawAddr.apartment
+    ].filter(Boolean)
+    address = addrParts.length > 0 ? addrParts.join(', ') : ''
   }
 
   // 3. البيانات الأساسية للطلب والتاريخ
@@ -70,17 +79,19 @@ export const printInvoice = (order, customerUser = {}) => {
     : formattedToday
 
   // 4. طريقة الدفع
-  const rawPayment = (order.paymentMethod || 'CARD').toString().toUpperCase()
+  const rawPayment = (order.paymentMethod || order.paymentType || 'CARD').toString().toUpperCase()
   let paymentMethodDisplay = rawPayment
   if (rawPayment === 'CARD' || rawPayment === 'ONLINE') paymentMethodDisplay = 'CARD'
   else if (rawPayment === 'CASH' || rawPayment === 'COD') paymentMethodDisplay = 'الدفع عند الاستلام (CASH)'
 
-  // 5. الحسابات والمنتجات (دعم جميع أسماء الـ Arrays والخصائص المحتملة للـ Items لضمان ظهور المنتجات وتفاصيلها بدقة)
+  // 5. الحسابات والمنتجات (دعم كافة المسميات المحتملة للـ Items في الـ API)
   const items = Array.isArray(order.items)
     ? order.items
     : (Array.isArray(order.orderItems) 
         ? order.orderItems 
-        : (Array.isArray(order.orderDetails) ? order.orderDetails : []))
+        : (Array.isArray(order.orderDetails) 
+            ? order.orderDetails 
+            : (Array.isArray(order.cartItems) ? order.cartItems : [])))
 
   const totalAmount = Number(order.totalAmount || order.total || 0)
 
@@ -89,14 +100,14 @@ export const printInvoice = (order, customerUser = {}) => {
     ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || item.productPrice || 0) * Number(item.quantity || item.qty || 1)), 0)
     : (Number(order.subTotal || order.subtotal || totalAmount))
 
-  // حساب الشحن
+  // حساب تكلفة الشحن
   const shippingCost = Number(
     order.shippingCost ??
     order.shippingFee ??
     (totalAmount > subtotal ? totalAmount - subtotal : 0)
   )
 
-  // بناء أسطر الجدول بالتفاصيل الكاملة لكل منتج طلبه العميل (الاسم، السعر، الكمية، الإجمالي)
+  // بناء أسطر الجدول بالتفاصيل الكاملة لكل منتج طلبه العميل
   const itemsTableRows = items.length > 0
     ? items.map((item, index) => {
         const uPrice = Number(item.unitPrice || item.price || item.productPrice || 0)
@@ -155,7 +166,6 @@ export const printInvoice = (order, customerUser = {}) => {
           position: relative;
         }
         
-        /* Header */
         .header {
           display: flex;
           justify-content: space-between;
@@ -171,7 +181,6 @@ export const printInvoice = (order, customerUser = {}) => {
           border-radius: 8px;
           display: inline-block;
           margin-bottom: 8px;
-          letter-spacing: 0.3px;
         }
         .meta-info {
           font-size: 13px;
@@ -206,7 +215,6 @@ export const printInvoice = (order, customerUser = {}) => {
           margin-bottom: 24px;
         }
 
-        /* Two Boxes Grid */
         .grid-boxes {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -251,7 +259,6 @@ export const printInvoice = (order, customerUser = {}) => {
           margin-top: 3px;
         }
 
-        /* Table */
         .section-label {
           font-size: 12px;
           font-weight: 900;
@@ -284,7 +291,6 @@ export const printInvoice = (order, customerUser = {}) => {
           font-size: 12px;
         }
 
-        /* Totals Box */
         .totals-wrapper {
           display: flex;
           justify-content: flex-start;
@@ -319,7 +325,6 @@ export const printInvoice = (order, customerUser = {}) => {
           font-weight: 900;
         }
 
-        /* Signatures Section */
         .signatures-section {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -363,7 +368,6 @@ export const printInvoice = (order, customerUser = {}) => {
           transform: rotate(-8deg);
         }
 
-        /* Footer Notes */
         .footer-section {
           text-align: center;
           border-top: 1px solid #e2e8f0;
@@ -383,7 +387,6 @@ export const printInvoice = (order, customerUser = {}) => {
           font-weight: 600;
         }
 
-        /* Bottom Control Bar */
         .control-bar {
           display: flex;
           gap: 12px;
@@ -403,7 +406,6 @@ export const printInvoice = (order, customerUser = {}) => {
           align-items: center;
           justify-content: center;
           gap: 8px;
-          transition: background 0.2s;
         }
         .btn-print:hover { background-color: #047857; }
         .btn-close {
@@ -428,7 +430,6 @@ export const printInvoice = (order, customerUser = {}) => {
     <body>
 
       <div class="invoice-card">
-        <!-- Header -->
         <div class="header">
           <div>
             <div class="badge-black">فاتورة مبيعات معتمدة</div>
@@ -444,7 +445,6 @@ export const printInvoice = (order, customerUser = {}) => {
 
         <div class="divider"></div>
 
-        <!-- 2 Grid Boxes -->
         <div class="grid-boxes">
           <div class="box">
             <div class="box-label">منفذ البيع وقناة التوزيع</div>
@@ -457,13 +457,12 @@ export const printInvoice = (order, customerUser = {}) => {
           <div class="box">
             <div class="box-label">المرسل إليه / العميل</div>
             <div class="client-name">${customerName}</div>
-            <div class="client-sub" dir="ltr">${customerEmail}</div>
-            <div class="client-sub" dir="ltr">${customerPhone}</div>
-            <div class="client-sub">${address}</div>
+            ${customerEmail ? `<div class="client-sub" dir="ltr">${customerEmail}</div>` : ''}
+            ${customerPhone ? `<div class="client-sub" dir="ltr">${customerPhone}</div>` : ''}
+            ${address ? `<div class="client-sub">${address}</div>` : '<div class="client-sub text-gray-400">العنوان غير متوفر</div>'}
           </div>
         </div>
 
-        <!-- Items Table -->
         <div class="section-label">المنتجات والعدد المباعة</div>
         <table>
           <thead>
@@ -479,7 +478,6 @@ export const printInvoice = (order, customerUser = {}) => {
           </tbody>
         </table>
 
-        <!-- Totals Card -->
         <div class="totals-wrapper">
           <div class="totals-card">
             <div class="total-row">
@@ -497,7 +495,6 @@ export const printInvoice = (order, customerUser = {}) => {
           </div>
         </div>
 
-        <!-- Signatures & Stamp -->
         <div class="signatures-section">
           <div class="sig-box">
             <div class="sig-title">توقيع المستلم / العميل</div>
@@ -515,13 +512,11 @@ export const printInvoice = (order, customerUser = {}) => {
           </div>
         </div>
 
-        <!-- Footer Note -->
         <div class="footer-section">
           <div class="footer-main">شكراً لتعاملكم مع ابن الزمر لمستلزمات الورش!</div>
           <div class="footer-sub" dir="ltr">.Please keep this VAT receipt copy as a reference for official device warranty claims</div>
         </div>
 
-        <!-- Action Buttons -->
         <div class="control-bar">
           <button class="btn-print" onclick="window.print()">
             🖨️ طباعة الفاتورة الفورية
@@ -541,5 +536,4 @@ export const printInvoice = (order, customerUser = {}) => {
   printWindow.document.close()
 }
 
-// 🛠️ تم إضافة تصدير الدالة هنا لتتوافق مع ملف الاستيراد OperationsHubPage.jsx
 export const printOrderInvoice = printInvoice
