@@ -1,43 +1,50 @@
 // File: src/utils/printInvoice.js
 
-export const printInvoice = (order) => {
+export const printInvoice = (order, customerUser = {}) => {
   if (!order) return
 
   const printWindow = window.open('', '_blank', 'width=900,height=950')
   if (!printWindow) {
-    alert('يرجى السماح بالنوافذ المنبثقة (Popups) للتمكن من طباعة الفاتورة.')
+    alert('يرجى السماح بالنوافذ المنبثقة (Popups) للتمكن من استعراض الفاتورة.')
     return
   }
 
-  const customerName = order.customerName || order.fullName || order.customer?.fullName || 'العميل الكريم'
-  const customerEmail = order.customerEmail || order.email || order.customer?.email || 'customer@example.com'
-  const customerPhone = order.phone || order.customerPhone || order.customer?.phoneNumber || '01239581122'
-  const address = order.shippingAddress || order.address || 'العنوان المسجل بالحساب'
+  // سحب البيانات الحقيقية للعميل من الطلب أو من بيانات الحساب المسجلة
+  const customerName = order.customerName || order.fullName || order.customer?.fullName || customerUser.fullName || 'العميل الكريم'
+  const customerEmail = order.customerEmail || order.email || order.customer?.email || customerUser.email || 'customer@example.com'
+  const customerPhone = order.phone || order.customerPhone || order.customer?.phoneNumber || customerUser.phone || 'غير مسجل'
+  const address = order.shippingAddress || order.address || order.customer?.address || customerUser.address || 'العنوان المسجل بالحساب'
+  
   const orderNum = order.orderNumber || `ORD-${order.id || '2026-102'}`
   
   const orderDate = order.createdAt 
-    ? new Date(order.createdAt).toLocaleDateString('ar-EG') 
-    : '١٤/٨/٢٠٢٦'
+    ? new Date(order.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) 
+    : '١٤ أغسطس ٢٠٢٦'
     
-  const paymentMethod = order.paymentMethod || 'CARD'
+  // ترجمة أو تنسيق طريقة الدفع
+  const rawPayment = order.paymentMethod || 'CARD'
+  const paymentMethod = rawPayment === 'CARD' ? 'بطاقة ائتمانية / دفع إلكتروني' : (rawPayment === 'CASH' ? 'الدفع عند الاستلام' : rawPayment)
 
+  // المنتجات الحقيقية للطلب
   const items = Array.isArray(order.items) ? order.items : (Array.isArray(order.orderItems) ? order.orderItems : [])
   const totalAmount = Number(order.totalAmount || order.total || 0)
   
+  // حساب المجموع الفرعي بدقة من المنتجات إن وجدت
   const subtotal = items.length > 0 
     ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)), 0)
     : totalAmount
     
+  // حساب الشحنة بشكل منطقي
   const shippingCost = totalAmount > subtotal 
     ? totalAmount - subtotal 
-    : Number(order.shippingCost || order.shippingFee || 55)
+    : Number(order.shippingCost || order.shippingFee || (totalAmount > 0 ? 55 : 0))
 
   const itemsTableRows = items.length > 0 
-    ? items.map((item) => `
+    ? items.map((item, index) => `
         <tr>
-          <td>
-            <div style="font-weight: 700; color: #0f172a;">${item.productName || item.name || 'منتج'}</div>
-            <div style="font-size: 11px; color: #64748b; margin-top: 2px;" dir="ltr">ID: ${item.sku || item.productId || item.id || 'prod-5'}</div>
+          <td style="text-align: right;">
+            <div style="font-weight: 700; color: #0f172a;">${item.productName || item.name || `منتج رقم ${index + 1}`}</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 2px;" dir="ltr">SKU/ID: ${item.sku || item.productId || item.id || 'prod-' + (index + 1)}</div>
           </td>
           <td style="text-align: center;"><span dir="ltr">EGP ${Number(item.unitPrice || item.price || 0).toLocaleString()}</span></td>
           <td style="text-align: center; font-weight: 700;"><span dir="ltr">${item.quantity || 1}</span></td>
@@ -46,13 +53,13 @@ export const printInvoice = (order) => {
       `).join('')
     : `
         <tr>
-          <td>
-            <div style="font-weight: 700; color: #0f172a;">مشتريات عامة</div>
+          <td style="text-align: right;">
+            <div style="font-weight: 700; color: #0f172a;">مشتريات عامة من المتجر</div>
             <div style="font-size: 11px; color: #64748b; margin-top: 2px;" dir="ltr">ID: prod-general</div>
           </td>
-          <td style="text-align: center;"><span dir="ltr">EGP ${totalAmount.toLocaleString()}</span></td>
+          <td style="text-align: center;"><span dir="ltr">EGP ${subtotal.toLocaleString()}</span></td>
           <td style="text-align: center; font-weight: 700;"><span dir="ltr">1</span></td>
-          <td style="text-align: left; font-weight: 700;"><span dir="ltr">EGP ${totalAmount.toLocaleString()}</span></td>
+          <td style="text-align: left; font-weight: 700;"><span dir="ltr">EGP ${subtotal.toLocaleString()}</span></td>
         </tr>
       `
 
@@ -66,7 +73,7 @@ export const printInvoice = (order) => {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
           font-family: Arial, sans-serif; 
-          background-color: #ffffff; 
+          background-color: #f8fafc; 
           color: #0f172a; 
           padding: 24px;
         }
@@ -75,8 +82,32 @@ export const printInvoice = (order) => {
           margin: auto;
           background: #ffffff;
           border-radius: 16px;
-          padding: 24px;
+          padding: 32px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
+        .action-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: #0f172a;
+          color: #fff;
+          padding: 12px 20px;
+          border-radius: 10px;
+          margin-bottom: 24px;
+        }
+        .action-bar span { font-size: 13px; font-weight: bold; }
+        .print-btn {
+          background: #10b981;
+          color: #fff;
+          border: none;
+          padding: 8px 18px;
+          font-size: 13px;
+          font-weight: bold;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .print-btn:hover { background: #059669; }
         .header {
           display: flex;
           justify-content: space-between;
@@ -257,14 +288,22 @@ export const printInvoice = (order) => {
         }
         .footer-ar { font-size: 12px; font-weight: 900; color: #09090b; }
         .footer-en { font-size: 9px; color: #64748b; margin-top: 2px; font-style: italic; font-weight: 600; }
+        
         @media print {
-          body { padding: 0; }
-          .modal-container { border: none; padding: 0; max-width: 100%; }
+          body { background-color: #fff; padding: 0; }
+          .action-bar { display: none; }
+          .modal-container { border: none; padding: 0; max-width: 100%; box-shadow: none; }
         }
       </style>
     </head>
     <body>
       <div class="modal-container">
+        <!-- شريط تحكم ظاهري للعميل للحفظ أو الطباعة اليدوية بدون إكراه -->
+        <div class="action-bar">
+          <span>📄 معاينة الفاتورة الرسمية - ابن الزمر</span>
+          <button class="print-btn" onclick="window.print()">حفظ / طباعة الفاتورة</button>
+        </div>
+
         <div class="header">
           <div>
             <div class="badge-black">فاتورة مبيعات معتمدة</div>
@@ -283,7 +322,7 @@ export const printInvoice = (order) => {
             <div class="box-title">منفذ البيع وقناة التوزيع</div>
             <div class="channel-row">🌐 طلبات المتجر الإلكتروني</div>
             <div class="box-title" style="margin-top:10px;">طريقة الدفع ومصادقتها</div>
-            <div class="payment-val" dir="ltr">${paymentMethod}</div>
+            <div class="payment-val">${paymentMethod}</div>
           </div>
           <div class="box">
             <div class="box-title">المرسل إليه / العميل</div>
@@ -347,17 +386,6 @@ export const printInvoice = (order) => {
           <div class="footer-en" dir="ltr">Please keep this VAT receipt copy as a reference for official device warranty claims.</div>
         </div>
       </div>
-
-      <script>
-        window.onload = function() {
-          setTimeout(function() {
-            window.print();
-            window.onafterprint = function() {
-              window.close();
-            };
-          }, 300);
-        };
-      </script>
     </body>
     </html>
   `
