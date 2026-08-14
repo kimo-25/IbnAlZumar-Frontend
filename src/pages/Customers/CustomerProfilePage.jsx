@@ -1,4 +1,3 @@
-// File: src/pages/Customer/CustomerProfilePage.jsx
 import { printInvoice } from '../../utils/printInvoice';
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -173,7 +172,16 @@ function TrackingProgress({ currentStep, orderId, onCancel, isCanceling }) {
 }
 
 // كارت الطلب الموحد
-function OrderCard({ order, isExpanded, onToggle, onCancel, cancelingOrderId, onOpenReview, fallbackAddress }) {
+function OrderCard({
+  order,
+  isExpanded,
+  onToggle,
+  onCancel,
+  cancelingOrderId,
+  onOpenReview,
+  fallbackAddress,
+  onPrintInvoice
+}) {
   const orderId = order.id ?? order.orderNumber
   const currentStep = getStepNumber(order.status)
   const items = order.items || order.orderItems || []
@@ -224,6 +232,17 @@ function OrderCard({ order, isExpanded, onToggle, onCancel, cancelingOrderId, on
             onCancel={() => onCancel(orderId)}
             isCanceling={cancelingOrderId === orderId}
           />
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => onPrintInvoice(order)}
+              className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition cursor-pointer"
+            >
+              <Package size={16} />
+              عرض / طباعة الفاتورة
+            </button>
+          </div>
 
           {items.length > 0 && (
             <div>
@@ -641,6 +660,7 @@ export default function CustomerProfilePage() {
                     cancelingOrderId={cancelingOrderId}
                     onOpenReview={(item) => setReviewModalItem(item)}
                     fallbackAddress={user.address}
+                    onPrintInvoice={printInvoice}
                   />
                 )
               })}
@@ -745,19 +765,19 @@ export default function CustomerProfilePage() {
               >
                 {updating && <Loader2 size={16} className="animate-spin" />}
                 حفظ التعديلات
-            </button>
-          </form>
-        </Card>
-      </div>
-    )}
+              </button>
+            </form>
+          </Card>
+        </div>
+      )}
 
-    {/* Modal التقييم */}
-    <ReviewModal
-      isOpen={!!reviewModalItem}
-      item={reviewModalItem}
-      onClose={() => setReviewModalItem(null)}
-      onSubmit={handleReviewSubmit}
-    />
-  </div>
-)
+      {/* Modal التقييم */}
+      <ReviewModal
+        isOpen={!!reviewModalItem}
+        item={reviewModalItem}
+        onClose={() => setReviewModalItem(null)}
+        onSubmit={handleReviewSubmit}
+      />
+    </div>
+  )
 }

@@ -62,13 +62,10 @@ export const printInvoice = (order) => {
     <head>
       <meta charset="UTF-8">
       <title>فاتورة مبيعات - ${orderNum}</title>
-      <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
-          font-family: 'Cairo', sans-serif; 
+          font-family: Arial, sans-serif; 
           background-color: #ffffff; 
           color: #0f172a; 
           padding: 24px;
