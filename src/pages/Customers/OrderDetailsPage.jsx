@@ -475,8 +475,10 @@ export default function OrderDetailsPage() {
           <ArrowRight size={18} /> العودة لسجل الطلبات
         </Link>
         <button
-          onClick={() => handlePrintInvoice(order)}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
+          onClick={() => {
+            console.log("BUTTON ORDER", order)
+            handlePrintInvoice(order)
+          }} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
         >
           <Printer size={16} /> طباعة الفاتورة الرسمية
         </button>
