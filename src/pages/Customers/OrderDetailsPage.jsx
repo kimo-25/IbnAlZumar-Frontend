@@ -53,6 +53,9 @@ export default function OrderDetailsPage() {
       try {
         const response = await axiosInstance.get(`/Orders/${orderId}`)
         setOrder(response.data)
+        console.log(order)
+        console.log(order.items)
+        console.log(order.orderItems)
         return
       } catch {
         const myOrdersRes = await axiosInstance.get('/Orders/my-orders')

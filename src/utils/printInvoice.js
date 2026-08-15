@@ -85,7 +85,7 @@ export const printInvoice = (order, customerUser = {}) => {
 
   const now = new Date()
   const formattedToday = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`
-  
+
   const orderDate = order.createdAt
     ? new Date(order.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit' })
     : formattedToday
@@ -99,11 +99,12 @@ export const printInvoice = (order, customerUser = {}) => {
   // 5. الحسابات والمنتجات
   const items = Array.isArray(order.items)
     ? order.items
-    : (Array.isArray(order.orderItems) 
-        ? order.orderItems 
-        : (Array.isArray(order.orderDetails) 
-            ? order.orderDetails 
-            : (Array.isArray(order.cartItems) ? order.cartItems : [])))
+    : (Array.isArray(order.orderItems)
+      ? order.orderItems
+      : (Array.isArray(order.orderDetails)
+        ? order.orderDetails
+        : (Array.isArray(order.cartItems) ? order.cartItems : [])))
+  alert(`عدد المنتجات: ${items.length}`)
 
   const totalAmount = Number(order.totalAmount || order.total || 0)
 
@@ -116,16 +117,19 @@ export const printInvoice = (order, customerUser = {}) => {
     order.shippingFee ??
     (totalAmount > subtotal ? totalAmount - subtotal : 0)
   )
+  console.log("PRINT ORDER", order)
+  console.log("PRINT ITEMS", items)
+  console.log("ITEMS LENGTH", items.length)
 
   const itemsTableRows = items.length > 0
     ? items.map((item, index) => {
-        const uPrice = Number(item.unitPrice || item.price || item.productPrice || 0)
-        const qty = Number(item.quantity || item.qty || 1)
-        const itemTotal = uPrice * qty
-        const pName = escapeHtml(item.productName || item.name || item.title || item.product?.name || `منتج رقم ${index + 1}`)
-        const pSku = escapeHtml(String(item.sku || item.productId || item.product?.sku || item.id || `prod-${index + 1}`))
+      const uPrice = Number(item.unitPrice || item.price || item.productPrice || 0)
+      const qty = Number(item.quantity || item.qty || 1)
+      const itemTotal = uPrice * qty
+      const pName = escapeHtml(item.productName || item.name || item.title || item.product?.name || `منتج رقم ${index + 1}`)
+      const pSku = escapeHtml(String(item.sku || item.productId || item.product?.sku || item.id || `prod-${index + 1}`))
 
-        return `
+      return `
           <tr>
             <td style="text-align: right;">
               <div style="font-weight: 800; color: #09090b; font-size: 13px;">${pName}</div>
@@ -136,7 +140,7 @@ export const printInvoice = (order, customerUser = {}) => {
             <td style="text-align: left; font-weight: 800; color: #09090b;"><span dir="ltr">EGP ${itemTotal.toLocaleString()}</span></td>
           </tr>
         `
-      }).join('')
+    }).join('')
     : `
         <tr>
           <td style="text-align: right;">
@@ -463,15 +467,23 @@ export const printInvoice = (order, customerUser = {}) => {
             <div class="payment-status" dir="ltr">${paymentMethodDisplay}</div>
           </div>
 
-          <div class="box">
-            <div class="box-label">المرسل إليه / العميل</div>
-            <div class="client-name">${customerName}</div>
-            ${customerEmail ? `<div class="client-sub" dir="ltr">${customerEmail}</div>` : ''}
-            ${customerPhone ? `<div class="client-sub" dir="ltr">${customerPhone}</div>` : ''}
-            ${address ? `<div class="client-sub">${address}</div>` : '<div class="client-sub" style="color: #94a3b8;">العنوان غير متوفر</div>'}
-          </div>
-        </div>
+<div class="box">
+  <div class="box-label">المرسل إليه / العميل</div>
 
+  <div class="client-name">${customerName}</div>
+
+  <div class="client-sub" dir="ltr">
+    ${customerEmail || 'لا يوجد بريد إلكتروني'}
+  </div>
+
+  <div class="client-sub" dir="ltr">
+    ${customerPhone || 'لا يوجد رقم هاتف'}
+  </div>
+
+  <div class="client-sub">
+    ${address || 'العنوان غير متوفر'}
+  </div>
+</div>
         <div class="section-label">المنتجات والعدد المباعة</div>
         <table>
           <thead>
