@@ -52,10 +52,10 @@ export default function OrderDetailsPage() {
       setLoading(true)
       try {
         const response = await axiosInstance.get(`/Orders/${orderId}`)
+
+        console.log("API RESPONSE", response.data)
+
         setOrder(response.data)
-        console.log(order)
-        console.log(order.items)
-        console.log(order.orderItems)
         return
       } catch {
         const myOrdersRes = await axiosInstance.get('/Orders/my-orders')
@@ -460,7 +460,7 @@ export default function OrderDetailsPage() {
       </div>
     )
   }
-
+  console.log("ORDER STATE", order)
   const currentStep = getStepNumber(order.status)
   const items = order.items || order.orderItems || []
 
