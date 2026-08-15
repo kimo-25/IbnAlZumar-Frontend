@@ -120,7 +120,7 @@ function OrdersTab({ orders, loading, error, processingId, onUpdateStatus, onPri
                       {order.customerName || order.fullName || order.customer?.fullName || 'عميل المتجر'}
                     </div>
                     <div className="font-mono text-[11px] text-ink-soft mt-0.5">
-                      {order.phone || order.customerPhone || order.customer?.phoneNumber || '-'}
+                      {order.phone || order.customerPhone || 'غير محدد'}
                     </div>
                   </td>
                   <td className="p-4 max-w-xs truncate text-ink-soft" title={order.shippingAddress || order.address || ''}>
@@ -293,7 +293,7 @@ function ShippingTab({ zones, loading, adding, newZone, setNewZone, onAddZone, o
 
 // 3. ظهور ونشر المنتجات (Products Visibility & Status Tab)
 function ProductsVisibilityTab({ products, loading, searchTerm, setSearchTerm, onToggleVisibility }) {
-  const filteredProducts = products.filter(p => 
+  const filteredProducts = products.filter(p =>
     (p.name || p.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (p.categoryName || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -366,16 +366,14 @@ function ProductsVisibilityTab({ products, loading, searchTerm, setSearchTerm, o
                       <td className="p-4 text-ink-soft">{product.categoryName || product.category?.name || 'مستلزمات ورش'}</td>
                       <td className="p-4 font-mono font-bold text-ink">{formatCurrency(product.price || product.unitPrice || 0)}</td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                          (product.stock ?? product.quantity ?? 10) > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${(product.stock ?? product.quantity ?? 10) > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'
+                          }`}>
                           {(product.stock ?? product.quantity ?? 10) > 0 ? 'متوفر بالمخزن' : 'نفذت الكمية'}
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold border ${
-                          isVisible ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold border ${isVisible ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200'
+                          }`}>
                           {isVisible ? <Eye size={13} className="text-emerald-600" /> : <EyeOff size={13} className="text-gray-500" />}
                           {isVisible ? 'منشور للعملاء' : 'مخفي'}
                         </span>
@@ -384,11 +382,10 @@ function ProductsVisibilityTab({ products, loading, searchTerm, setSearchTerm, o
                         <button
                           type="button"
                           onClick={() => onToggleVisibility(product.id, !isVisible)}
-                          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[11px] font-semibold transition cursor-pointer shadow-xs ${
-                            isVisible 
-                              ? 'bg-surface border border-border text-rose-600 hover:bg-rose-50' 
+                          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[11px] font-semibold transition cursor-pointer shadow-xs ${isVisible
+                              ? 'bg-surface border border-border text-rose-600 hover:bg-rose-50'
                               : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                          }`}
+                            }`}
                         >
                           {isVisible ? <EyeOff size={13} /> : <Eye size={13} />}
                           <span>{isVisible ? 'إخفاء من المتجر' : 'نشر بالمتجر'}</span>
@@ -519,7 +516,7 @@ export default function OperationsHubPage() {
     try {
       setProcessingId(orderId)
       const statusInt = parseInt(newStatusValue)
-      
+
       try {
         await axiosInstance.put(`/Orders/${orderId}/status?status=${statusInt}`)
       } catch {
@@ -586,9 +583,8 @@ export default function OperationsHubPage() {
         <button
           type="button"
           onClick={() => setActiveTab('orders')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
-            activeTab === 'orders' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
-          }`}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${activeTab === 'orders' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
+            }`}
         >
           <Package size={15} />
           <span>الطلبات والأونلاين</span>
@@ -597,9 +593,8 @@ export default function OperationsHubPage() {
         <button
           type="button"
           onClick={() => setActiveTab('inquiries')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
-            activeTab === 'inquiries' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
-          }`}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${activeTab === 'inquiries' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
+            }`}
         >
           <HelpCircle size={15} />
           <span>استفسارات الورشة</span>
@@ -608,9 +603,8 @@ export default function OperationsHubPage() {
         <button
           type="button"
           onClick={() => setActiveTab('shipping')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
-            activeTab === 'shipping' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
-          }`}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${activeTab === 'shipping' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
+            }`}
         >
           <Truck size={15} />
           <span>إدارة مناطق الشحن</span>
@@ -619,9 +613,8 @@ export default function OperationsHubPage() {
         <button
           type="button"
           onClick={() => setActiveTab('products')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
-            activeTab === 'products' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
-          }`}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${activeTab === 'products' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
+            }`}
         >
           <Eye size={15} />
           <span>ظهور المنتجات</span>

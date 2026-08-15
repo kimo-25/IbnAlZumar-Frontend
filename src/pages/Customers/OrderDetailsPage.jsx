@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { 
-  ArrowRight, 
-  Package, 
-  Clock, 
-  Truck, 
-  Check, 
-  MapPin, 
-  User, 
-  Phone, 
-  Printer, 
-  Loader2, 
-  AlertCircle 
+import {
+  ArrowRight,
+  Package,
+  Clock,
+  Truck,
+  Check,
+  MapPin,
+  User,
+  Phone,
+  Printer,
+  Loader2,
+  AlertCircle
 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import axiosInstance from '../../api/axiosInstance'
@@ -77,25 +77,28 @@ export default function OrderDetailsPage() {
 
   // دالة طباعة الفاتورة الاحترافية "ابن الزمر" المطابقة لتصميم الأدمن تماماً
   function handlePrintInvoice(order) {
-    const printWindow = window.open('', '_blank', 'width=850,height=900')
-    if (!printWindow) {
-      alert('يرجى السماح بالنوافذ المنبثقة (Popups) للتمكن من طباعة الفاتورة.')
-      return
+    if (!order) return
+    // تمرير الطلب والعميل تلقائياً بدقة إلى دالة طباعة الفاتورة الخارجية
+    const customerObj = order.customer || order.user || {
+      fullName: order.customerName || order.fullName,
+      phone: order.phone || order.customerPhone
     }
+    printInvoice(order, customerObj)
+  }
 
-    const customerName = order.customerName || order.fullName || 'العميل الكريم'
-    const customerEmail = order.customerEmail || order.email || 'customer@example.com'
-    const customerPhone = order.phone || order.customerPhone || '-'
-    const address = order.shippingAddress || order.address || 'العنوان المسجل للعميل'
-    const orderNum = order.orderNumber || `ORD-2026-${order.id}`
-    const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('ar-EG') : new Date().toLocaleDateString('ar-EG')
-    const paymentMethod = order.paymentMethod || 'الدفع عند الاستلام (COD)'
+  const customerName = order.customerName || order.fullName || 'العميل الكريم'
+  const customerEmail = order.customerEmail || order.email || 'customer@example.com'
+  const customerPhone = order.phone || order.customerPhone || '-'
+  const address = order.shippingAddress || order.address || order.location || order.shippingLocation || order.user?.address || order.customer?.address || 'العنوان غير متوفر'
+  const orderNum = order.orderNumber || `ORD-2026-${order.id}`
+  const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('ar-EG') : new Date().toLocaleDateString('ar-EG')
+  const paymentMethod = order.paymentMethod || 'الدفع عند الاستلام (COD)'
 
-    const items = Array.isArray(order.items) ? order.items : (Array.isArray(order.orderItems) ? order.orderItems : [])
-    const totalAmount = Number(order.totalAmount || order.total || 0)
-    
-    const itemsTableRows = items.length > 0 
-      ? items.map(item => `
+  const items = Array.isArray(order.items) ? order.items : (Array.isArray(order.orderItems) ? order.orderItems : [])
+  const totalAmount = Number(order.totalAmount || order.total || 0)
+
+  const itemsTableRows = items.length > 0
+    ? items.map(item => `
           <tr>
             <td>
               <div class="item-title">${item.productName || item.name || 'منتج'}</div>
@@ -106,7 +109,7 @@ export default function OrderDetailsPage() {
             <td class="font-bold">EGP ${(Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)).toLocaleString()}</td>
           </tr>
         `).join('')
-      : `
+    : `
         <tr>
           <td>
             <div class="item-title">مشتريات الطلب رقم #${orderNum}</div>
@@ -118,11 +121,11 @@ export default function OrderDetailsPage() {
         </tr>
       `
 
-    const subtotal = items.length > 0 
-      ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)), 0)
-      : totalAmount
+  const subtotal = items.length > 0
+    ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)), 0)
+    : totalAmount
 
-    const htmlContent = `
+  const htmlContent = `
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
       <head>
@@ -430,195 +433,192 @@ export default function OrderDetailsPage() {
       </html>
     `
 
-    printWindow.document.open()
-    printWindow.document.write(htmlContent)
-    printWindow.document.close()
-  }
+  printWindow.document.open()
+  printWindow.document.write(htmlContent)
+  printWindow.document.close()
+}
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 size={32} className="animate-spin text-amber" />
-      </div>
-    )
-  }
-
-  if (error || !order) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-16 text-center" dir="rtl">
-        <AlertCircle size={48} className="mx-auto mb-4 text-danger" />
-        <h2 className="text-xl font-bold text-ink">خطأ في عرض الطلب</h2>
-        <p className="mt-2 text-sm text-ink-soft">{error || 'الطلب غير موجود'}</p>
-        <button 
-          onClick={() => navigate('/profile')} 
-          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-graphite-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-graphite-800"
-        >
-          <ArrowRight size={16} /> العودة إلى البروفايل
-        </button>
-      </div>
-    )
-  }
-
-  const currentStep = getStepNumber(order.status)
-  const items = order.items || order.orderItems || []
-
+if (loading) {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-10" dir="rtl">
-      {/* العودة وزر الطباعة الجديد */}
-      <div className="mb-6 flex items-center justify-between">
-        <Link 
-          to="/profile" 
-          className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-amber transition"
-        >
-          <ArrowRight size={18} /> العودة لسجل الطلبات
-        </Link>
-        <button 
-          onClick={() => handlePrintInvoice(order)}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
-        >
-          <Printer size={16} /> طباعة الفاتورة الرسمية
-        </button>
-      </div>
-
-      {/* الترويسة الرئيسية */}
-      <div className="mb-8 rounded-2xl border border-border bg-surface p-6 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
-          <div>
-            <span className="text-xs text-ink-soft">رقم الطلب</span>
-            <h1 className="text-2xl font-bold font-mono text-emerald-600">
-              {order.orderNumber || `ORD-2026-${order.id}`}
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber/15 px-3.5 py-1.5 text-xs font-bold text-amber-900">
-              <Clock size={14} />
-              {order.statusText || order.status || 'قيد المراجعة'}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
-          <div>
-            <span className="text-ink-soft block">تاريخ الطلب</span>
-            <span className="font-semibold text-ink">
-              {new Date(order.createdAt || Date.now()).toLocaleDateString('ar-EG')}
-            </span>
-          </div>
-          <div>
-            <span className="text-ink-soft block">طريقة الدفع</span>
-            <span className="font-semibold text-ink">الدفع عند الاستلام</span>
-          </div>
-          <div>
-            <span className="text-ink-soft block">عدد المنتجات</span>
-            <span className="font-semibold text-ink">{items.length} منتج</span>
-          </div>
-          <div>
-            <span className="text-ink-soft block">المبلغ الإجمالي</span>
-            <span className="font-bold text-ink font-mono text-sm">
-              {formatCurrency(order.totalAmount || order.total || 0)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* مخطط التتبع التفاعلي (Stepper) */}
-      <Card title="مخطط تتبع حالة الشحنة" className="mb-8">
-        <div className="py-4">
-          <div className="relative flex items-center justify-between px-4">
-            <div className="absolute left-8 right-8 top-4 h-1 bg-border -z-0" />
-            <div 
-              className="absolute right-8 top-4 h-1 bg-emerald-500 transition-all duration-500 -z-0" 
-              style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
-            />
-
-            {TRACKING_STEPS.map((s) => {
-              const isDone = s.step < currentStep
-              const isCurrent = s.step === currentStep
-
-              return (
-                <div key={s.step} className="relative z-10 flex flex-col items-center">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${
-                    isDone
-                      ? 'bg-emerald-500 text-white'
-                      : isCurrent
-                      ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 shadow-md scale-110'
-                      : 'bg-canvas text-ink-soft border border-border'
-                  }`}>
-                    {isDone ? <Check size={16} /> : s.step}
-                  </div>
-                  <span className={`mt-3 text-xs font-bold text-center ${
-                    isCurrent || isDone ? 'text-ink' : 'text-ink-soft'
-                  }`}>
-                    {s.label}
-                  </span>
-                  <span className="mt-1 hidden text-[10px] text-ink-soft text-center sm:block max-w-[90px]">
-                    {s.description}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </Card>
-
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* تفاصيل المنتجات والمشتريات */}
-        <div className="lg:col-span-2">
-          <Card title="محتويات الشحنة والمنتجات">
-            <div className="divide-y divide-border">
-              {items.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0 gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-10 w-10 rounded-xl bg-canvas flex items-center justify-center border border-border shrink-0">
-                      <Package size={18} className="text-ink-soft" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink truncate">{item.productName || item.name || 'منتج'}</p>
-                      <p className="text-xs text-ink-soft font-mono">الكمية: {item.quantity}</p>
-                    </div>
-                  </div>
-                  <div className="text-left font-mono font-bold text-sm text-ink shrink-0">
-                    {formatCurrency((item.unitPrice || item.price || 0) * item.quantity)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        {/* معلومات التوصيل والعنوان */}
-        <div className="lg:col-span-1">
-          <Card title="بيانات التوصيل والعميل">
-            <div className="space-y-4 text-xs">
-              <div className="flex items-start gap-2.5">
-                <User size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-ink-soft block font-medium">اسم المستلم</span>
-                  <span className="font-bold text-ink text-sm">{order.customerName || order.fullName || 'العميل'}</span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <Phone size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-ink-soft block font-medium">رقم الهاتف</span>
-                  <span className="font-semibold text-ink font-mono">{order.phone || order.customerPhone || 'غير محدد'}</span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <MapPin size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-ink-soft block font-medium">عنوان التوصيل</span>
-                  <span className="font-medium text-ink leading-relaxed">
-                    {order.shippingAddress || order.address || 'العنوان المسجل للعميل'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Loader2 size={32} className="animate-spin text-amber" />
     </div>
   )
 }
+
+if (error || !order) {
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-16 text-center" dir="rtl">
+      <AlertCircle size={48} className="mx-auto mb-4 text-danger" />
+      <h2 className="text-xl font-bold text-ink">خطأ في عرض الطلب</h2>
+      <p className="mt-2 text-sm text-ink-soft">{error || 'الطلب غير موجود'}</p>
+      <button
+        onClick={() => navigate('/profile')}
+        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-graphite-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-graphite-800"
+      >
+        <ArrowRight size={16} /> العودة إلى البروفايل
+      </button>
+    </div>
+  )
+}
+
+const currentStep = getStepNumber(order.status)
+const items = order.items || order.orderItems || []
+
+return (
+  <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-10" dir="rtl">
+    {/* العودة وزر الطباعة الجديد */}
+    <div className="mb-6 flex items-center justify-between">
+      <Link
+        to="/profile"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-amber transition"
+      >
+        <ArrowRight size={18} /> العودة لسجل الطلبات
+      </Link>
+      <button
+        onClick={() => handlePrintInvoice(order)}
+        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
+      >
+        <Printer size={16} /> طباعة الفاتورة الرسمية
+      </button>
+    </div>
+
+    {/* الترويسة الرئيسية */}
+    <div className="mb-8 rounded-2xl border border-border bg-surface p-6 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+        <div>
+          <span className="text-xs text-ink-soft">رقم الطلب</span>
+          <h1 className="text-2xl font-bold font-mono text-emerald-600">
+            {order.orderNumber || `ORD-2026-${order.id}`}
+          </h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber/15 px-3.5 py-1.5 text-xs font-bold text-amber-900">
+            <Clock size={14} />
+            {order.statusText || order.status || 'قيد المراجعة'}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
+        <div>
+          <span className="text-ink-soft block">تاريخ الطلب</span>
+          <span className="font-semibold text-ink">
+            {new Date(order.createdAt || Date.now()).toLocaleDateString('ar-EG')}
+          </span>
+        </div>
+        <div>
+          <span className="text-ink-soft block">طريقة الدفع</span>
+          <span className="font-semibold text-ink">الدفع عند الاستلام</span>
+        </div>
+        <div>
+          <span className="text-ink-soft block">عدد المنتجات</span>
+          <span className="font-semibold text-ink">{items.length} منتج</span>
+        </div>
+        <div>
+          <span className="text-ink-soft block">المبلغ الإجمالي</span>
+          <span className="font-bold text-ink font-mono text-sm">
+            {formatCurrency(order.totalAmount || order.total || 0)}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    {/* مخطط التتبع التفاعلي (Stepper) */}
+    <Card title="مخطط تتبع حالة الشحنة" className="mb-8">
+      <div className="py-4">
+        <div className="relative flex items-center justify-between px-4">
+          <div className="absolute left-8 right-8 top-4 h-1 bg-border -z-0" />
+          <div
+            className="absolute right-8 top-4 h-1 bg-emerald-500 transition-all duration-500 -z-0"
+            style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
+          />
+
+          {TRACKING_STEPS.map((s) => {
+            const isDone = s.step < currentStep
+            const isCurrent = s.step === currentStep
+
+            return (
+              <div key={s.step} className="relative z-10 flex flex-col items-center">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${isDone
+                    ? 'bg-emerald-500 text-white'
+                    : isCurrent
+                      ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 shadow-md scale-110'
+                      : 'bg-canvas text-ink-soft border border-border'
+                  }`}>
+                  {isDone ? <Check size={16} /> : s.step}
+                </div>
+                <span className={`mt-3 text-xs font-bold text-center ${isCurrent || isDone ? 'text-ink' : 'text-ink-soft'
+                  }`}>
+                  {s.label}
+                </span>
+                <span className="mt-1 hidden text-[10px] text-ink-soft text-center sm:block max-w-[90px]">
+                  {s.description}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </Card>
+
+    <div className="grid gap-8 lg:grid-cols-3">
+      {/* تفاصيل المنتجات والمشتريات */}
+      <div className="lg:col-span-2">
+        <Card title="محتويات الشحنة والمنتجات">
+          <div className="divide-y divide-border">
+            {items.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0 gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-10 w-10 rounded-xl bg-canvas flex items-center justify-center border border-border shrink-0">
+                    <Package size={18} className="text-ink-soft" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink truncate">{item.productName || item.name || 'منتج'}</p>
+                    <p className="text-xs text-ink-soft font-mono">الكمية: {item.quantity}</p>
+                  </div>
+                </div>
+                <div className="text-left font-mono font-bold text-sm text-ink shrink-0">
+                  {formatCurrency((item.unitPrice || item.price || 0) * item.quantity)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* معلومات التوصيل والعنوان */}
+      <div className="lg:col-span-1">
+        <Card title="بيانات التوصيل والعميل">
+          <div className="space-y-4 text-xs">
+            <div className="flex items-start gap-2.5">
+              <User size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="text-ink-soft block font-medium">اسم المستلم</span>
+                <span className="font-bold text-ink text-sm">{order.customerName || order.fullName || 'العميل'}</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5">
+              <Phone size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="text-ink-soft block font-medium">رقم الهاتف</span>
+                <span className="font-semibold text-ink font-mono">{order.phone || order.customerPhone || 'غير محدد'}</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5">
+              <MapPin size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="text-ink-soft block font-medium">عنوان التوصيل</span>
+                <span className="font-medium text-ink leading-relaxed">
+                  {order.shippingAddress || order.address || 'العنوان المسجل للعميل'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </div>
+)
