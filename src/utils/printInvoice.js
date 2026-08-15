@@ -1,5 +1,16 @@
 // File: src/utils/printInvoice.js
 
+// دالة مساعدة لمنع ثغرات الحقن XSS
+const escapeHtml = (str) => {
+  if (typeof str !== 'string') return str
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 export const printInvoice = (order, customerUser = {}) => {
   if (!order) return
 
@@ -9,8 +20,8 @@ export const printInvoice = (order, customerUser = {}) => {
     return
   }
 
-  // 1. استخراج بيانات العميل مع فحص كافة الاحتمالات والهياكل المتداخلة
-  const customerName =
+  // 1. استخراج بيانات العميل مع التنقية
+  const customerName = escapeHtml(
     order.customerName ||
     order.fullName ||
     order.customer?.fullName ||
@@ -20,6 +31,7 @@ export const printInvoice = (order, customerUser = {}) => {
     customerUser.fullName ||
     customerUser.name ||
     'عميل المتجر'
+  )
 
   const rawEmail =
     order.customerEmail ||
@@ -29,7 +41,7 @@ export const printInvoice = (order, customerUser = {}) => {
     order.appUser?.email ||
     customerUser.email ||
     ''
-  const customerEmail = (rawEmail && rawEmail !== 'غير مسجل') ? rawEmail : ''
+  const customerEmail = escapeHtml((rawEmail && rawEmail !== 'غير مسجل') ? rawEmail : '')
 
   const rawPhone =
     order.phone ||
@@ -41,9 +53,9 @@ export const printInvoice = (order, customerUser = {}) => {
     customerUser.phone ||
     customerUser.phoneNumber ||
     ''
-  const customerPhone = (rawPhone && rawPhone !== 'غير مسجل') ? rawPhone : ''
+  const customerPhone = escapeHtml((rawPhone && rawPhone !== 'غير مسجل') ? rawPhone : '')
 
-  // 2. معالجة العنوان (سواء كان نصاً عادياً أو كائن تفصيلي Object)
+  // 2. معالجة العنوان
   let address = ''
   const rawAddr =
     order.shippingAddress ||
@@ -54,7 +66,7 @@ export const printInvoice = (order, customerUser = {}) => {
     customerUser.address
 
   if (typeof rawAddr === 'string' && rawAddr.trim() !== '' && rawAddr !== 'العنوان المسجل بالحساب') {
-    address = rawAddr
+    address = escapeHtml(rawAddr)
   } else if (rawAddr && typeof rawAddr === 'object') {
     const addrParts = [
       rawAddr.street,
@@ -64,12 +76,12 @@ export const printInvoice = (order, customerUser = {}) => {
       rawAddr.details,
       rawAddr.buildingNumber,
       rawAddr.apartment
-    ].filter(Boolean)
+    ].filter(Boolean).map(escapeHtml)
     address = addrParts.length > 0 ? addrParts.join(', ') : ''
   }
 
   // 3. البيانات الأساسية للطلب والتاريخ
-  const orderNum = order.orderNumber || order.orderNo || `ORD-${order.id || '101'}`
+  const orderNum = escapeHtml(String(order.orderNumber || order.orderNo || `ORD-${order.id || '101'}`))
 
   const now = new Date()
   const formattedToday = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`
@@ -84,7 +96,7 @@ export const printInvoice = (order, customerUser = {}) => {
   if (rawPayment === 'CARD' || rawPayment === 'ONLINE') paymentMethodDisplay = 'CARD'
   else if (rawPayment === 'CASH' || rawPayment === 'COD') paymentMethodDisplay = 'الدفع عند الاستلام (CASH)'
 
-  // 5. الحسابات والمنتجات (دعم كافة المسميات المحتملة للـ Items في الـ API)
+  // 5. الحسابات والمنتجات
   const items = Array.isArray(order.items)
     ? order.items
     : (Array.isArray(order.orderItems) 
@@ -95,26 +107,23 @@ export const printInvoice = (order, customerUser = {}) => {
 
   const totalAmount = Number(order.totalAmount || order.total || 0)
 
-  // حساب المجموع الفرعي من المنتجات الفعلية إن وجدت
   const subtotal = items.length > 0
     ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || item.productPrice || 0) * Number(item.quantity || item.qty || 1)), 0)
     : (Number(order.subTotal || order.subtotal || totalAmount))
 
-  // حساب تكلفة الشحن
   const shippingCost = Number(
     order.shippingCost ??
     order.shippingFee ??
     (totalAmount > subtotal ? totalAmount - subtotal : 0)
   )
 
-  // بناء أسطر الجدول بالتفاصيل الكاملة لكل منتج طلبه العميل
   const itemsTableRows = items.length > 0
     ? items.map((item, index) => {
         const uPrice = Number(item.unitPrice || item.price || item.productPrice || 0)
         const qty = Number(item.quantity || item.qty || 1)
         const itemTotal = uPrice * qty
-        const pName = item.productName || item.name || item.title || item.product?.name || `منتج رقم ${index + 1}`
-        const pSku = item.sku || item.productId || item.product?.sku || item.id || `prod-${index + 1}`
+        const pName = escapeHtml(item.productName || item.name || item.title || item.product?.name || `منتج رقم ${index + 1}`)
+        const pSku = escapeHtml(String(item.sku || item.productId || item.product?.sku || item.id || `prod-${index + 1}`))
 
         return `
           <tr>
@@ -459,7 +468,7 @@ export const printInvoice = (order, customerUser = {}) => {
             <div class="client-name">${customerName}</div>
             ${customerEmail ? `<div class="client-sub" dir="ltr">${customerEmail}</div>` : ''}
             ${customerPhone ? `<div class="client-sub" dir="ltr">${customerPhone}</div>` : ''}
-            ${address ? `<div class="client-sub">${address}</div>` : '<div class="client-sub text-gray-400">العنوان غير متوفر</div>'}
+            ${address ? `<div class="client-sub">${address}</div>` : '<div class="client-sub" style="color: #94a3b8;">العنوان غير متوفر</div>'}
           </div>
         </div>
 
@@ -528,6 +537,14 @@ export const printInvoice = (order, customerUser = {}) => {
 
       </div>
 
+      <script>
+        // فتح حوار الطباعة تلقائياً بعد اكتمال التحميل
+        window.onload = () => {
+          setTimeout(() => {
+            window.print();
+          }, 300);
+        };
+      </script>
     </body>
     </html>
   `

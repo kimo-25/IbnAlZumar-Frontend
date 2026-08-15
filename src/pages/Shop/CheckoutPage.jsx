@@ -1,7 +1,7 @@
 // File: src/pages/Checkout/CheckoutPage.jsx
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, LogIn, UserCheck } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, UserCheck } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import { createGuestOrder } from '../../api/storefrontApi'
@@ -117,7 +117,7 @@ export default function CheckoutPage() {
     }
   }, [fetchShippingZones, fetchUserProfile])
 
-  // 3. مزامنة تكلفة الشحن تلقائياً بمجرد اختيار أو تغير المحافظة أو تحميل مناطق الشحن
+  // 3. مزامنة تكلفة الشحن تلقائياً عند تغيير المحافظة أو تحميل المناطق
   useEffect(() => {
     if (form.deliveryGovernorate && shippingZones.length > 0) {
       const found = shippingZones.find(
@@ -156,7 +156,7 @@ export default function CheckoutPage() {
       const token = overrideToken || localStorage.getItem('token')
       const formData = overrideForm || form
 
-      // مطابقة العناصر مع CreateOrderDto في الـ Backend
+      // مطابقة العناصر مع DTO الخاص بـ ASP.NET Core Backend
       const formattedItems = items.map((item) => ({
         productId: Number(item.id || item.productId),
         quantity: Number(item.quantity || 1),
@@ -473,7 +473,7 @@ export default function CheckoutPage() {
 
             <div className="text-center space-y-3 mb-6">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber/20 text-amber-900 border border-amber/30">
-                <LogIn size={24} />
+                <UserCheck size={24} />
               </div>
               <h3 className="text-lg font-bold text-ink">تسجيل الدخول مطلوب لإتمام الطلب</h3>
               <p className="text-xs text-ink-soft leading-relaxed">

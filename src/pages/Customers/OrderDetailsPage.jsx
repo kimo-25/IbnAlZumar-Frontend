@@ -430,6 +430,7 @@ export default function OrderDetailsPage() {
       </html>
     `
 
+    printWindow.document.open()
     printWindow.document.write(htmlContent)
     printWindow.document.close()
   }
