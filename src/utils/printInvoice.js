@@ -10,8 +10,11 @@ const escapeHtml = (str) => {
     .replace(/'/g, '&#039;')
 }
 
-export const printInvoice = (order, customerUser = {}) => {
-  if (!order) return
+export const printInvoice = (
+  order,
+  customerUser = {},
+  autoPrint = false
+) => {  if (!order) return
 
   const printWindow = window.open('', '_blank', 'width=900,height=950')
   if (!printWindow) {
@@ -530,13 +533,9 @@ export const printInvoice = (order, customerUser = {}) => {
 
       </div>
 
-      <script>
-        window.onload = () => {
-          setTimeout(() => {
-            window.print();
-          }, 300);
-        };
-      </script>
+<script>
+  window.onload = () => {};
+</script>
     </body>
     </html>
   `

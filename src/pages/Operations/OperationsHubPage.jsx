@@ -554,8 +554,7 @@ function handlePrintInvoice(order) {
     phone: order.phone || order.customerPhone,
     email: order.customerEmail || order.email
   }
-  printInvoice(order, customerObj)
-}
+printInvoice(order, customerObj, true)}
 
   return (
     <div className="space-y-6 p-4 sm:p-6" dir="rtl">
