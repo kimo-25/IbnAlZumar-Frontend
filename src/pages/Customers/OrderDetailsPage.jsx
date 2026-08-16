@@ -53,8 +53,9 @@ export default function OrderDetailsPage() {
       try {
         const response = await axiosInstance.get(`/Orders/${orderId}`)
 
-        console.log("API RESPONSE", response.data)
-
+console.log("API RESPONSE", response.data)
+console.log("SHIPPING COST =", response.data.shippingCost)
+console.log("SHIPPING FEE =", response.data.shippingFee)
         setOrder(response.data)
         return
       } catch {
