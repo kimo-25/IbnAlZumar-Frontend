@@ -1,5 +1,5 @@
 ﻿// File: src/pages/Operations/OperationsHubPage.jsx
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Clock,
   Loader2,
@@ -29,12 +29,12 @@ import { printInvoice } from '../../utils/printInvoice'
 // Constants & Options
 // ==========================================
 const ORDER_STATUS_OPTIONS = [
-  { value: 1, label: 'قيد المراجعة', dotColor: 'bg-amber-500' },
-  { value: 2, label: 'تم التأكيد', dotColor: 'bg-blue-500' },
-  { value: 3, label: 'جاري التجهيز', dotColor: 'bg-indigo-500' },
-  { value: 10, label: 'في الطريق إليك (تم الشحن)', dotColor: 'bg-sky-500' },
-  { value: 6, label: 'تم التوصيل بنجاح', dotColor: 'bg-emerald-500' },
-  { value: 8, label: 'إلغاء الطلب', dotColor: 'bg-rose-500' }
+  { value: 1, label: 'قيد المراجعة', dotColor: 'bg-amber-500', icon: Clock },
+  { value: 2, label: 'تم التأكيد', dotColor: 'bg-blue-500', icon: CheckCircle2 },
+  { value: 3, label: 'جاري التجهيز', dotColor: 'bg-indigo-500', icon: Package },
+  { value: 10, label: 'في الطريق إليك (تم الشحن)', dotColor: 'bg-sky-500', icon: Truck },
+  { value: 6, label: 'تم التوصيل بنجاح', dotColor: 'bg-emerald-500', icon: ShieldCheck },
+  { value: 8, label: 'إلغاء الطلب', dotColor: 'bg-rose-500', icon: XCircle }
 ]
 
 function getStatusBadge(status) {
@@ -55,6 +55,71 @@ function getStatusBadge(status) {
     default:
       return { label: `حالة (${status})`, className: 'bg-canvas text-ink-soft border-border', icon: Clock }
   }
+}
+
+// ==========================================
+// Custom Status Dropdown (Modern UI)
+// ==========================================
+function StatusChangeDropdown({ currentStatus, onSelect }) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  function handleSelect(value) {
+    setOpen(false)
+    onSelect(value)
+  }
+
+  return (
+    <div ref={containerRef} className="relative inline-block text-right" dir="rtl">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-bold text-[11px] px-3.5 py-2 rounded-xl shadow-xs cursor-pointer hover:from-emerald-700 hover:to-emerald-800 transition"
+      >
+        <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+        <span>تغيير الحالة</span>
+        <ChevronDown size={13} className={`opacity-80 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 z-20 mt-1 w-56 overflow-hidden rounded-lg bg-white shadow-lg shadow-black/10 ring-1 ring-black/5"
+        >
+          <ul className="py-1">
+            {ORDER_STATUS_OPTIONS.map((st) => {
+              const StatusIcon = st.icon
+              const isSelected = Number(currentStatus) === st.value
+              return (
+                <li key={st.value}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(st.value)}
+                    className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-right text-xs font-semibold text-gray-700 transition-colors duration-150 hover:bg-[#f3f4f6] ${
+                      isSelected ? 'bg-[#f9fafb] text-emerald-700' : ''
+                    }`}
+                  >
+                    <StatusIcon size={14} className="shrink-0 text-gray-400" />
+                    <span className="flex-1">{st.label}</span>
+                    {isSelected && <span className={`h-1.5 w-1.5 rounded-full ${st.dotColor}`}></span>}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ==========================================
@@ -146,35 +211,17 @@ function OrdersTab({ orders, loading, error, processingId, onUpdateStatus, onPri
                         <span>فاتورة</span>
                       </button>
 
-                      <div className="relative inline-block">
-                        {processingId === order.id ? (
-                          <div className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-4 py-2 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
-                            <Loader2 size={13} className="animate-spin text-emerald-600" />
-                            <span>تحديث...</span>
-                          </div>
-                        ) : (
-                          <div className="relative group">
-                            <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-bold text-[11px] px-3.5 py-2 rounded-xl shadow-xs cursor-pointer hover:from-emerald-700 hover:to-emerald-800 transition">
-                              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-                              <span>تغيير الحالة</span>
-                              <ChevronDown size={13} className="opacity-80" />
-                            </div>
-                            <select
-                              value={currentStatus}
-                              onChange={(e) => onUpdateStatus(order.id, e.target.value)}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              title="اختر الحالة الجديدة للطلب"
-                            >
-                              <option value="" disabled>تغيير الحالة...</option>
-                              {ORDER_STATUS_OPTIONS.map((st) => (
-                                <option key={st.value} value={st.value}>
-                                  {st.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                      </div>
+                      {processingId === order.id ? (
+                        <div className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-4 py-2 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
+                          <Loader2 size={13} className="animate-spin text-emerald-600" />
+                          <span>تحديث...</span>
+                        </div>
+                      ) : (
+                        <StatusChangeDropdown
+                          currentStatus={currentStatus}
+                          onSelect={(value) => onUpdateStatus(order.id, value)}
+                        />
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -546,15 +593,16 @@ export default function OperationsHubPage() {
     }
   }
 
-function handlePrintInvoice(order) {
-  if (!order) return
+  function handlePrintInvoice(order) {
+    if (!order) return
 
-  const customerObj = order.customer || order.user || {
-    fullName: order.customerName || order.fullName,
-    phone: order.phone || order.customerPhone,
-    email: order.customerEmail || order.email
+    const customerObj = order.customer || order.user || {
+      fullName: order.customerName || order.fullName,
+      phone: order.phone || order.customerPhone,
+      email: order.customerEmail || order.email
+    }
+    printInvoice(order, customerObj, true)
   }
-printInvoice(order, customerObj, true)}
 
   return (
     <div className="space-y-6 p-4 sm:p-6" dir="rtl">

@@ -260,7 +260,7 @@ function OrderCard({
               className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition cursor-pointer"
             >
               <Package size={16} />
-              عرض / طباعة الفاتورة
+                عرض الفاتورة
             </button>
           </div>
 

@@ -113,11 +113,12 @@ export default function OrderDetailsPage() {
           <ArrowRight size={18} /> العودة لسجل الطلبات
         </Link>
         <button
-onClick={() => printInvoice(order, {}, false)}
- className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
+          onClick={() => printInvoice(order)}
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
         >
-      <Printer size={16} /> عرض الفاتورة  
-      </button>
+          <Printer size={16} />
+          طباعة / حفظ الفاتورة (PDF)
+        </button>
       </div>
 
       {/* الترويسة الرئيسية */}
@@ -249,7 +250,7 @@ onClick={() => printInvoice(order, {}, false)}
                 <div>
                   <span className="text-ink-soft block font-medium">عنوان التوصيل</span>
                   <span className="font-medium text-ink leading-relaxed">
-                    {order.shippingAddress || order.address || order.location || order.shippingLocation || order.user?.address || order.customer?.address || '-'}   </span>
+                    {order.shippingAddress || order.address || order.location || order.shippingLocation || order.user?.address || order.customer?.address || '-'}  </span>
                 </div>
               </div>
             </div>

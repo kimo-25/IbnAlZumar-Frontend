@@ -14,7 +14,8 @@ export const printInvoice = (
   order,
   customerUser = {},
   autoPrint = false
-) => {  if (!order) return
+) => {
+  if (!order) return
 
   const printWindow = window.open('', '_blank', 'width=900,height=950')
   if (!printWindow) {
@@ -527,15 +528,12 @@ export const printInvoice = (
         </div>
 
         <div class="control-bar">
-          <button class="btn-print" onclick="window.print()">🖨️ طباعة الفاتورة الفورية</button>
-          <button class="btn-close" onclick="window.close()">متابعة</button>
+          <button class="btn-print" onclick="window.print()">📥 حفظ الفاتورة (PDF / طباعة)</button>
+          <button class="btn-close" onclick="window.close()">إغلاق</button>
         </div>
 
       </div>
 
-<script>
-  window.onload = () => {};
-</script>
     </body>
     </html>
   `
