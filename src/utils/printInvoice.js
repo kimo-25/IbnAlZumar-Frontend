@@ -119,7 +119,9 @@ const shippingCost = Number(
   0
 )
 
-const grandTotal = subtotal + shippingCost
+const grandTotal =
+  Number(subtotal) +
+  Number(shippingCost)
 
   const itemsTableRows = items.length > 0
     ? items.map((item, index) => {
@@ -171,7 +173,7 @@ const grandTotal = subtotal + shippingCost
         }
         .invoice-card {
           width: 100%;
-          max-width: 780px;
+          max-width: 1100px;
           background: #ffffff;
           border-radius: 20px;
           padding: 36px 40px;
@@ -202,7 +204,7 @@ const grandTotal = subtotal + shippingCost
           line-height: 1.4;
         }
         .company-title {
-          font-size: 20px;
+          font-size: 30px;
           font-weight: 900;
           color: #09090b;
           text-align: left;
@@ -261,7 +263,7 @@ const grandTotal = subtotal + shippingCost
           margin-top: 6px;
         }
         .client-name {
-          font-size: 16px;
+          font-size: 20px;
           font-weight: 900;
           color: #09090b;
         }
@@ -303,14 +305,17 @@ const grandTotal = subtotal + shippingCost
           border-bottom: 1px solid #f1f5f9;
           font-size: 12px;
         }
+          tbody tr:hover {
+  background-color: #f8fafc;
+}
 
         .totals-wrapper {
           display: flex;
-          justify-content: flex-start;
+          justify-content: flex-end;
           margin-bottom: 30px;
         }
         .totals-card {
-          width: 310px;
+          width: 420px;
           border: 1px solid #e2e8f0;
           background-color: #f8fafc;
           border-radius: 14px;
@@ -336,14 +341,16 @@ const grandTotal = subtotal + shippingCost
         .final-val {
           color: #10b981;
           font-weight: 900;
+          font-size: 22px;
         }
 
         .signatures-section {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          padding-top: 20px;
+          gap: 40px;
+          padding-top: 30px;
           border-top: 1px dashed #cbd5e1;
+          margin-top: 30px;
           margin-bottom: 24px;
         }
         .sig-box {
@@ -432,7 +439,58 @@ const grandTotal = subtotal + shippingCost
           font-weight: 800;
           cursor: pointer;
         }
+@media (max-width: 768px) {
 
+  .invoice-card {
+    padding: 16px !important;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .company-title,
+  .company-subtitle,
+  .tax-id {
+    text-align: right !important;
+  }
+
+  .grid-boxes {
+    grid-template-columns: 1fr;
+  }
+
+  .totals-wrapper {
+    display: block;
+  }
+
+  .totals-card {
+    width: 100%;
+  }
+
+  .signatures-section {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  table {
+    font-size: 11px;
+  }
+
+  th,
+  td {
+    padding: 8px;
+  }
+
+  .control-bar {
+    flex-direction: column;
+  }
+
+  .btn-print,
+  .btn-close {
+    width: 100%;
+  }
+}
         @media print {
           body { background-color: #ffffff; padding: 0; }
           .invoice-card { box-shadow: none; border-radius: 0; padding: 0; max-width: 100%; }

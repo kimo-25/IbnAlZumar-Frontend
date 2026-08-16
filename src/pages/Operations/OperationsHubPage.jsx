@@ -549,14 +549,11 @@ export default function OperationsHubPage() {
 function handlePrintInvoice(order) {
   if (!order) return
 
-  console.log("ADMIN ORDER =>", order)
-
   const customerObj = order.customer || order.user || {
     fullName: order.customerName || order.fullName,
     phone: order.phone || order.customerPhone,
     email: order.customerEmail || order.email
   }
-console.log("ORDER FOR PRINT", order)
   printInvoice(order, customerObj)
 }
 
