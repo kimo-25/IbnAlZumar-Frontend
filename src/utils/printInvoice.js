@@ -173,7 +173,7 @@ const grandTotal =
         }
         .invoice-card {
           width: 100%;
-          max-width: 1100px;
+          max-width: 950px;
           background: #ffffff;
           border-radius: 20px;
           padding: 36px 40px;
@@ -546,10 +546,10 @@ const grandTotal =
         <table>
           <thead>
             <tr>
-              <th style="width: 48%;">السلعة / البيان</th>
-              <th style="width: 18%; text-align: center;">سعر الوحدة</th>
-              <th style="width: 14%; text-align: center;">الكمية</th>
-              <th style="width: 20%; text-align: left;">المجموع</th>
+            <th style="width: 60%;">السلعة / البيان</th>
+            <th style="width: 15%; text-align: center;">سعر الوحدة</th>
+            <th style="width: 10%; text-align: center;">الكمية</th>
+            <th style="width: 15%; text-align: left;">المجموع</th>
             </tr>
           </thead>
           <tbody>
