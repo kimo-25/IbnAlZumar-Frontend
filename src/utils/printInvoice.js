@@ -3,6 +3,7 @@
 // دالة مساعدة لمنع ثغرات الحقن XSS
 const escapeHtml = (str) => {
   if (typeof str !== 'string') return str
+
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -104,7 +105,6 @@ export const printInvoice = (order, customerUser = {}) => {
       : (Array.isArray(order.orderDetails)
         ? order.orderDetails
         : (Array.isArray(order.cartItems) ? order.cartItems : [])))
-  alert(`عدد المنتجات: ${items.length}`)
 
   const totalAmount = Number(order.totalAmount || order.total || 0)
 
@@ -112,14 +112,14 @@ export const printInvoice = (order, customerUser = {}) => {
     ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || item.productPrice || 0) * Number(item.quantity || item.qty || 1)), 0)
     : (Number(order.subTotal || order.subtotal || totalAmount))
 
-  const shippingCost = Number(
-    order.shippingCost ??
-    order.shippingFee ??
-    (totalAmount > subtotal ? totalAmount - subtotal : 0)
-  )
-  console.log("PRINT ORDER", order)
-  console.log("PRINT ITEMS", items)
-  console.log("ITEMS LENGTH", items.length)
+const shippingCost = Number(
+  order.shippingCost ??
+  order.shippingFee ??
+  order.deliveryCost ??
+  0
+)
+
+const grandTotal = subtotal + shippingCost
 
   const itemsTableRows = items.length > 0
     ? items.map((item, index) => {
@@ -511,7 +511,7 @@ export const printInvoice = (order, customerUser = {}) => {
             </div>
             <div class="total-row final">
               <span>الإجمالي الكلي:</span>
-              <span class="final-val" dir="ltr">EGP ${totalAmount.toLocaleString()}</span>
+              <span class="final-val" dir="ltr">EGP ${grandTotal.toLocaleString()}</span>
             </div>
           </div>
         </div>

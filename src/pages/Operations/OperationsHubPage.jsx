@@ -546,15 +546,19 @@ export default function OperationsHubPage() {
     }
   }
 
-  function handlePrintInvoice(order) {
-    if (!order) return
-    // تمرير الطلب والعميل تلقائياً بدقة إلى دالة طباعة الفاتورة الخارجية
-    const customerObj = order.customer || order.user || {
-      fullName: order.customerName || order.fullName,
-      phone: order.phone || order.customerPhone
-    }
-    printInvoice(order, customerObj)
+function handlePrintInvoice(order) {
+  if (!order) return
+
+  console.log("ADMIN ORDER =>", order)
+
+  const customerObj = order.customer || order.user || {
+    fullName: order.customerName || order.fullName,
+    phone: order.phone || order.customerPhone,
+    email: order.customerEmail || order.email
   }
+
+  printInvoice(order, customerObj)
+}
 
   return (
     <div className="space-y-6 p-4 sm:p-6" dir="rtl">
