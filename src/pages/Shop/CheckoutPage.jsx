@@ -59,6 +59,7 @@ const [selectedZonePrice, setSelectedZonePrice] = useState(0)
   const fetchShippingZones = useCallback(async () => {
     try {
       const res = await axiosInstance.get('/ShippingZones')
+      console.log("SHIPPING ZONES", res.data)
       const data = res.data
       const zones = Array.isArray(data) ? data : data?.$values || data?.data || []
       setShippingZones(zones)

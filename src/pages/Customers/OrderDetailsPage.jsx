@@ -92,7 +92,11 @@ export default function OrderDetailsPage() {
 
     const items = Array.isArray(order.items) ? order.items : (Array.isArray(order.orderItems) ? order.orderItems : [])
     const totalAmount = Number(order.totalAmount || order.total || 0)
-
+    const shippingCost = Number(
+      order.shippingCost ??
+      order.shippingFee ??
+      0
+    )
     const itemsTableRows = items.length > 0
       ? items.map(item => `
           <tr>
@@ -382,10 +386,10 @@ export default function OrderDetailsPage() {
                 <span>الإجمالي الفرعي:</span>
                 <span>EGP ${subtotal.toLocaleString()}</span>
               </div>
-              <div class="total-row">
-                <span>تكلفة الشحن:</span>
-                <span>EGP 0</span>
-              </div>
+<div class="total-row">
+  <span>تكلفة الشحن:</span>
+  <span>EGP ${shippingCost.toLocaleString()}</span>
+</div>
               <div class="total-row grand">
                 <span>الإجمالي الكلي:</span>
                 <span class="grand-amount">EGP ${totalAmount.toLocaleString()}</span>
