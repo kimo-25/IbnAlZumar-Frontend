@@ -1,9 +1,7 @@
 // File: src/utils/printInvoice.js
 
-// دالة مساعدة لمنع ثغرات الحقن XSS
 const escapeHtml = (str) => {
   if (typeof str !== 'string') return str
-
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -21,7 +19,7 @@ export const printInvoice = (order, customerUser = {}) => {
     return
   }
 
-  // 1. استخراج بيانات العميل مع التنقية
+  // 1. استخراج بيانات العميل
   const customerName = escapeHtml(
     order.customerName ||
     order.fullName ||
@@ -112,16 +110,14 @@ export const printInvoice = (order, customerUser = {}) => {
     ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || item.productPrice || 0) * Number(item.quantity || item.qty || 1)), 0)
     : (Number(order.subTotal || order.subtotal || totalAmount))
 
-const shippingCost = Number(
-  order.shippingCost ??
-  order.shippingFee ??
-  order.deliveryCost ??
-  0
-)
+  const shippingCost = Number(
+    order.shippingCost ??
+    order.shippingFee ??
+    order.deliveryCost ??
+    0
+  )
 
-const grandTotal =
-  Number(subtotal) +
-  Number(shippingCost)
+  const grandTotal = Number(subtotal) + Number(shippingCost)
 
   const itemsTableRows = items.length > 0
     ? items.map((item, index) => {
@@ -164,7 +160,7 @@ const grandTotal =
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           background-color: #0f172a; 
           color: #09090b; 
           padding: 30px 15px;
@@ -178,7 +174,6 @@ const grandTotal =
           border-radius: 20px;
           padding: 36px 40px;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-          position: relative;
         }
         
         .header {
@@ -204,7 +199,7 @@ const grandTotal =
           line-height: 1.4;
         }
         .company-title {
-          font-size: 30px;
+          font-size: 26px;
           font-weight: 900;
           color: #09090b;
           text-align: left;
@@ -252,9 +247,6 @@ const grandTotal =
           font-size: 14px;
           font-weight: 900;
           color: #09090b;
-          display: flex;
-          align-items: center;
-          gap: 6px;
         }
         .payment-status {
           font-size: 14px;
@@ -263,7 +255,7 @@ const grandTotal =
           margin-top: 6px;
         }
         .client-name {
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 900;
           color: #09090b;
         }
@@ -275,12 +267,13 @@ const grandTotal =
         }
 
         .section-label {
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 900;
           color: #09090b;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
           text-align: right;
         }
+        
         table {
           width: 100%;
           border-collapse: collapse;
@@ -288,6 +281,7 @@ const grandTotal =
           overflow: hidden;
           border: 1px solid #e2e8f0;
           margin-bottom: 24px;
+          table-layout: fixed;
         }
         th {
           background-color: #09090b;
@@ -305,9 +299,7 @@ const grandTotal =
           border-bottom: 1px solid #f1f5f9;
           font-size: 12px;
         }
-          tbody tr:hover {
-  background-color: #f8fafc;
-}
+        tbody tr:hover { background-color: #f8fafc; }
 
         .totals-wrapper {
           display: flex;
@@ -315,7 +307,7 @@ const grandTotal =
           margin-bottom: 30px;
         }
         .totals-card {
-          width: 420px;
+          width: 360px;
           border: 1px solid #e2e8f0;
           background-color: #f8fafc;
           border-radius: 14px;
@@ -341,7 +333,7 @@ const grandTotal =
         .final-val {
           color: #10b981;
           font-weight: 900;
-          font-size: 22px;
+          font-size: 20px;
         }
 
         .signatures-section {
@@ -353,9 +345,7 @@ const grandTotal =
           margin-top: 30px;
           margin-bottom: 24px;
         }
-        .sig-box {
-          text-align: center;
-        }
+        .sig-box { text-align: center; }
         .sig-title {
           font-size: 13px;
           font-weight: 900;
@@ -422,10 +412,6 @@ const grandTotal =
           font-size: 13px;
           font-weight: 800;
           cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
         }
         .btn-print:hover { background-color: #047857; }
         .btn-close {
@@ -439,58 +425,7 @@ const grandTotal =
           font-weight: 800;
           cursor: pointer;
         }
-@media (max-width: 768px) {
 
-  .invoice-card {
-    padding: 16px !important;
-  }
-
-  .header {
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .company-title,
-  .company-subtitle,
-  .tax-id {
-    text-align: right !important;
-  }
-
-  .grid-boxes {
-    grid-template-columns: 1fr;
-  }
-
-  .totals-wrapper {
-    display: block;
-  }
-
-  .totals-card {
-    width: 100%;
-  }
-
-  .signatures-section {
-    grid-template-columns: 1fr;
-    gap: 30px;
-  }
-
-  table {
-    font-size: 11px;
-  }
-
-  th,
-  td {
-    padding: 8px;
-  }
-
-  .control-bar {
-    flex-direction: column;
-  }
-
-  .btn-print,
-  .btn-close {
-    width: 100%;
-  }
-}
         @media print {
           body { background-color: #ffffff; padding: 0; }
           .invoice-card { box-shadow: none; border-radius: 0; padding: 0; max-width: 100%; }
@@ -525,31 +460,23 @@ const grandTotal =
             <div class="payment-status" dir="ltr">${paymentMethodDisplay}</div>
           </div>
 
-<div class="box">
-  <div class="box-label">المرسل إليه / العميل</div>
+          <div class="box">
+            <div class="box-label">المرسل إليه / العميل</div>
+            <div class="client-name">${customerName}</div>
+            <div class="client-sub" dir="ltr">${customerEmail || 'لا يوجد بريد إلكتروني'}</div>
+            <div class="client-sub" dir="ltr">${customerPhone || 'لا يوجد رقم هاتف'}</div>
+            <div class="client-sub">${address || 'العنوان غير متوفر'}</div>
+          </div>
+        </div>
 
-  <div class="client-name">${customerName}</div>
-
-  <div class="client-sub" dir="ltr">
-    ${customerEmail || 'لا يوجد بريد إلكتروني'}
-  </div>
-
-  <div class="client-sub" dir="ltr">
-    ${customerPhone || 'لا يوجد رقم هاتف'}
-  </div>
-
-  <div class="client-sub">
-    ${address || 'العنوان غير متوفر'}
-  </div>
-</div>
         <div class="section-label">المنتجات والعدد المباعة</div>
         <table>
           <thead>
             <tr>
-            <th style="width: 60%;">السلعة / البيان</th>
-            <th style="width: 15%; text-align: center;">سعر الوحدة</th>
-            <th style="width: 10%; text-align: center;">الكمية</th>
-            <th style="width: 15%; text-align: left;">المجموع</th>
+              <th style="width: 50%;">السلعة / البيان</th>
+              <th style="width: 20%; text-align: center;">سعر الوحدة</th>
+              <th style="width: 10%; text-align: center;">الكمية</th>
+              <th style="width: 20%; text-align: left;">المجموع</th>
             </tr>
           </thead>
           <tbody>
@@ -597,18 +524,13 @@ const grandTotal =
         </div>
 
         <div class="control-bar">
-          <button class="btn-print" onclick="window.print()">
-            🖨️ طباعة الفاتورة الفورية
-          </button>
-          <button class="btn-close" onclick="window.close()">
-            متابعة
-          </button>
+          <button class="btn-print" onclick="window.print()">🖨️ طباعة الفاتورة الفورية</button>
+          <button class="btn-close" onclick="window.close()">متابعة</button>
         </div>
 
       </div>
 
       <script>
-        // فتح حوار الطباعة تلقائياً بعد اكتمال التحميل
         window.onload = () => {
           setTimeout(() => {
             window.print();
