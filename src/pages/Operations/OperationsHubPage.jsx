@@ -556,7 +556,7 @@ function handlePrintInvoice(order) {
     phone: order.phone || order.customerPhone,
     email: order.customerEmail || order.email
   }
-
+console.log("ORDER FOR PRINT", order)
   printInvoice(order, customerObj)
 }
 

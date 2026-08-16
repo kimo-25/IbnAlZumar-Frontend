@@ -44,8 +44,8 @@ export default function CheckoutPage() {
   })
 
   const [shippingZones, setShippingZones] = useState([])
-  const [selectedZonePrice, setSelectedZonePrice] = useState(0)
-
+const [selectedZone, setSelectedZone] = useState(null)
+const [selectedZonePrice, setSelectedZonePrice] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [loadingProfile, setLoadingProfile] = useState(false)
   const [error, setError] = useState(null)
@@ -118,17 +118,29 @@ export default function CheckoutPage() {
   }, [fetchShippingZones, fetchUserProfile])
 
   // 3. مزامنة تكلفة الشحن تلقائياً عند تغيير المحافظة أو تحميل المناطق
-  useEffect(() => {
-    if (form.deliveryGovernorate && shippingZones.length > 0) {
-      const found = shippingZones.find(
-        (z) => z.name?.trim().toLowerCase() === form.deliveryGovernorate?.trim().toLowerCase()
-      )
-      setSelectedZonePrice(found ? Number(found.price || 0) : 0)
-    } else {
-      setSelectedZonePrice(0)
-    }
-  }, [form.deliveryGovernorate, shippingZones])
+ useEffect(() => {
+  if (form.deliveryGovernorate && shippingZones.length > 0) {
+    const found = shippingZones.find(
+      z =>
+        z.name?.trim().toLowerCase() ===
+        form.deliveryGovernorate?.trim().toLowerCase()
+    )
 
+    setSelectedZone(found || null)
+
+setSelectedZonePrice(
+  found
+    ? Number(
+        found.shippingFee ??
+        found.shippingCost ??
+        0
+      )
+    : 0
+) } else {
+    setSelectedZone(null)
+    setSelectedZonePrice(0)
+  }
+}, [form.deliveryGovernorate, shippingZones])
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
   }
@@ -163,14 +175,17 @@ export default function CheckoutPage() {
         unitPrice: Number(item.price || 0),
       }))
 
-      const orderPayload = {
-        customerName: formData.guestName,
-        customerPhone: formData.guestPhone,
-        shippingAddress: formData.shippingAddress,
-        notes: `المحافظة: ${formData.deliveryGovernorate} - الإجمالي الكلي: ${currentTotal}`,
-        items: formattedItems,
-      }
+ const orderPayload = {
+  customerName: formData.guestName,
+  customerPhone: formData.guestPhone,
+  shippingAddress: formData.shippingAddress,
 
+  shippingZoneId: selectedZone?.id,
+
+  notes: `المحافظة: ${formData.deliveryGovernorate} - الإجمالي الكلي: ${currentTotal}`,
+
+  items: formattedItems,
+}
       const order = await createGuestOrder(orderPayload, token)
 
       if (token) {
