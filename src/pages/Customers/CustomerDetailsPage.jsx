@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Loader2, ArrowRight, ShoppingBag, Phone, Mail, MapPin, Wallet } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
-import api from '../../api/axios'
+import api from '../../api/adminApi'
 
 export default function CustomerDetailsPage() {
   const { id } = useParams()
