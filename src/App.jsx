@@ -17,7 +17,7 @@ import LoginPage from './pages/Login/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
 import CustomerProfilePage from './pages/Customers/CustomerProfilePage'
 import OrderDetailsPage from './pages/Customers/OrderDetailsPage'
-
+import CustomerDetailsPage from './pages/Customers/CustomerDetailsPage'
 // Admin & Auth
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import DashboardLayout from './components/layout/DashboardLayout'
@@ -114,7 +114,11 @@ export default function App() {
 
             <Route path="inventory/adjust" element={<InventoryAdjustPage />} />
             <Route path="inventory/transfer" element={<InventoryTransferPage />} />
+            
+            {/* صفحات العملاء وتفاصيل العميل تحت حماية الإدارة وداخل الـ Layout */}
             <Route path="customers" element={<CustomersPage />} />
+            <Route path="customers/:id" element={<CustomerDetailsPage />} />
+
             <Route path="purchasing" element={<PurchaseOrdersPage />} />
             <Route path="pos" element={<PosCheckoutPage />} />
             <Route path="reports" element={<ProtectedRoute permission="Reports.View" allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'admin']} />}>
@@ -122,7 +126,7 @@ export default function App() {
             </Route>
           </Route>
         </Route>
-
+        
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

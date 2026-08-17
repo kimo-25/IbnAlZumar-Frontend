@@ -1,5 +1,6 @@
 // File: src/pages/Customers/CustomersPage.jsx
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Loader2, PencilLine, Plus, Users, Trash2 } from 'lucide-react'
 import {
   createCustomer,
@@ -28,6 +29,7 @@ function normalizeArray(value) {
 }
 
 export default function CustomersPage() {
+  const navigate = useNavigate()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -249,7 +251,14 @@ export default function CustomersPage() {
                   <tbody>
                     {visibleCustomers.map((customer) => (
                       <tr key={customer.id} className="border-b border-border last:border-0">
-                        <td className="py-3 pl-4 font-medium text-ink" dir="auto">{customer.fullName}</td>
+                        <td 
+                          className="py-3 pl-4 font-medium text-ink cursor-pointer hover:underline text-primary" 
+                          dir="auto"
+                          onClick={() => navigate(`/admin/customers/${customer.id}`)}
+                          title="اضغط لعرض تفاصيل وطلبات العميل"
+                        >
+                          {customer.fullName}
+                        </td>
                         <td className="py-3 pl-4 text-ink-soft" dir="auto">{customer.phoneNumber || '—'}</td>
                         <td className="py-3 pl-4 font-mono tabular-nums text-ink-soft">{customer.currentDebt} ج.م</td>
                         <td className="py-3 pl-4 text-ink-soft" dir="auto">{customer.address || '—'}</td>
