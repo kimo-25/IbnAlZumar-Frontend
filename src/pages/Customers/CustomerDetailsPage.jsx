@@ -4,8 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Loader2, ArrowRight, ShoppingBag, Phone, Mail, MapPin, Wallet } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
-// تعديل مسار الاستيراد ليكون لملف الـ axios الأساسي (تأكد من مساره الصحيح في مشروعك، مثلاً '../../api/axios' أو '../../api/client')
-import api from '../../api/axios'
+// الاستيراد الصحيح اعتماداً على اسم الملف الموجود في مشروعك (axiosInstance.js)
+import api from '../../api/axiosInstance'
 
 export default function CustomerDetailsPage() {
   const { id } = useParams()
@@ -62,7 +62,6 @@ export default function CustomerDetailsPage() {
     )
   }
 
-  // مطابقة الخصائص تماماً مع كود الباك إند (Orders, CurrentBalance, Phone, etc.)
   const orders = customer.orders || customer.Orders || []
   const totalSpent = orders.reduce((sum, order) => sum + Number(order.totalAmount || order.total || 0), 0)
   const currentBalance = Number(customer.currentBalance ?? customer.CurrentBalance ?? 0)
