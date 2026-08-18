@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
-import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 import {
   addLocalTransaction,
   getPendingTransactions,
   cacheProducts,
   getLocalProducts,
-} from "../db/db";
+} from "../../db/db";
 
-import { printInvoice } from "../utils/printInvoice";
+import { printInvoice } from "../../utils/printInvoice";
 
 const TAX_RATE = 0.15;
 
