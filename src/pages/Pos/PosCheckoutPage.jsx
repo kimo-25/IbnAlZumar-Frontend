@@ -31,20 +31,35 @@ export default function PosCheckoutPage() {
     setPendingCount(items.length);
   }
 
-  async function loadProducts() {
-    try {
-      const response = await axiosInstance.get("/Products");
-      console.log("Products Response", response.data);
-      const data = response.data;
-      setProducts(data);
-      await cacheProducts(data); // حفظ المنتجات محلياً وقت الاتصال الناجح
-    } catch (err) {
-      console.warn("تعذر الاتصال بالسيرفر، جاري جلب المنتجات المخزنة محلياً...", err);
-      const localProducts = await getLocalProducts(); // جلب المنتجات أوفلاين
-      setProducts(localProducts);
-    }
-  }
+async function loadProducts() {
+  try {
+    const response = await axiosInstance.get("/Products");
 
+    console.log(
+      "Products Response JSON",
+      JSON.stringify(response.data, null, 2)
+    );
+
+    const data =
+      response.data.items ||
+      response.data.data ||
+      response.data.results ||
+      [];
+
+    setProducts(data);
+
+    await cacheProducts(data);
+  } catch (err) {
+    console.warn(
+      "تعذر الاتصال بالسيرفر، جاري جلب المنتجات المخزنة محلياً...",
+      err
+    );
+
+    const localProducts = await getLocalProducts();
+
+    setProducts(localProducts);
+  }
+}
   const filteredProducts = products.filter((p) =>
     p.name?.toLowerCase().includes(search.toLowerCase())
   );
