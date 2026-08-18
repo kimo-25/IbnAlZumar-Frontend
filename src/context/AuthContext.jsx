@@ -34,13 +34,17 @@ export function AuthProvider({ children }) {
 
     const payload = parseJwt(token);
 
-    console.log("PAYLOAD =", payload);
-    console.log("ROLE =", payload?.role);
+    console.log("JWT Payload:", payload);
+    
+    console.log(
+      "Extracted Role:",
+      payload?.role ||
+      payload?.Role ||
+      payload?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"]
+    );
 
     setUser({
-      id:
-        payload?.sub ||
-        payload?.nameid,
+      id: payload?.sub || payload?.nameid,
 
       name:
         payload?.unique_name ||

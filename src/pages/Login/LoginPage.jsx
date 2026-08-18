@@ -65,12 +65,28 @@ export default function LoginPage() {
     }
 
     setIsSubmitting(true)
+
     try {
-      const userData = await login(username.trim(), password)
-      const targetPath = determineDestination(userData)
+      const response = await axiosInstance.post('/Auth/login', {
+        username: username.trim(),
+        password,
+      })
+
+      const data = response.data
+
+      login(data.token)
+
+      localStorage.setItem("user", JSON.stringify(data))
+
+      const targetPath = determineDestination(data)
+
       navigate(targetPath, { replace: true })
+
     } catch (err) {
-      setError(err?.message || 'فشل تسجيل الدخول. تحقق من بياناتك وحاول مرة أخرى.')
+      setError(
+        err?.message ||
+        'فشل تسجيل الدخول. تحقق من بياناتك وحاول مرة أخرى.'
+      )
     } finally {
       setIsSubmitting(false)
     }
