@@ -17,7 +17,12 @@ export const printInvoice = (
 ) => {
   if (!order) return
 
-  const printWindow = window.open('', '_blank', 'width=900,height=950')
+  // حساب أبعاد شاشة الجهاز لفتح نافذة متجاوبة على الموبايل والـ Desktop
+  const screenWidth = window.innerWidth || document.documentElement.clientWidth || screen.width
+  const winWidth = screenWidth < 640 ? screenWidth : 900
+  const winHeight = screenWidth < 640 ? window.innerHeight : 950
+
+  const printWindow = window.open('', '_blank', `width=${winWidth},height=${winHeight},scrollbars=yes,resizable=yes`)
   if (!printWindow) {
     alert('يرجى السماح بالنوافذ المنبثقة (Popups) للتمكن من استعراض الفاتورة.')
     return
@@ -160,6 +165,7 @@ export const printInvoice = (
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>فاتورة مبيعات - ${orderNum}</title>
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -167,7 +173,7 @@ export const printInvoice = (
           font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           background-color: #0f172a; 
           color: #09090b; 
-          padding: 30px 15px;
+          padding: 20px 10px;
           display: flex;
           justify-content: center;
         }
@@ -176,7 +182,7 @@ export const printInvoice = (
           max-width: 950px;
           background: #ffffff;
           border-radius: 20px;
-          padding: 36px 40px;
+          padding: 24px;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
         }
         
@@ -184,7 +190,8 @@ export const printInvoice = (
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 24px;
+          gap: 16px;
+          margin-bottom: 20px;
         }
         .badge-black {
           background-color: #09090b;
@@ -203,7 +210,7 @@ export const printInvoice = (
           line-height: 1.4;
         }
         .company-title {
-          font-size: 26px;
+          font-size: 22px;
           font-weight: 900;
           color: #09090b;
           text-align: left;
@@ -226,19 +233,19 @@ export const printInvoice = (
         .divider {
           height: 1px;
           background-color: #e2e8f0;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
         }
 
         .grid-boxes {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 16px;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
         }
         .box {
           border: 1.5px solid #09090b;
           border-radius: 14px;
-          padding: 16px 20px;
+          padding: 14px 16px;
           background: #ffffff;
         }
         .box-label {
@@ -259,7 +266,7 @@ export const printInvoice = (
           margin-top: 6px;
         }
         .client-name {
-          font-size: 18px;
+          font-size: 16px;
           font-weight: 900;
           color: #09090b;
         }
@@ -268,6 +275,7 @@ export const printInvoice = (
           color: #64748b;
           font-weight: 600;
           margin-top: 3px;
+          word-break: break-word;
         }
 
         .section-label {
@@ -278,44 +286,49 @@ export const printInvoice = (
           text-align: right;
         }
         
+        .table-responsive {
+          width: 100%;
+          overflow-x: auto;
+          margin-bottom: 20px;
+        }
+
         table {
           width: 100%;
           border-collapse: collapse;
           border-radius: 10px;
           overflow: hidden;
           border: 1px solid #e2e8f0;
-          margin-bottom: 24px;
-          table-layout: fixed;
+          min-width: 500px;
         }
         th {
           background-color: #09090b;
           color: #ffffff;
           font-size: 11px;
           font-weight: 800;
-          padding: 12px 14px;
+          padding: 12px 10px;
         }
         th:first-child { text-align: right; }
         th:nth-child(2), th:nth-child(3) { text-align: center; }
         th:last-child { text-align: left; }
         
         td {
-          padding: 14px;
+          padding: 12px 10px;
           border-bottom: 1px solid #f1f5f9;
           font-size: 12px;
         }
-        tbody tr:hover { background-color: #f8fafc; }
 
         .totals-wrapper {
           display: flex;
           justify-content: flex-end;
-          margin-bottom: 30px;
+          margin-bottom: 24px;
         }
         .totals-card {
-          width: 360px;
+          width: 100%;
+          max-width: 360px;
           border: 1px solid #e2e8f0;
           background-color: #f8fafc;
           border-radius: 14px;
-          padding: 16px 20px;
+          padding: 16px;
         }
         .total-row {
           display: flex;
@@ -337,28 +350,28 @@ export const printInvoice = (
         .final-val {
           color: #10b981;
           font-weight: 900;
-          font-size: 20px;
+          font-size: 18px;
         }
 
         .signatures-section {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 40px;
-          padding-top: 30px;
+          gap: 20px;
+          padding-top: 20px;
           border-top: 1px dashed #cbd5e1;
-          margin-top: 30px;
-          margin-bottom: 24px;
+          margin-top: 20px;
+          margin-bottom: 20px;
         }
         .sig-box { text-align: center; }
         .sig-title {
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 900;
           color: #09090b;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
         }
         .sig-dots {
           border-bottom: 1.5px dotted #94a3b8;
-          width: 70%;
+          width: 80%;
           margin: 0 auto 8px auto;
         }
         .sig-hint {
@@ -368,8 +381,8 @@ export const printInvoice = (
         }
         
         .stamp-circle {
-          width: 80px;
-          height: 80px;
+          width: 70px;
+          height: 70px;
           border: 2px dashed #34d399;
           border-radius: 50%;
           display: flex;
@@ -386,10 +399,10 @@ export const printInvoice = (
           text-align: center;
           border-top: 1px solid #e2e8f0;
           padding-top: 14px;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
         }
         .footer-main {
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 900;
           color: #09090b;
         }
@@ -403,7 +416,7 @@ export const printInvoice = (
 
         .control-bar {
           display: flex;
-          gap: 12px;
+          gap: 10px;
           margin-top: 10px;
         }
         .btn-print {
@@ -417,7 +430,6 @@ export const printInvoice = (
           font-weight: 800;
           cursor: pointer;
         }
-        .btn-print:hover { background-color: #047857; }
         .btn-close {
           flex: 1;
           background-color: #f1f5f9;
@@ -428,6 +440,17 @@ export const printInvoice = (
           font-size: 13px;
           font-weight: 800;
           cursor: pointer;
+        }
+
+        /* تحسينات الشاشات الصغيرة (الموبايل) */
+        @media (max-width: 640px) {
+          body { padding: 5px; }
+          .invoice-card { padding: 16px; border-radius: 12px; }
+          .header { flex-direction: column; align-items: flex-start; }
+          .company-title, .company-subtitle, .tax-id { text-align: right; }
+          .grid-boxes { grid-template-columns: 1fr; gap: 12px; }
+          .signatures-section { grid-template-columns: 1fr; gap: 24px; }
+          .totals-card { max-width: 100%; }
         }
 
         @media print {
@@ -474,19 +497,21 @@ export const printInvoice = (
         </div>
 
         <div class="section-label">المنتجات والعدد المباعة</div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 50%;">السلعة / البيان</th>
-              <th style="width: 20%; text-align: center;">سعر الوحدة</th>
-              <th style="width: 10%; text-align: center;">الكمية</th>
-              <th style="width: 20%; text-align: left;">المجموع</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsTableRows}
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 45%;">السلعة / البيان</th>
+                <th style="width: 20%; text-align: center;">سعر الوحدة</th>
+                <th style="width: 15%; text-align: center;">الكمية</th>
+                <th style="width: 20%; text-align: left;">المجموع</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsTableRows}
+            </tbody>
+          </table>
+        </div>
 
         <div class="totals-wrapper">
           <div class="totals-card">

@@ -1,9 +1,18 @@
+// App.jsx
+
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { StorefrontSearchProvider } from './context/StorefrontSearchContext'
+import { useAuth } from './context/AuthContext'
 
 // استيراد الـ Hook الخاص بالمزامنة التلقائية للأوفلاين
 import { useAutoSync } from './hooks/useAutoSync'
+
+// حراس المسارات المخصصة (Route Guards)
+import CashierRoute from './routes/CashierRoute'
+import AdminRoute from './routes/AdminRoute'
+import ModeratorRoute from './routes/ModeratorRoute'
+import CustomerRoute from './routes/CustomerRoute'
 
 // الـ Component الجمالي للأذكار والآيات
 import ReminderBanner from './components/ui/ReminderBanner'
@@ -21,7 +30,8 @@ import RegisterPage from './components/auth/RegisterPage'
 import CustomerProfilePage from './pages/Customers/CustomerProfilePage'
 import OrderDetailsPage from './pages/Customers/OrderDetailsPage'
 import CustomerDetailsPage from './pages/Customers/CustomerDetailsPage'
-// Admin & Auth
+
+// Admin & Auth Components
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import DashboardLayout from './components/layout/DashboardLayout'
 import ForbiddenPage from './pages/Forbidden/ForbiddenPage'
@@ -46,22 +56,27 @@ import ModeratorCatalogPage from './pages/Moderator/ModeratorCatalogPage'
 import AdminProfilePage from './pages/Profile/AdminProfilePage'
 
 export default function App() {
-  // تفعيل المزامنة التلقائية في الخلفية أول ما التطبيق يفتح أو يرجع للنت
+  // تفعيل المزامنة التلقائية في الخلفية
   useAutoSync();
+
+  // جلب دور المستخدم الحالي لتوجيهه حسب الصلاحية في الراوت العام
+  const { role } = useAuth();
 
   return (
     <>
       <ReminderBanner />
 
       <Routes>
-        {/* Storefront */}
+        {/* ---------------- 1. STOREFRONT ROUTES (Protected by CustomerRoute) ---------------- */}
         <Route
           element={
-            <CartProvider>
-              <StorefrontSearchProvider>
-                <StorefrontLayout />
-              </StorefrontSearchProvider>
-            </CartProvider>
+            <CustomerRoute>
+              <CartProvider>
+                <StorefrontSearchProvider>
+                  <StorefrontLayout />
+                </StorefrontSearchProvider>
+              </CartProvider>
+            </CustomerRoute>
           }
         >
           <Route path="/" element={<ShopPage />} />
@@ -73,67 +88,109 @@ export default function App() {
           <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
         </Route>
 
-        {/* Auth Routes */}
+        {/* ---------------- 2. AUTH & PUBLIC ROUTES ---------------- */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/admin/login" element={<LoginPage />} />
         <Route path="/admin/forbidden" element={<ForbiddenPage />} />
 
-        {/* ---------------- MODERATOR ROUTES ---------------- */}
+        {/* ---------------- 3. POS ROUTE (Protected by CashierRoute) ---------------- */}
+        <Route
+          path="/pos"
+          element={
+            <CashierRoute>
+              <PosCheckoutPage />
+            </CashierRoute>
+          }
+        />
+
+        {/* ---------------- 4. MODERATOR ROUTES (Protected by ModeratorRoute) ---------------- */}
         <Route
           path="/moderator"
           element={
-            <ProtectedRoute
-              allowRoles={['moderator', 'Moderator', 'MODERATOR', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']}
-            />
+            <ModeratorRoute>
+              <DashboardLayout />
+            </ModeratorRoute>
           }
         >
-          <Route element={<DashboardLayout />}>
-            <Route index element={<ModeratorHubPage />} />
-            <Route path="dashboard" element={<ModeratorHubPage />} />
-            <Route path="catalog" element={<ModeratorCatalogPage />} />
-            <Route path="profile" element={<AdminProfilePage />} />
-          </Route>
+          <Route index element={<ModeratorHubPage />} />
+          <Route path="dashboard" element={<ModeratorHubPage />} />
+          <Route path="catalog" element={<ModeratorCatalogPage />} />
+          <Route path="profile" element={<AdminProfilePage />} />
         </Route>
 
-        {/* ---------------- ADMIN ROUTES ---------------- */}
-        <Route path="/admin" element={<ProtectedRoute />}>
-          <Route element={<DashboardLayout />}>
-            <Route index element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardHome />} />
-            <Route path="profile" element={<AdminProfilePage />} />
+        {/* ---------------- 5. ADMIN ROUTES (Protected by AdminRoute) ---------------- */}
+        <Route 
+          path="/admin" 
+          element={
+            <AdminRoute>
+              <DashboardLayout />
+            </AdminRoute>
+          }
+        >
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardHome />} />
+          <Route path="profile" element={<AdminProfilePage />} />
 
-            <Route path="operations" element={<ProtectedRoute allowRoles={['ONLINE_MANAGER', 'Moderator', 'moderator', 'MODERATOR', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager']} />}>
-              <Route index element={<OperationsHubPage />} />
-            </Route>
+          {/* Sub-routes with granular role/permission checks */}
+          <Route 
+            path="operations" 
+            element={
+              <ProtectedRoute allowRoles={['ONLINE_MANAGER', 'Moderator', 'moderator', 'MODERATOR', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager']}>
+                <OperationsHubPage />
+              </ProtectedRoute>
+            } 
+          />
 
-            <Route path="owner" element={<ProtectedRoute role="STORE_OWNER" allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']} />}>
-              <Route index element={<OwnerHubPage />} />
-            </Route>
+          <Route 
+            path="owner" 
+            element={
+              <ProtectedRoute role="STORE_OWNER" allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']}>
+                <OwnerHubPage />
+              </ProtectedRoute>
+            } 
+          />
 
-            <Route path="catalog/categories" element={<CategoriesPage />} />
-            <Route path="catalog/products" element={<ProductsPage />} />
+          <Route path="catalog/categories" element={<CategoriesPage />} />
+          <Route path="catalog/products" element={<ProductsPage />} />
 
-            <Route path="reminders" element={<ProtectedRoute allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Moderator', 'moderator', 'MODERATOR']} />}>
-              <Route index element={<AdminRemindersPage />} />
-            </Route>
+          <Route 
+            path="reminders" 
+            element={
+              <ProtectedRoute allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Moderator', 'moderator', 'MODERATOR']}>
+                <AdminRemindersPage />
+              </ProtectedRoute>
+            } 
+          />
 
-            <Route path="inventory/adjust" element={<InventoryAdjustPage />} />
-            <Route path="inventory/transfer" element={<InventoryTransferPage />} />
+          <Route path="inventory/adjust" element={<InventoryAdjustPage />} />
+          <Route path="inventory/transfer" element={<InventoryTransferPage />} />
 
-            {/* صفحات العملاء وتفاصيل العميل تحت حماية الإدارة وداخل الـ Layout */}
-            <Route path="customers" element={<CustomersPage />} />
-            <Route path="customers/:id" element={<CustomerDetailsPage />} />
+          <Route path="customers" element={<CustomersPage />} />
+          <Route path="customers/:id" element={<CustomerDetailsPage />} />
 
-            <Route path="purchasing" element={<PurchaseOrdersPage />} />
-            <Route path="pos" element={<PosCheckoutPage />} />
-            <Route path="reports" element={<ProtectedRoute permission="Reports.View" allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'admin']} />}>
-              <Route index element={<ReportsPage />} />
-            </Route>
-          </Route>
+          <Route path="purchasing" element={<PurchaseOrdersPage />} />
+          <Route path="pos" element={<PosCheckoutPage />} />
+
+          <Route 
+            path="reports" 
+            element={
+              <ProtectedRoute permission="Reports.View" allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'admin']}>
+                <ReportsPage />
+              </ProtectedRoute>
+            } 
+          />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* ---------------- 6. WILDCARD FALLBACK ---------------- */}
+        <Route
+          path="*"
+          element={
+            role === "Cashier"
+              ? <Navigate to="/pos" replace />
+              : <Navigate to="/" replace />
+          }
+        />
       </Routes>
     </>
   )

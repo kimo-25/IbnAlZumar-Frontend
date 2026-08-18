@@ -22,12 +22,7 @@ async function safeGet(url, params = {}, defaultValue = []) {
 // ==========================================
 
 export async function getProducts(params = {}) {
-  // إضافة pageSize و pageNumber جلب كافّة المنتجات (184+) بدون التقيد بالحد الافتراضي 40
-  return safeGet('/Products', {
-    pageNumber: 1,
-    pageSize: 1000,
-    ...params,
-  }, [])
+  return safeGet('/Products', params, [])
 }
 
 export async function getAllProducts(params = {}) {
@@ -138,8 +133,8 @@ export async function deleteCategory(id) {
   return response.data
 }
 
-export async function getCustomers() {
-  return safeGet('/Customers', {}, [])
+export async function getCustomers(params = {}) {
+  return safeGet('/Customers', params, [])
 }
 
 export async function createCustomer(customerData) {
@@ -161,7 +156,7 @@ export async function deleteCustomer(id) {
 // 3. إدارة الطلبات والعمليات
 // ==========================================
 
-export async function getExpenses(params) {
+export async function getExpenses(params = {}) {
   return safeGet('/Expenses', params, [])
 }
 
@@ -175,17 +170,11 @@ export async function deleteExpense(id) {
   return response.data
 }
 
-/**
- * جلب جميع الطلبات (Orders)
- */
 export async function getOrders(params = {}) {
   return safeGet('/Orders', params, [])
 }
 
-/**
- * جلب طلبات الأونلاين 
- */
-export async function getOnlineOrders(params) {
+export async function getOnlineOrders(params = {}) {
   try {
     const response = await axiosInstance.get('/Orders', { params })
     return response.data
@@ -194,15 +183,12 @@ export async function getOnlineOrders(params) {
   }
 }
 
-/**
- * ترقية حالة الطلب - مطابقة لـ OrdersController.cs [HttpPut("{id}/advance-status")]
- */
 export async function advanceOnlineOrderStatus(orderId) {
   const response = await axiosInstance.put(`/Orders/${orderId}/advance-status`)
   return response.data
 }
 
-export async function getInquiries(params) {
+export async function getInquiries(params = {}) {
   return safeGet('/Inquiries', params, [])
 }
 
@@ -219,7 +205,7 @@ export async function updateShippingZones(zonesData) {
   return axiosInstance.put('/ShippingZones', zonesData).then(r => r.data)
 }
 
-export async function getOwnerAnalytics(params) {
+export async function getOwnerAnalytics(params = {}) {
   return safeGet('/Analytics/owner', params, {
     totalSales: 0,
     totalExpenses: 0,
@@ -229,6 +215,6 @@ export async function getOwnerAnalytics(params) {
   })
 }
 
-export async function getShifts(params) {
+export async function getShifts(params = {}) {
   return safeGet('/Shifts', params, [])
 }

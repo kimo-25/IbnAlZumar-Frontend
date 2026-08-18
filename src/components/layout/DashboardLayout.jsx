@@ -13,7 +13,7 @@ export default function DashboardLayout() {
 
       <div className="lg:ps-64">
         <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="p-4 text-right sm:p-6 lg:p-8">
+        <main className="p-4 text-right sm:p-6 lg:p-8 overflow-x-hidden">
           <Outlet />
         </main>
       </div>

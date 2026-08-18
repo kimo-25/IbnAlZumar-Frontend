@@ -20,7 +20,6 @@ import { useAuth } from '../../context/AuthContext'
 export default function Sidebar({ isOpen, onClose }) {
   const { hasPermission, hasRole, user } = useAuth()
 
-  // فحص هل المستخدم المشرف لتوجيهه للـ URL الخاص به مباشرة
   const isModerator = user?.roles?.some((r) => r.toLowerCase().includes('moderator'))
   const moderatorPath = isModerator ? '/moderator' : '/admin/moderator'
 
@@ -85,12 +84,16 @@ export default function Sidebar({ isOpen, onClose }) {
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 z-30 bg-graphite-950/50 lg:hidden" onClick={onClose} aria-hidden="true" />
+        <div 
+          className="fixed inset-0 z-40 bg-graphite-950/60 backdrop-blur-sm lg:hidden transition-opacity" 
+          onClick={onClose} 
+          aria-hidden="true" 
+        />
       )}
 
       <aside
-        className={`fixed inset-y-0 start-0 z-40 flex w-64 flex-col bg-graphite-900 text-white transition-transform duration-200 lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed inset-y-0 start-0 z-50 flex w-72 max-w-[80vw] flex-col bg-graphite-900 text-white transition-transform duration-300 ease-in-out lg:static lg:w-64 lg:max-w-none lg:translate-x-0 ${
+          isOpen ? 'translate-x-0' : 'ltr:-translate-x-full rtl:translate-x-full'
         }`}
       >
         <div className="flex items-center justify-between px-5 py-5">
@@ -111,12 +114,9 @@ export default function Sidebar({ isOpen, onClose }) {
           {navGroups.map((group, idx) => {
             const visibleItems = group.items.filter((item) => {
               if (item.hiddenForRoles?.some((role) => hasRole(role))) return false
-
               if (item.allowRoles?.some((role) => hasRole(role))) return true
-
               const passesPermission = !item.permission || hasPermission(item.permission)
               const passesRole = !item.role || hasRole(item.role)
-
               return passesPermission && passesRole
             })
             if (visibleItems.length === 0) return null

@@ -4,14 +4,14 @@ import {
   ArrowRight,
   Package,
   Clock,
-  Truck,
   Check,
   MapPin,
   User,
   Phone,
   Printer,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  XCircle
 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import axiosInstance from '../../api/axiosInstance'
@@ -19,7 +19,7 @@ import { formatCurrency } from '../../utils/catalog'
 import { printInvoice } from '../../utils/printInvoice'
 
 const TRACKING_STEPS = [
-  { step: 1, label: 'قيد المراجعة', description: 'تم استلاستلام طلبك وجاري مراجعته' },
+  { step: 1, label: 'قيد المراجعة', description: 'تم استلام طلبك وجاري مراجعته' },
   { step: 2, label: 'تم التأكيد', description: 'تم تأكيد طلبك وقبوله' },
   { step: 3, label: 'جاري التجهيز', description: 'يتم الآن تجهيز المنتجات للتغليف' },
   { step: 4, label: 'في الطريق إليك', description: 'الطلب مع مندوب الشحن حالياً' },
@@ -27,13 +27,26 @@ const TRACKING_STEPS = [
 ]
 
 function getStepNumber(status) {
-  if (typeof status === 'number') return status
-  const s = String(status || '').toLowerCase()
-  if (s.includes('pending') || s.includes('مراجعة')) return 1
-  if (s.includes('confirm') || s.includes('تأكيد')) return 2
-  if (s.includes('prep') || s.includes('process') || s.includes('تجهيز')) return 3
-  if (s.includes('ship') || s.includes('way') || s.includes('طريق')) return 4
-  if (s.includes('complet') || s.includes('deliver') || s.includes('تم')) return 5
+  if (status === null || status === undefined) return 1
+
+  // 1. التعامل مع الحالات النصية (Strings)
+  if (typeof status === 'string') {
+    const s = status.toLowerCase()
+    if (s.includes('cancel') || s.includes('ملغ') || s.includes('رفض') || s.includes('reject')) return -1
+    if (s.includes('pending') || s.includes('مراجعة')) return 1
+    if (s.includes('confirm') || s.includes('تأكيد')) return 2
+    if (s.includes('prep') || s.includes('process') || s.includes('تجهيز')) return 3
+    if (s.includes('ship') || s.includes('way') || s.includes('طريق')) return 4
+    if (s.includes('complet') || s.includes('deliver') || s.includes('تم')) return 5
+  }
+
+  // 2. التعامل مع أرقام الـ Enum من C# (دعم Zero-indexed و One-indexed)
+  if (typeof status === 'number') {
+    if (status === -1 || status === 5) return -1 // حالة الإلغاء إذا كانت معرفة برقم خاص
+    if (status >= 0 && status <= 4) return status + 1 // C# 0-indexed (0 = Pending -> Step 1)
+    if (status >= 1 && status <= 5) return status // 1-indexed
+  }
+
   return 1
 }
 
@@ -51,6 +64,7 @@ export default function OrderDetailsPage() {
   async function fetchOrderDetails() {
     try {
       setLoading(true)
+      setError(null)
       try {
         const response = await axiosInstance.get(`/Orders/${orderId}`)
         setOrder(response.data)
@@ -99,12 +113,15 @@ export default function OrderDetailsPage() {
       </div>
     )
   }
-  const currentStep = getStepNumber(order.status)
+
+  const stepVal = getStepNumber(order.status)
+  const isCancelled = stepVal === -1
+  const currentStep = isCancelled ? 1 : Math.min(Math.max(stepVal, 1), 5)
   const items = order.items || order.orderItems || []
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-10" dir="rtl">
-      {/* العودة وزر الطباعة الجديد */}
+      {/* شريط الإجراءات العلوي */}
       <div className="mb-6 flex items-center justify-between">
         <Link
           to="/profile"
@@ -131,9 +148,15 @@ export default function OrderDetailsPage() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber/15 px-3.5 py-1.5 text-xs font-bold text-amber-900">
-              <Clock size={14} />
-              {order.statusText || order.status || 'قيد المراجعة'}
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold ${
+                isCancelled
+                  ? 'bg-rose-100 text-rose-800'
+                  : 'bg-amber/15 text-amber-900'
+              }`}
+            >
+              {isCancelled ? <XCircle size={14} /> : <Clock size={14} />}
+              {order.statusText || order.status || (isCancelled ? 'ملغى' : 'قيد المراجعة')}
             </span>
           </div>
         </div>
@@ -162,43 +185,62 @@ export default function OrderDetailsPage() {
         </div>
       </div>
 
-      {/* مخطط التتبع التفاعلي (Stepper) */}
-      <Card title="مخطط تتبع حالة الشحنة" className="mb-8">
-        <div className="py-4">
-          <div className="relative flex items-center justify-between px-4">
-            <div className="absolute left-8 right-8 top-4 h-1 bg-border -z-0" />
-            <div
-              className="absolute right-8 top-4 h-1 bg-emerald-500 transition-all duration-500 -z-0"
-              style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
-            />
-
-            {TRACKING_STEPS.map((s) => {
-              const isDone = s.step < currentStep
-              const isCurrent = s.step === currentStep
-
-              return (
-                <div key={s.step} className="relative z-10 flex flex-col items-center">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${isDone
-                    ? 'bg-emerald-500 text-white'
-                    : isCurrent
-                      ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 shadow-md scale-110'
-                      : 'bg-canvas text-ink-soft border border-border'
-                    }`}>
-                    {isDone ? <Check size={16} /> : s.step}
-                  </div>
-                  <span className={`mt-3 text-xs font-bold text-center ${isCurrent || isDone ? 'text-ink' : 'text-ink-soft'
-                    }`}>
-                    {s.label}
-                  </span>
-                  <span className="mt-1 hidden text-[10px] text-ink-soft text-center sm:block max-w-[90px]">
-                    {s.description}
-                  </span>
-                </div>
-              )
-            })}
+      {/* تنبيه حالة الإلغاء إن وجدت */}
+      {isCancelled && (
+        <div className="mb-8 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+          <XCircle size={24} className="shrink-0" />
+          <div>
+            <h3 className="text-sm font-bold">هذا الطلب ملغى</h3>
+            <p className="text-xs text-rose-600">تم إلغاء هذا الطلب ولا يمكن متابعة شحنه.</p>
           </div>
         </div>
-      </Card>
+      )}
+
+      {/* مخطط التتبع التفاعلي (Stepper) */}
+      {!isCancelled && (
+        <Card title="مخطط تتبع حالة الشحنة" className="mb-8">
+          <div className="py-4">
+            <div className="relative flex items-center justify-between px-4">
+              <div className="absolute left-8 right-8 top-4 h-1 bg-border -z-0" />
+              <div
+                className="absolute right-8 top-4 h-1 bg-emerald-500 transition-all duration-500 -z-0"
+                style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
+              />
+
+              {TRACKING_STEPS.map((s) => {
+                const isDone = s.step < currentStep
+                const isCurrent = s.step === currentStep
+
+                return (
+                  <div key={s.step} className="relative z-10 flex flex-col items-center">
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                        isDone
+                          ? 'bg-emerald-500 text-white'
+                          : isCurrent
+                          ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 shadow-md scale-110'
+                          : 'bg-canvas text-ink-soft border border-border'
+                      }`}
+                    >
+                      {isDone ? <Check size={16} /> : s.step}
+                    </div>
+                    <span
+                      className={`mt-3 text-xs font-bold text-center ${
+                        isCurrent || isDone ? 'text-ink' : 'text-ink-soft'
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                    <span className="mt-1 hidden text-[10px] text-ink-soft text-center sm:block max-w-[90px]">
+                      {s.description}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-3">
         {/* تفاصيل المنتجات والمشتريات */}
@@ -206,7 +248,7 @@ export default function OrderDetailsPage() {
           <Card title="محتويات الشحنة والمنتجات">
             <div className="divide-y divide-border">
               {items.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0 gap-4">
+                <div key={item.id || idx} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0 gap-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-canvas flex items-center justify-center border border-border shrink-0">
                       <Package size={18} className="text-ink-soft" />
@@ -250,7 +292,8 @@ export default function OrderDetailsPage() {
                 <div>
                   <span className="text-ink-soft block font-medium">عنوان التوصيل</span>
                   <span className="font-medium text-ink leading-relaxed">
-                    {order.shippingAddress || order.address || order.location || order.shippingLocation || order.user?.address || order.customer?.address || '-'}  </span>
+                    {order.shippingAddress || order.address || order.location || order.shippingLocation || order.user?.address || order.customer?.address || '-'}
+                  </span>
                 </div>
               </div>
             </div>

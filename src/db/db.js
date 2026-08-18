@@ -1,25 +1,17 @@
-// src/db/db.js
 import Dexie from 'dexie';
 
-// Single Dexie database for the whole app.
-// Add more tables here as your offline needs grow (e.g. drafts, attachments).
 export const db = new Dexie('IbnAlZumarDB');
 
-db.version(1).stores({
-  // '++id' = auto-incrementing local primary key
-  // 'syncStatus' and 'createdAt' are indexed for fast queries
+db.version(2).stores({
   transactions: '++id, syncStatus, createdAt, clientUuid',
+  products: 'id, name', // إضافة جدول المنتجات
 });
 
-/**
- * Add a transaction locally. Always created with syncStatus = 'pending'.
- * clientUuid lets the backend de-duplicate if a sync is retried.
- */
 export async function addLocalTransaction(payload) {
   const record = {
     ...payload,
     clientUuid: crypto.randomUUID(),
-    syncStatus: 'pending', // 'pending' | 'syncing' | 'synced' | 'failed'
+    syncStatus: 'pending',
     createdAt: new Date().toISOString(),
     retryCount: 0,
   };
@@ -32,7 +24,7 @@ export async function getPendingTransactions() {
 }
 
 export async function markAsSynced(id) {
-  return db.transactions.delete(id); // remove from queue once confirmed by server
+  return db.transactions.delete(id);
 }
 
 export async function markAsFailed(id) {
@@ -41,4 +33,15 @@ export async function markAsFailed(id) {
     syncStatus: item.retryCount >= 5 ? 'failed' : 'pending',
     retryCount: (item.retryCount ?? 0) + 1,
   });
+}
+
+// --- دوال المنتجات للمزامنة الأوفلاين ---
+
+export async function cacheProducts(products) {
+  await db.products.clear();
+  return db.products.bulkPut(products);
+}
+
+export async function getLocalProducts() {
+  return db.products.toArray();
 }

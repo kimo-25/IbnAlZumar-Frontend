@@ -1,75 +1,78 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import axiosInstance from '../api/axiosInstance'
-import { clearStoredAuth, getStoredAuth, isAuthExpired, setStoredAuth } from '../utils/auth'
+// src/context/AuthContext.jsx
 
-const AuthContext = createContext(null)
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
+const AuthContext = createContext();
+
+function parseJwt(token) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
-  const [auth, setAuth] = useState(() => {
-    const stored = getStoredAuth()
-    return stored && !isAuthExpired(stored) ? stored : null
-  })
+  const [token, setToken] = useState(
+    localStorage.getItem("token")
+  );
 
-  const normalizedRoles = useMemo(() => {
-    const rawRoles = auth?.roles || auth?.role || auth?.user?.roles || []
-    const rolesArray = Array.isArray(rawRoles) ? rawRoles : [rawRoles]
-    return rolesArray.map((role) => String(role).toLowerCase().trim())
-  }, [auth])
+  const [user, setUser] = useState(null);
 
-  const login = useCallback(async (username, password) => {
-    const { data } = await axiosInstance.post('/Auth/login', { username, password })
-    setStoredAuth(data)
-    setAuth(data)
-    return data
-  }, [])
+  useEffect(() => {
+    if (!token) {
+      setUser(null);
+      return;
+    }
 
-  const logout = useCallback(() => {
-    clearStoredAuth()
-    setAuth(null)
-  }, [])
+    const payload = parseJwt(token);
 
-  const hasPermission = useCallback((code) => !code || Boolean(auth?.permissions?.includes(code)), [auth])
+    setUser({
+      id:
+        payload?.sub ||
+        payload?.nameid,
 
-  const hasRole = useCallback(
-    (role) => {
-      if (!role) return true
+      name:
+        payload?.unique_name ||
+        payload?.name,
 
-      const checkRole = String(role).toLowerCase().trim()
+      role:
+        payload?.role ||
+        payload?.Role ||
+        payload?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"],
+    });
+  }, [token]);
 
-      if (
-        normalizedRoles.includes('admin') ||
-        normalizedRoles.includes('superadmin') ||
-        normalizedRoles.includes('super admin') ||
-        normalizedRoles.includes('owner') ||
-        normalizedRoles.includes('store_owner')
-      ) {
-        return true
-      }
-      return normalizedRoles.includes(checkRole)
-    },
-    [normalizedRoles]
-  )
+  const login = (jwtToken) => {
+    localStorage.setItem("token", jwtToken);
+    setToken(jwtToken);
+  };
 
-  const isModerator = useMemo(() => normalizedRoles.includes('moderator'), [normalizedRoles])
+  const logout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+    setUser(null);
+  };
 
-  const value = useMemo(
-    () => ({
-      user: auth,
-      isAuthenticated: Boolean(auth?.token) && !isAuthExpired(auth),
-      login,
-      logout,
-      hasPermission,
-      hasRole,
-      isModerator,
-    }),
-    [auth, login, logout, hasPermission, hasRole, isModerator]
-  )
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider
+      value={{
+        token,
+        user,
+        role: user?.role,
+        login,
+        logout,
+        isAuthenticated: !!token,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within an <AuthProvider>')
-  return ctx
-}
+export const useAuth = () => useContext(AuthContext);
