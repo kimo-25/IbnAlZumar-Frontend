@@ -4,12 +4,13 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Loader2, ArrowRight, ShoppingBag, Phone, Mail, MapPin, Wallet } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
-import { getCustomers } from '../../api/adminApi'
+import { getCustomers, getOrders } from '../../api/adminApi'
 
 export default function CustomerDetailsPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [customer, setCustomer] = useState(null)
+  const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -18,22 +19,44 @@ export default function CustomerDetailsPage() {
     setLoading(true)
     setError(null)
 
-    // جلب قائمة العملاء كاملة ثم مطابقة العميل حسب الـ ID لتجنب أخطاء الـ 404
-    getCustomers()
-      .then((data) => {
+    // جلب العملاء والطلبات معاً لضمان ربط وحساب الطلبات بدقة وتجنب أخطاء الـ 404
+    Promise.all([getCustomers(), getOrders()])
+      .then(([customersRes, ordersRes]) => {
         if (!active) return
-        const items = Array.isArray(data) ? data : (data?.items || data?.Items || data?.data || data?.Data || [])
-        const found = items.find(c => String(c.id ?? c.Id) === String(id))
-        
-        if (found) {
-          setCustomer(found)
-        } else {
+
+        const customerList = Array.isArray(customersRes) ? customersRes : (customersRes?.items || customersRes?.Items || customersRes?.data || customersRes?.Data || [])
+        const foundCustomer = customerList.find(c => String(c.id ?? c.Id) === String(id))
+
+        if (!foundCustomer) {
           setError('لم يتم العثور على بيانات العميل المطلوبة')
+          return
         }
+
+        setCustomer(foundCustomer)
+
+        // استخراج الطلبات وتصفيتها للعميل الحالي
+        const allOrders = Array.isArray(ordersRes) ? ordersRes : (ordersRes?.items || ordersRes?.Items || ordersRes?.data || ordersRes?.Data || [])
+        
+        const customerName = (foundCustomer.fullName || foundCustomer.FullName || '').trim()
+        const customerPhone = (foundCustomer.phone || foundCustomer.Phone || '').trim()
+
+        const filteredOrders = allOrders.filter(ord => {
+          const ordCustomerId = String(ord.customerId || ord.CustomerId || ord.customer?.id || ord.Customer?.Id || '')
+          const ordCustomerName = (ord.customerName || ord.CustomerName || ord.customer?.fullName || ord.Customer?.FullName || '').trim()
+          const ordPhone = (ord.customerPhone || ord.CustomerPhone || ord.phone || ord.Phone || '').trim()
+
+          return (
+            (ordCustomerId && ordCustomerId === String(id)) ||
+            (customerName && ordCustomerName === customerName) ||
+            (customerPhone && ordPhone === customerPhone)
+          )
+        })
+
+        setOrders(filteredOrders)
       })
       .catch((err) => {
         if (!active) return
-        setError(err?.message || 'تعذر تحميل بيانات العميل')
+        setError(err?.message || 'تعذر تحميل بيانات العميل والطلبات')
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -69,8 +92,7 @@ export default function CustomerDetailsPage() {
     )
   }
 
-  const orders = customer.orders || customer.Orders || []
-  const totalSpent = orders.reduce((sum, order) => sum + Number(order.totalAmount || order.total || 0), 0)
+  const totalSpent = orders.reduce((sum, order) => sum + Number(order.totalAmount || order.total || order.amount || 0), 0)
   const currentBalance = Number(customer.currentBalance ?? customer.CurrentBalance ?? 0)
 
   return (
@@ -164,7 +186,7 @@ export default function CustomerDetailsPage() {
               </thead>
               <tbody>
                 {orders.map((ord, idx) => (
-                  <tr key={ord.id || idx} className="border-b border-border last:border-0">
+                  <tr key={ord.id || ord.orderNumber || idx} className="border-b border-border last:border-0">
                     <td className="py-3 pl-4 font-medium font-mono text-ink" dir="ltr">
                       #{ord.orderNumber || ord.id}
                     </td>
@@ -172,10 +194,10 @@ export default function CustomerDetailsPage() {
                       {ord.orderDate || ord.createdAt ? new Date(ord.orderDate || ord.createdAt).toLocaleDateString('ar-EG') : '—'}
                     </td>
                     <td className="py-3 pl-4 text-ink-soft" dir="auto">
-                      {ord.paymentMethod || '—'}
+                      {ord.paymentMethod || ord.status || '—'}
                     </td>
                     <td className="py-3 pl-4 font-mono tabular-nums font-semibold text-ink" dir="ltr">
-                      EGP {Number(ord.totalAmount || 0).toLocaleString()}
+                      EGP {Number(ord.totalAmount || ord.total || ord.amount || 0).toLocaleString()}
                     </td>
                   </tr>
                 ))}
