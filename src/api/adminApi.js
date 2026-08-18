@@ -176,6 +176,13 @@ export async function deleteExpense(id) {
 }
 
 /**
+ * جلب جميع الطلبات (Orders)
+ */
+export async function getOrders(params = {}) {
+  return safeGet('/Orders', params, [])
+}
+
+/**
  * جلب طلبات الأونلاين 
  */
 export async function getOnlineOrders(params) {
