@@ -28,7 +28,7 @@ export const printInvoice = (
     return
   }
 
-  // 1. استخراج بيانات العميل
+  // 1. استخراج بيانات العميل (مع تصحيح أولوية العمليات بوضع الأقواس)
   const customerName = escapeHtml(
     order.customerName ||
     order.fullName ||
@@ -38,7 +38,11 @@ export const printInvoice = (
     order.user?.name ||
     customerUser.fullName ||
     customerUser.name ||
-    'عميل المتجر'
+    (
+      order.orderNumber?.startsWith('POS-')
+        ? 'عميل نقدي'
+        : 'عميل المتجر'
+    )
   )
 
   const rawEmail =
@@ -119,6 +123,8 @@ export const printInvoice = (
     ? items.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || item.productPrice || 0) * Number(item.quantity || item.qty || 1)), 0)
     : (Number(order.subTotal || order.subtotal || totalAmount))
 
+  const taxAmount = Number(order.tax || 0)
+
   const shippingCost = Number(
     order.shippingCost ??
     order.shippingFee ??
@@ -126,7 +132,10 @@ export const printInvoice = (
     0
   )
 
-  const grandTotal = Number(subtotal) + Number(shippingCost)
+  const grandTotal =
+    Number(subtotal) +
+    Number(taxAmount) +
+    Number(shippingCost)
 
   const itemsTableRows = items.length > 0
     ? items.map((item, index) => {
@@ -481,8 +490,11 @@ export const printInvoice = (
         <div class="grid-boxes">
           <div class="box">
             <div class="box-label">منفذ البيع وقناة التوزيع</div>
-            <div class="box-val-header">🌐 طلبات المتجر الإلكتروني</div>
-            
+            <div class="box-val-header">
+            ${order.orderNumber?.startsWith('POS-')
+                ? '🛒 نقطة بيع (POS)'
+                : '🌐 طلبات المتجر الإلكتروني'}
+            </div>            
             <div class="box-label" style="margin-top: 14px;">طريقة الدفع ومصادقتها</div>
             <div class="payment-status" dir="ltr">${paymentMethodDisplay}</div>
           </div>
@@ -519,6 +531,12 @@ export const printInvoice = (
               <span>الإجمالي الفرعي:</span>
               <span dir="ltr">EGP ${subtotal.toLocaleString()}</span>
             </div>
+            <div class="total-row">
+            <span>ضريبة القيمة المضافة:</span>
+            <span dir="ltr">
+            EGP ${taxAmount.toLocaleString()}      
+            </span>
+          </div>
             <div class="total-row">
               <span>تكلفة الشحن:</span>
               <span dir="ltr">EGP ${shippingCost.toLocaleString()}</span>

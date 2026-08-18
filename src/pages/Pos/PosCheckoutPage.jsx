@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
+import Pagination from "../../components/ui/Pagination";
 
 import {
   addLocalTransaction,
@@ -20,9 +21,14 @@ export default function PosCheckoutPage() {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    loadProducts();
+    loadProducts(currentPage);
+  }, [currentPage]);
+
+  useEffect(() => {
     loadPending();
   }, []);
 
@@ -31,12 +37,12 @@ export default function PosCheckoutPage() {
     setPendingCount(items.length);
   }
 
-  async function loadProducts() {
+  async function loadProducts(page = 1) {
     try {
       const response = await axiosInstance.get("/Products", {
         params: {
-          pageNumber: 1,
-          pageSize: 500,
+          pageNumber: page,
+          pageSize: 30,
         },
       });
 
@@ -53,6 +59,7 @@ export default function PosCheckoutPage() {
       const data = response.data.items || [];
 
       setProducts(data);
+      setTotalPages(response.data.totalPages || 1);
 
       await cacheProducts(data);
     } catch (err) {
@@ -64,11 +71,14 @@ export default function PosCheckoutPage() {
       const localProducts = await getLocalProducts();
 
       setProducts(localProducts);
+      setTotalPages(1);
     }
   }
 
-  const filteredProducts = products.filter((p) =>
-    p.name?.toLowerCase().includes(search.toLowerCase())
+  const filteredProducts = products.filter(
+    (p) =>
+      p.name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.nameAr?.toLowerCase().includes(search.toLowerCase())
   );
 
   const addToCart = (product) => {
@@ -159,12 +169,34 @@ export default function PosCheckoutPage() {
   }
 
   const handlePrint = () => {
-    printInvoice({
-      items: cart,
-      subtotal,
-      tax,
-      total,
-    });
+    printInvoice(
+      {
+        orderNumber: `POS-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        paymentMethod: "CASH",
+
+        subtotal,
+        tax,
+        total,
+
+        shippingCost: 0,
+
+        items: cart.map((item) => ({
+          productId: item.id,
+          productName: item.nameAr || item.name,
+          name: item.nameAr || item.name,
+          sku: item.sku,
+          quantity: item.quantity,
+          unitPrice: item.sellingPrice,
+        })),
+      },
+      {
+        fullName: "عميل نقدي",
+        phone: "",
+        email: "",
+      },
+      true
+    );
   };
 
   return (
@@ -187,7 +219,10 @@ export default function PosCheckoutPage() {
             placeholder="بحث عن منتج..."
             className="w-full border rounded-lg p-2 mb-4"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
           />
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -201,6 +236,14 @@ export default function PosCheckoutPage() {
                 <p>{product.sellingPrice} ج.م</p>
               </button>
             ))}
+          </div>
+
+          <div className="mt-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         </div>
 
