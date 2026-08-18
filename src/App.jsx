@@ -2,6 +2,9 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { StorefrontSearchProvider } from './context/StorefrontSearchContext'
 
+// استيراد الـ Hook الخاص بالمزامنة التلقائية للأوفلاين
+import { useAutoSync } from './hooks/useAutoSync'
+
 // الـ Component الجمالي للأذكار والآيات
 import ReminderBanner from './components/ui/ReminderBanner'
 
@@ -43,6 +46,9 @@ import ModeratorCatalogPage from './pages/Moderator/ModeratorCatalogPage'
 import AdminProfilePage from './pages/Profile/AdminProfilePage'
 
 export default function App() {
+  // تفعيل المزامنة التلقائية في الخلفية أول ما التطبيق يفتح أو يرجع للنت
+  useAutoSync();
+
   return (
     <>
       <ReminderBanner />
@@ -114,7 +120,7 @@ export default function App() {
 
             <Route path="inventory/adjust" element={<InventoryAdjustPage />} />
             <Route path="inventory/transfer" element={<InventoryTransferPage />} />
-            
+
             {/* صفحات العملاء وتفاصيل العميل تحت حماية الإدارة وداخل الـ Layout */}
             <Route path="customers" element={<CustomersPage />} />
             <Route path="customers/:id" element={<CustomerDetailsPage />} />
@@ -126,7 +132,7 @@ export default function App() {
             </Route>
           </Route>
         </Route>
-        
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
