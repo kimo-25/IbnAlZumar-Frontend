@@ -25,12 +25,17 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+    console.log("TOKEN =", token);
+
     if (!token) {
       setUser(null);
       return;
     }
 
     const payload = parseJwt(token);
+
+    console.log("PAYLOAD =", payload);
+    console.log("ROLE =", payload?.role);
 
     setUser({
       id:

@@ -12,14 +12,17 @@ const axiosInstance = axios.create({
 
 // Attach the JWT to every outgoing request
 axiosInstance.interceptors.request.use((config) => {
-  const auth = getStoredAuth()
-  if (auth?.token && !isAuthExpired(auth)) {
-    config.headers = config.headers || {}
-    config.headers.Authorization = `Bearer ${auth.token}`
-  } else if (auth && isAuthExpired(auth)) {
-    clearStoredAuth()
+  const token = localStorage.getItem("token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    const auth = getStoredAuth();
+    if (auth && isAuthExpired(auth)) {
+      clearStoredAuth();
+    }
   }
-  return config
+  return config;
 })
 
 // Interceptor لمعالجة الأخطاء وعدم الطرد الفوري إلا في حالة انتهاء التوكن فعلياً
