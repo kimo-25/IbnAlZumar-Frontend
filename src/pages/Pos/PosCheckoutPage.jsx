@@ -31,35 +31,42 @@ export default function PosCheckoutPage() {
     setPendingCount(items.length);
   }
 
-async function loadProducts() {
-  try {
-    const response = await axiosInstance.get("/Products");
+  async function loadProducts() {
+    try {
+      const response = await axiosInstance.get("/Products", {
+        params: {
+          pageNumber: 1,
+          pageSize: 500,
+        },
+      });
 
-    console.log(
-      "Products Response JSON",
-      JSON.stringify(response.data, null, 2)
-    );
+      console.log(
+        "Products Response JSON",
+        JSON.stringify(response.data, null, 2)
+      );
 
-    const data =
-      response.data.items ||
-      response.data.data ||
-      response.data.results ||
-      [];
+      console.log(
+        "Total Returned:",
+        response.data.items?.length
+      );
 
-    setProducts(data);
+      const data = response.data.items || [];
 
-    await cacheProducts(data);
-  } catch (err) {
-    console.warn(
-      "تعذر الاتصال بالسيرفر، جاري جلب المنتجات المخزنة محلياً...",
-      err
-    );
+      setProducts(data);
 
-    const localProducts = await getLocalProducts();
+      await cacheProducts(data);
+    } catch (err) {
+      console.warn(
+        "تعذر الاتصال بالسيرفر، جاري جلب المنتجات المخزنة محلياً...",
+        err
+      );
 
-    setProducts(localProducts);
+      const localProducts = await getLocalProducts();
+
+      setProducts(localProducts);
+    }
   }
-}
+
   const filteredProducts = products.filter((p) =>
     p.name?.toLowerCase().includes(search.toLowerCase())
   );
@@ -111,7 +118,8 @@ async function loadProducts() {
   const subtotal = useMemo(
     () =>
       cart.reduce(
-        (sum, item) => sum + item.price * item.quantity,
+        (sum, item) =>
+          sum + (item.sellingPrice || 0) * item.quantity,
         0
       ),
     [cart]
@@ -128,14 +136,14 @@ async function loadProducts() {
       items: cart.map((item) => ({
         productId: item.id,
         quantity: item.quantity,
-        unitPrice: item.price,
+        unitPrice: item.sellingPrice,
       })),
       total,
     };
 
     try {
       if (isOnline) {
-        await axios.post("/api/orders", invoice);
+        await axiosInstance.post("/Orders", invoice);
       } else {
         await addLocalTransaction(invoice);
 
@@ -190,7 +198,7 @@ async function loadProducts() {
                 className="border rounded-lg p-3 hover:bg-blue-50 text-right"
               >
                 <h3 className="font-semibold">{product.name}</h3>
-                <p>{product.price} ج.م</p>
+                <p>{product.sellingPrice} ج.م</p>
               </button>
             ))}
           </div>
