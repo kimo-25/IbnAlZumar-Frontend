@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-
+import axiosInstance from "../../api/axiosInstance";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 import {
@@ -34,7 +33,9 @@ export default function PosCheckoutPage() {
 
   async function loadProducts() {
     try {
-      const { data } = await axios.get("/api/products");
+      const response = await axiosInstance.get("/Products");
+      console.log("Products Response", response.data);
+      const data = response.data;
       setProducts(data);
       await cacheProducts(data); // حفظ المنتجات محلياً وقت الاتصال الناجح
     } catch (err) {
