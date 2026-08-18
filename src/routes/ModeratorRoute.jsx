@@ -1,14 +1,17 @@
-// src/routes/ModeratorRoute.jsx
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function ModeratorRoute({ children }) {
   const { role } = useAuth();
-  
-  // قائمة الأدوار المسموح لها بالدخول
-  const allowedRoles = ['moderator', 'Moderator', 'MODERATOR', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin'];
+  const normalizedRole = role ? String(role).trim().toUpperCase() : "";
 
-  if (!allowedRoles.includes(role)) {
+  if (normalizedRole === "CASHIER") {
+    return <Navigate to="/pos" replace />;
+  }
+
+  const allowedRoles = ["MODERATOR", "ONLINE_MANAGER", "STORE_OWNER", "ADMIN", "SUPER ADMIN", "SUPERADMIN"];
+
+  if (!allowedRoles.includes(normalizedRole)) {
     return <Navigate to="/admin/forbidden" replace />;
   }
 

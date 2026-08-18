@@ -31,12 +31,16 @@ export default function LoginPage() {
     const normalizedRoles = rolesArray.map((r) => String(r).toUpperCase().trim())
 
     // 3. التوجيه الدقيق حسب الرتبة
+    if (normalizedRoles.includes('CASHIER')) {
+      return '/pos' // ✅ التوجيه الصحيح والمباشر للكاشير إلى صفحة نقاط البيع
+    }
+
     if (normalizedRoles.includes('ONLINE_MANAGER')) {
       return '/admin/operations'
     }
     
     if (normalizedRoles.includes('MODERATOR')) {
-      return '/moderator' // ✅ التوجيه الصحيح إلى صفحة الموديريتور
+      return '/moderator' 
     }
 
     const isAdminOrOwner = normalizedRoles.some((r) =>

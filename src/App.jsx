@@ -61,6 +61,9 @@ export default function App() {
 
   // جلب دور المستخدم الحالي لتوجيهه حسب الصلاحية في الراوت العام
   const { role } = useAuth();
+  
+  // تطبيع دور المستخدم للتعامل الآمن مع حالات الأحرف
+  const normalizedRole = role ? String(role).trim().toUpperCase() : "";
 
   return (
     <>
@@ -186,7 +189,7 @@ export default function App() {
         <Route
           path="*"
           element={
-            role === "Cashier"
+            normalizedRole === "CASHIER"
               ? <Navigate to="/pos" replace />
               : <Navigate to="/" replace />
           }

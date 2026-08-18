@@ -4,8 +4,10 @@ import { useAuth } from "../context/AuthContext";
 export default function CashierRoute({ children }) {
   const { role } = useAuth();
 
-  if (role !== "Cashier") {
-    return <Navigate to="/" replace />;
+  const normalizedRole = role ? String(role).trim().toUpperCase() : "";
+
+  if (normalizedRole !== "CASHIER") {
+    return <Navigate to="/login" replace />;
   }
 
   return children;
