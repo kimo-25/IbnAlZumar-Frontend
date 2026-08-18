@@ -4,8 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Loader2, ArrowRight, ShoppingBag, Phone, Mail, MapPin, Wallet } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
-// الاستيراد الصحيح اعتماداً على اسم الملف الموجود في مشروعك (axiosInstance.js)
-import api from '../../api/axiosInstance'
+import { getCustomers } from '../../api/adminApi'
 
 export default function CustomerDetailsPage() {
   const { id } = useParams()
@@ -19,10 +18,18 @@ export default function CustomerDetailsPage() {
     setLoading(true)
     setError(null)
 
-    api.get(`/api/customers/${id}`)
-      .then((res) => {
+    // جلب قائمة العملاء كاملة ثم مطابقة العميل حسب الـ ID لتجنب أخطاء الـ 404
+    getCustomers()
+      .then((data) => {
         if (!active) return
-        setCustomer(res.data)
+        const items = Array.isArray(data) ? data : (data?.items || data?.Items || data?.data || data?.Data || [])
+        const found = items.find(c => String(c.id ?? c.Id) === String(id))
+        
+        if (found) {
+          setCustomer(found)
+        } else {
+          setError('لم يتم العثور على بيانات العميل المطلوبة')
+        }
       })
       .catch((err) => {
         if (!active) return
