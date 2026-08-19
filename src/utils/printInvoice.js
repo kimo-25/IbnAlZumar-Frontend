@@ -19,7 +19,7 @@ export const printInvoice = (
 
   // حساب أبعاد شاشة الجهاز لفتح نافذة متجاوبة على الموبايل والـ Desktop
   const screenWidth = window.innerWidth || document.documentElement.clientWidth || screen.width
-  const winWidth = screenWidth < 640 ? screenWidth : 900
+  const winWidth = screenWidth < 640 ? screenWidth : 950
   const winHeight = screenWidth < 640 ? window.innerHeight : 950
 
   const printWindow = window.open('', '_blank', `width=${winWidth},height=${winHeight},scrollbars=yes,resizable=yes`)
@@ -552,7 +552,7 @@ export const printInvoice = (
           <div class="sig-box">
             <div class="sig-title">توقيع المستلم / العميل</div>
             <div class="sig-dots"></div>
-            <div class="sig-hint">(أقر باستلام السلع بحالة سليمة ومطابقة للضمان)</div>
+            <div class="sig-hint">(أقر باستلاستام السلع بحالة سليمة ومطابقة للضمان)</div>
           </div>
 
           <div class="sig-box">
@@ -583,6 +583,14 @@ export const printInvoice = (
 
   printWindow.document.write(invoiceHtml)
   printWindow.document.close()
+
+  if (autoPrint) {
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print()
+      }, 500)
+    }
+  }
 }
 
 export const printOrderInvoice = printInvoice

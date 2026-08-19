@@ -17,6 +17,11 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // قراءة حالة تفعيل الحساب التي تم تمريرها من صفحة التحقق
+  const successMessage = location.state?.verified
+    ? 'تم تفعيل الحساب بنجاح. يمكنك تسجيل الدخول الآن.'
+    : null
+
   // دالة تحديد المسار المستهدف بناءً على دور المستخدم الفعلي
   const determineDestination = (userData) => {
     // 1. إذا كان تم تحويل المستخدم من صفحة محمية سابقة
@@ -84,8 +89,9 @@ export default function LoginPage() {
 
     } catch (err) {
       setError(
+        err?.response?.data?.message ||
         err?.message ||
-        'فشل تسجيل الدخول. تحقق من بياناتك وحاول مرة أخرى.'
+        'فشل تسجيل الدخول. تحقق من بياناتك.'
       )
     } finally {
       setIsSubmitting(false)
@@ -106,8 +112,11 @@ export default function LoginPage() {
       const targetPath = determineDestination(data)
       window.location.href = targetPath
     } catch (err) {
-      setError(err?.message || 'حدث خطأ أثناء المصادقة مع جوجل.')
-    } finally {
+setError(
+  err?.response?.data?.message ||
+  err?.message ||
+  'حدث خطأ أثناء المصادقة مع جوجل.'
+)    } finally {
       setIsSubmitting(false)
     }
   }
@@ -161,6 +170,12 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-ink-soft">أدخل بيانات الاعتماد الخاصة بك للوصول إلى حسابك.</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+            {successMessage && (
+              <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                {successMessage}
+              </div>
+            )}
+
             {error && (
               <div className="flex items-start gap-2 rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">
                 <AlertCircle size={18} className="mt-0.5 shrink-0" />
@@ -211,6 +226,16 @@ export default function LoginPage() {
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
+              </div>
+
+              {/* رابط نسيت كلمة المرور تحت الباسورد مباشرة */}
+              <div className="mt-2 flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-amber hover:underline"
+                >
+                  نسيت كلمة المرور؟
+                </Link>
               </div>
             </div>
 

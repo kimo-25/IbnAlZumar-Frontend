@@ -1,3 +1,5 @@
+// File: src/pages/CustomerProfilePage.jsx
+
 import { printInvoice } from '../../utils/printInvoice';
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -20,7 +22,9 @@ import {
   X,
   Send,
   RotateCcw,
-  Ban
+  Ban,
+  Lock,
+  Mail
 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import axiosInstance from '../../api/axiosInstance'
@@ -38,21 +42,20 @@ const TRACKING_STEPS = [
   { step: 5, label: 'تم التوصيل' }
 ]
 
-// دالة لحساب تكلفة الشحن بناءً على المحافظة
 function calculateShippingCost(governorate) {
-  if (!governorate) return 50 // تكلفة افتراضية
+  if (!governorate) return 50
   const gov = governorate.trim().toLowerCase()
   if (gov.includes('إسكندرية') || gov.includes('alexandria')) return 40
   if (gov.includes('قاهرة') || gov.includes('cairo') || gov.includes('جيزة') || gov.includes('giza')) return 50
-  return 70 // باقي المحافظات
+  return 70
 }
 
 function getStepNumber(status) {
   if (status === null || status === undefined) return 1
 
   if (typeof status === 'number') {
-    if (status === -1 || status === 5) return -1 // ملغى أو مرفوض
-    if (status >= 0 && status <= 4) return status + 1 // تحويل 0..4 إلى 1..5
+    if (status === -1 || status === 5) return -1
+    if (status >= 0 && status <= 4) return status + 1
     return 1
   }
 
@@ -260,7 +263,7 @@ function OrderCard({
               className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition cursor-pointer"
             >
               <Package size={16} />
-                عرض الفاتورة
+              عرض الفاتورة
             </button>
           </div>
 
@@ -434,6 +437,340 @@ function ReviewModal({ isOpen, item, onClose, onSubmit }) {
   )
 }
 
+// Modal تغيير كلمة المرور
+function ChangePasswordModal({ isOpen, onClose }) {
+  const [formData, setFormData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [status, setStatus] = useState({ success: null, error: null })
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      setStatus({ success: null, error: null })
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (formData.newPassword !== formData.confirmPassword) {
+      setStatus({ success: null, error: 'كلمة المرور الجديدة وتأكيدها غير متطابقين.' })
+      return
+    }
+
+    setSubmitting(true)
+    setStatus({ success: null, error: null })
+
+    try {
+      await axiosInstance.post('/Auth/change-password', {
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+        confirmPassword: formData.confirmPassword
+      })
+      setStatus({ success: 'تم تغيير كلمة المرور بنجاح!', error: null })
+      setTimeout(onClose, 1800)
+    } catch (err) {
+      setStatus({ success: null, error: err.response?.data?.message || err.message || 'حدث خطأ أثناء تغيير كلمة المرور.' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+      dir="rtl"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute left-4 top-4 text-ink-soft hover:text-ink cursor-pointer"
+        >
+          <X size={20} />
+        </button>
+
+        <h3 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
+          <Lock size={20} className="text-amber" />
+          تغيير كلمة المرور
+        </h3>
+
+        {status.success ? (
+          <div className="p-4 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm flex items-center gap-2">
+            <CheckCircle2 size={18} />
+            <span>{status.success}</span>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {status.error && (
+              <div className="p-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs flex items-center gap-2">
+                <AlertCircle size={16} />
+                <span>{status.error}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1">كلمة المرور الحالية</label>
+              <input
+                type="password"
+                required
+                disabled={submitting}
+                value={formData.currentPassword}
+                onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
+                className="w-full rounded-xl border border-border bg-canvas p-2.5 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1">كلمة المرور الجديدة</label>
+              <input
+                type="password"
+                required
+                disabled={submitting}
+                value={formData.newPassword}
+                onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                className="w-full rounded-xl border border-border bg-canvas p-2.5 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1">تأكيد كلمة المرور الجديدة</label>
+              <input
+                type="password"
+                required
+                disabled={submitting}
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                className="w-full rounded-xl border border-border bg-canvas p-2.5 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-graphite-800 transition disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+              تحديث كلمة المرور
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Modal تغيير البريد الإلكتروني
+function ChangeEmailModal({ isOpen, onClose, currentEmail, onSuccess }) {
+  const [formData, setFormData] = useState({
+    newEmail: '',
+    password: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [status, setStatus] = useState({ success: null, error: null })
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({ newEmail: '', password: '' })
+      setStatus({ success: null, error: null })
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setStatus({ success: null, error: null })
+
+    try {
+      await axiosInstance.post('/Auth/change-email', {
+        newEmail: formData.newEmail,
+        password: formData.password
+      })
+      
+      const newEmailVal = formData.newEmail
+      setStatus({ success: 'تم إرسال كود تحقق إلى البريد الإلكتروني الجديد.', error: null })
+      
+      // تمرير الإيميل الجديد وفتح مودل التحقق (أو الانتظار لإغلاق المودل الحالي)
+      if (onSuccess) onSuccess(newEmailVal)
+      
+      setTimeout(onClose, 1800)
+    } catch (err) {
+      setStatus({ success: null, error: err.response?.data?.message || err.message || 'حدث خطأ أثناء تغيير البريد الإلكتروني.' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+      dir="rtl"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute left-4 top-4 text-ink-soft hover:text-ink cursor-pointer"
+        >
+          <X size={20} />
+        </button>
+
+        <h3 className="text-lg font-bold text-ink mb-1 flex items-center gap-2">
+          <Mail size={20} className="text-amber" />
+          تغيير البريد الإلكتروني
+        </h3>
+        <p className="text-xs text-ink-soft mb-4">
+          البريد الحالي: <span className="font-semibold text-ink">{currentEmail}</span>
+        </p>
+
+        {status.success ? (
+          <div className="p-4 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm flex items-center gap-2">
+            <CheckCircle2 size={18} />
+            <span>{status.success}</span>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {status.error && (
+              <div className="p-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs flex items-center gap-2">
+                <AlertCircle size={16} />
+                <span>{status.error}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1">البريد الإلكتروني الجديد</label>
+              <input
+                type="email"
+                required
+                disabled={submitting}
+                value={formData.newEmail}
+                onChange={(e) => setFormData({ ...formData, newEmail: e.target.value })}
+                className="w-full rounded-xl border border-border bg-canvas p-2.5 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                placeholder="example@domain.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1">كلمة المرور الحالية</label>
+              <input
+                type="password"
+                required
+                disabled={submitting}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full rounded-xl border border-border bg-canvas p-2.5 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-graphite-800 transition disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+              إرسال كود التحقق
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+      dir="rtl"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute left-4 top-4 text-ink-soft hover:text-ink cursor-pointer"
+        >
+          <X size={20} />
+        </button>
+
+        <h3 className="text-lg font-bold text-ink mb-1 flex items-center gap-2">
+          <Mail size={20} className="text-amber" />
+          تغيير البريد الإلكتروني
+        </h3>
+        <p className="text-xs text-ink-soft mb-4">
+          البريد الحالي: <span className="font-semibold text-ink">{currentEmail}</span>
+        </p>
+
+        {status.success ? (
+          <div className="p-4 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm flex items-center gap-2">
+            <CheckCircle2 size={18} />
+            <span>{status.success}</span>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {status.error && (
+              <div className="p-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs flex items-center gap-2">
+                <AlertCircle size={16} />
+                <span>{status.error}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1">البريد الإلكتروني الجديد</label>
+              <input
+                type="email"
+                required
+                disabled={submitting}
+                value={formData.newEmail}
+                onChange={(e) => setFormData({ ...formData, newEmail: e.target.value })}
+                className="w-full rounded-xl border border-border bg-canvas p-2.5 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                placeholder="example@domain.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1">كلمة المرور الحالية (للتأكيد)</label>
+              <input
+                type="password"
+                required
+                disabled={submitting}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full rounded-xl border border-border bg-canvas p-2.5 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-graphite-800 transition disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+              حفظ البريد الجديد
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ==========================================
 // Main Component
 // ==========================================
@@ -464,6 +801,8 @@ export default function CustomerProfilePage() {
   const [cancelingOrderId, setCancelingOrderId] = useState(null)
 
   const [reviewModalItem, setReviewModalItem] = useState(null)
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -593,6 +932,17 @@ export default function CustomerProfilePage() {
     await axiosInstance.post('/Reviews', reviewData)
   }
 
+  const handleEmailUpdated = (newEmail) => {
+    const updated = { ...user, email: newEmail }
+    setUser(updated)
+    const currentStored = JSON.parse(localStorage.getItem('user') || '{}')
+    const newStoredData = { ...currentStored, email: newEmail }
+    localStorage.setItem('user', JSON.stringify(newStoredData))
+    if (typeof updateAuthUser === 'function') {
+      updateAuthUser(newStoredData)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10" dir="rtl">
       <div className="mb-6 border-b border-border pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -688,90 +1038,93 @@ export default function CustomerProfilePage() {
       )}
 
       {activeTab === 'profile' && (
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-6">
           <Card title="بيانات الحساب والملف الشخصي">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               {message && (
                 <div
-                    className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
-                      message.type === 'success'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200'
-                    }`}
+                  className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
+                    message.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  }`}
                 >
-                    {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                    <span>{message.text}</span>
+                  {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                  <span>{message.text}</span>
                 </div>
               )}
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">الاسم الكامل</label>
                 <div className="relative">
-                    <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-                    <input
-                      type="text"
-                      disabled={updating}
-                      value={user.fullName}
-                      onChange={(e) => setUser({ ...user, fullName: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
-                      placeholder="أدخل اسمك الكامل"
-                      required
-                    />
+                  <User size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                  <input
+                    type="text"
+                    disabled={updating}
+                    value={user.fullName}
+                    onChange={(e) => setUser({ ...user, fullName: e.target.value })}
+                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                    placeholder="أدخل اسمك الكامل"
+                    required
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-ink-soft">البريد الإلكتروني (غير قابل للتعديل)</label>
-                <input
+                <label className="mb-1 block text-xs font-medium text-ink-soft">البريد الإلكتروني</label>
+                <div className="relative">
+                  <Mail size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                  <input
                     type="email"
                     disabled
                     value={user.email}
-                    className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-ink-soft opacity-70 cursor-not-allowed"
-                />
+                    className="w-full rounded-xl border border-border bg-surface py-2.5 pr-9 pl-3 text-sm text-ink-soft opacity-80 cursor-not-allowed"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">رقم الهاتف</label>
                 <div className="relative">
-                    <Phone size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-                    <input
-                      type="tel"
-                      disabled={updating}
-                      value={user.phone}
-                      onChange={(e) => setUser({ ...user, phone: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
-                      placeholder="01xxxxxxxxx"
-                    />
+                  <Phone size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                  <input
+                    type="tel"
+                    disabled={updating}
+                    value={user.phone}
+                    onChange={(e) => setUser({ ...user, phone: e.target.value })}
+                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                    placeholder="01xxxxxxxxx"
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">المحافظة</label>
                 <div className="relative">
-                    <Building2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-                    <input
-                      type="text"
-                      disabled={updating}
-                      value={user.governorate}
-                      onChange={(e) => setUser({ ...user, governorate: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
-                      placeholder="القاهرة، الإسكندرية..."
-                    />
+                  <Building2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                  <input
+                    type="text"
+                    disabled={updating}
+                    value={user.governorate}
+                    onChange={(e) => setUser({ ...user, governorate: e.target.value })}
+                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                    placeholder="القاهرة، الإسكندرية..."
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">العنوان بالتفصيل</label>
                 <div className="relative">
-                    <MapPin size={16} className="absolute right-3 top-3 text-ink-soft" />
-                    <textarea
-                      rows={3}
-                      disabled={updating}
-                      value={user.address}
-                      onChange={(e) => setUser({ ...user, address: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber resize-none transition disabled:opacity-60"
-                      placeholder="تفاصيل العنوان..."
-                    />
+                  <MapPin size={16} className="absolute right-3 top-3 text-ink-soft" />
+                  <textarea
+                    rows={3}
+                    disabled={updating}
+                    value={user.address}
+                    onChange={(e) => setUser({ ...user, address: e.target.value })}
+                    className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber resize-none transition disabled:opacity-60"
+                    placeholder="تفاصيل العنوان..."
+                  />
                 </div>
               </div>
 
@@ -785,14 +1138,52 @@ export default function CustomerProfilePage() {
               </button>
             </form>
           </Card>
+
+          {/* قسم إعدادات الأمان والتسهيلات */}
+          <Card title="الأمان وحساب المستخدم">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setIsPasswordModalOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-3 text-xs font-semibold text-ink hover:bg-surface hover:border-amber transition cursor-pointer"
+              >
+                <Lock size={15} className="text-amber" />
+                <span>تغيير كلمة المرور</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-3 text-xs font-semibold text-ink hover:bg-surface hover:border-amber transition cursor-pointer"
+              >
+                <Mail size={15} className="text-amber" />
+                <span>تغيير البريد الإلكتروني</span>
+              </button>
+            </div>
+          </Card>
         </div>
       )}
 
+      {/* Modal التقييم */}
       <ReviewModal
         isOpen={!!reviewModalItem}
         item={reviewModalItem}
         onClose={() => setReviewModalItem(null)}
         onSubmit={handleReviewSubmit}
+      />
+
+      {/* Modal كلمة المرور */}
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      />
+
+      {/* Modal البريد الإلكتروني */}
+      <ChangeEmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        currentEmail={user.email}
+        onSuccess={handleEmailUpdated}
       />
     </div>
   )

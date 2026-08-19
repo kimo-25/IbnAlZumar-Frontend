@@ -1,4 +1,3 @@
-// File: src/pages/Auth/RegisterPage.jsx
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { 
@@ -15,11 +14,10 @@ import {
 } from 'lucide-react'
 import { GoogleLogin } from '@react-oauth/google'
 import axiosInstance from '../../api/axiosInstance'
-import { useAuth } from '../../context/AuthContext'
+import { setStoredAuth, determineDestination } from '../../utils/auth'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const { login } = useAuth()
   
   const [form, setForm] = useState({ 
     fullName: '', 
@@ -30,9 +28,7 @@ export default function RegisterPage() {
     address: '' 
   })
   
-  // 👁️ State للتحكم في إظهار / إخفاء كلمة المرور
   const [showPassword, setShowPassword] = useState(false)
-
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -40,7 +36,6 @@ export default function RegisterPage() {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
-  // التسجيل اليدوي
   async function handleRegister(e) {
     e.preventDefault()
     setError(null)
@@ -51,31 +46,20 @@ export default function RegisterPage() {
 
     setIsSubmitting(true)
     try {
-      const response = await axiosInstance.post('/Auth/register', form)
-      const data = response.data
-
-      // حفظ بيانات الجلسة
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data))
-      
-      if (login) {
-        try {
-          await login(form.email, form.password)
-        } catch {
-          // في حال عدم توفر الدالة مباشرة
+      await axiosInstance.post('/Auth/register', form)
+      localStorage.setItem('pendingVerificationEmail', form.email)
+      navigate('/verify-email', {
+        state: {
+          email: form.email
         }
-      }
-
-      navigate('/profile', { replace: true })
-      window.location.reload()
+      })
     } catch (err) {
-      setError(err?.message || 'حدث خطأ أثناء التسجيل.')
+      setError(err?.response?.data?.message || err?.message || 'حدث خطأ أثناء التسجيل.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // التسجيل عبر جوجل
   async function handleGoogleSuccess(credentialResponse) {
     setError(null)
     try {
@@ -84,13 +68,15 @@ export default function RegisterPage() {
       })
       const data = response.data
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data))
-
-      navigate('/profile', { replace: true })
-      window.location.reload()
+      setStoredAuth(data)
+      const targetPath = determineDestination(data)
+      window.location.href = targetPath
     } catch (err) {
-      setError(err?.message || 'حدث خطأ أثناء المصادقة مع جوجل.')
+      setError(
+        err?.response?.data?.message ||
+        err?.message ||
+        'حدث خطأ أثناء المصادقة مع جوجل.'
+      )
     }
   }
 
@@ -110,7 +96,6 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleRegister} className="space-y-4">
-          {/* الاسم الكامل */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-ink">الاسم الكامل *</label>
             <div className="relative">
@@ -126,7 +111,6 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* البريد الإلكتروني و كلمة المرور */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-ink">البريد الإلكتروني *</label>
@@ -143,7 +127,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* 🔒 حقل كلمة المرور مع زر الإظهار والإخفاء */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-ink">كلمة المرور *</label>
               <div className="relative">
@@ -168,7 +151,6 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* رقم الهاتف و المحافظة */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-ink">رقم الهاتف</label>
@@ -199,7 +181,6 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* العنوان التفصيلي */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-ink">العنوان بالتفصيل</label>
             <div className="relative">

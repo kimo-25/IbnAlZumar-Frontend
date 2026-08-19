@@ -27,6 +27,9 @@ import CheckoutPage from './pages/Shop/CheckoutPage'
 // Auth & Customer Pages
 import LoginPage from './pages/Login/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
+import VerifyEmailPage from './components/auth/VerifyEmailPage'
+import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage'
+import ResetPasswordPage from './pages/Auth/ResetPasswordPage'
 import CustomerProfilePage from './pages/Customers/CustomerProfilePage'
 import OrderDetailsPage from './pages/Customers/OrderDetailsPage'
 import CustomerDetailsPage from './pages/Customers/CustomerDetailsPage'
@@ -94,6 +97,9 @@ export default function App() {
         {/* ---------------- 2. AUTH & PUBLIC ROUTES ---------------- */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/admin/login" element={<LoginPage />} />
         <Route path="/admin/forbidden" element={<ForbiddenPage />} />
 
