@@ -24,12 +24,12 @@ import ProductDetailsPage from './pages/Shop/ProductDetailsPage'
 import CartPage from './pages/Shop/CartPage'
 import CheckoutPage from './pages/Shop/CheckoutPage'
 
-// Auth & Customer Pages
+// Auth & Customer Pages (تم تعديل المسارات لتطابق مكان الملفات الفعلي)
 import LoginPage from './pages/Login/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
 import VerifyEmailPage from './components/auth/VerifyEmailPage'
-import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage'
-import ResetPasswordPage from './pages/Auth/ResetPasswordPage'
+import ForgotPasswordPage from './components/auth/ForgotPasswordPage'
+import ResetPasswordPage from './components/auth/ResetPasswordPage'
 import CustomerProfilePage from './pages/Customers/CustomerProfilePage'
 import OrderDetailsPage from './pages/Customers/OrderDetailsPage'
 import CustomerDetailsPage from './pages/Customers/CustomerDetailsPage'
