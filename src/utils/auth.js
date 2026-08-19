@@ -35,3 +35,18 @@ export function isAuthExpired(authData) {
   }
   return false
 }
+
+// تحديد وجهة التوجيه بناءً على دور المستخدم بعد تسجيل الدخول أو التسجيل
+export function determineDestination(role) {
+  const normalized = role ? String(role).trim().toUpperCase() : ""
+  if (normalized === "CASHIER") {
+    return "/pos"
+  }
+  if (["STORE_OWNER", "ADMIN", "SUPER ADMIN", "SUPERADMIN"].includes(normalized)) {
+    return "/admin/dashboard"
+  }
+  if (["MODERATOR", "ONLINE_MANAGER"].includes(normalized)) {
+    return "/moderator"
+  }
+  return "/"
+}
