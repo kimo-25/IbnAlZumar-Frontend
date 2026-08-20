@@ -22,9 +22,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const isModerator = user?.roles?.some((r) => r.toLowerCase().includes('moderator'))
   const moderatorPath = isModerator ? '/moderator' : '/admin/moderator'
-      console.log("user", user);
-      console.log("hasRole", typeof hasRole);
-      console.log("hasPermission", typeof hasPermission);
+
   const navGroups = [
     {
       label: null,
@@ -94,8 +92,8 @@ export default function Sidebar({ isOpen, onClose }) {
       )}
 
       <aside
-        className={`fixed inset-y-0 start-0 z-50 flex w-72 max-w-[80vw] flex-col bg-graphite-900 text-white transition-transform duration-300 ease-in-out lg:static lg:w-64 lg:max-w-none lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : 'ltr:-translate-x-full rtl:translate-x-full'
+        className={`fixed inset-y-0 start-0 z-50 flex w-72 max-w-[80vw] flex-col bg-graphite-900 text-white transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
         }`}
       >
         <div className="flex items-center justify-between px-5 py-5">

@@ -5,7 +5,7 @@ import Sidebar from './Sidebar'
 import Navbar from './Navbar'
 
 export default function DashboardLayout() {
-  console.log("DashboardLayout Rendered");
+  // تم ضبط الحالة الافتراضية لتكون false (مغلق على الموبايل، ويدعم lg:translate-x-0 للديسكتوب تلقائياً)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
