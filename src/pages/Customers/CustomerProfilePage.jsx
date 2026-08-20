@@ -18,11 +18,16 @@ import {
   RotateCcw,
   Lock,
   Mail,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react'
 import axiosInstance from '../../api/axiosInstance'
 import { useAuth } from '../../context/AuthContext'
 import { formatCurrency } from '../../utils/catalog'
 import { printInvoice } from '../../utils/printInvoice'
+import ChangePhoneModal from '../../components/profile/ChangePhoneModal'
+import VerifyPhoneModal from '../../components/profile/VerifyPhoneModal'
+import VerifyEmailModal from '../../components/profile/VerifyEmailModal'
 
 // ==========================================
 // Constants & Helpers
@@ -225,7 +230,7 @@ function OrderCard({ order, isExpanded, onToggle, onCancel, cancelingOrderId, on
                       </p>
                     </div>
                   </div>
-                  {currentStep === 5 && (
+                  {currentStep === 5 && !item.hasReviewed && (
                     <button
                       onClick={() => onOpenReview({ ...item, orderId })}
                       className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition shrink-0 cursor-pointer"
@@ -573,7 +578,15 @@ export default function CustomerProfilePage() {
   const handleTabChange = (tab) => setSearchParams({ tab })
 
   const { user: authUser, updateUser: updateAuthUser } = useAuth()
-  const [user, setUser] = useState({ fullName: '', email: '', phone: '', governorate: '', address: '' })
+  const [user, setUser] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    governorate: '',
+    address: '',
+    isEmailVerified: false,
+    isPhoneVerified: false,
+  })
 
   const [orders, setOrders] = useState([])
   const [loadingOrders, setLoadingOrders] = useState(true)
@@ -588,6 +601,14 @@ export default function CustomerProfilePage() {
   const [reviewModalItem, setReviewModalItem] = useState(null)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
+
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false)
+  const [isVerifyPhoneModalOpen, setIsVerifyPhoneModalOpen] = useState(false)
+
+  const [isVerifyEmailModalOpen, setIsVerifyEmailModalOpen] = useState(false)
+
+  const [pendingPhone, setPendingPhone] = useState('')
+  const [pendingEmail, setPendingEmail] = useState('')
 
   const showMessage = (type, text) => {
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current)
@@ -611,6 +632,8 @@ export default function CustomerProfilePage() {
             phone: fetched.phone || authUser?.phone || '',
             governorate: fetched.governorate || authUser?.governorate || '',
             address: fetched.address || authUser?.address || '',
+            isEmailVerified: !!(fetched.isEmailVerified ?? authUser?.isEmailVerified),
+            isPhoneVerified: !!(fetched.isPhoneVerified ?? authUser?.isPhoneVerified),
           })
         }
       } catch (err) {
@@ -621,6 +644,8 @@ export default function CustomerProfilePage() {
             phone: authUser.phone || '',
             governorate: authUser.governorate || '',
             address: authUser.address || '',
+            isEmailVerified: !!authUser.isEmailVerified,
+            isPhoneVerified: !!authUser.isPhoneVerified,
           })
         }
       }
@@ -716,13 +741,49 @@ export default function CustomerProfilePage() {
     )
   }
 
-  const handleEmailUpdated = (newEmail) => {
-    const updated = { ...user, email: newEmail }
+  const handleEmailVerified = (newEmail, token) => {
+    const updated = {
+      ...user,
+      email: newEmail,
+      isEmailVerified: true,
+    }
+
     setUser(updated)
+
     const currentStored = JSON.parse(localStorage.getItem('user') || '{}')
-    const newStoredData = { ...currentStored, email: newEmail }
+
+    const newStoredData = {
+      ...currentStored,
+      email: newEmail,
+      isEmailVerified: true,
+    }
+
+    localStorage.setItem('user', JSON.stringify(newStoredData))
+
+    if (token) {
+      localStorage.setItem('token', token)
+    }
+
+    if (typeof updateAuthUser === 'function') {
+      updateAuthUser(newStoredData)
+    }
+
+    setPendingEmail('')
+    setIsVerifyEmailModalOpen(false)
+    showMessage('success', 'تم تحديث البريد الإلكتروني بنجاح!')
+  }
+
+  // يُستدعى بعد نجاح تأكيد كود التحقق الخاص برقم الهاتف الجديد
+  const handlePhoneVerified = () => {
+    const updated = { ...user, phone: pendingPhone, isPhoneVerified: true }
+    setUser(updated)
+
+    const currentStored = JSON.parse(localStorage.getItem('user') || '{}')
+    const newStoredData = { ...currentStored, phone: pendingPhone, isPhoneVerified: true }
     localStorage.setItem('user', JSON.stringify(newStoredData))
     if (typeof updateAuthUser === 'function') updateAuthUser(newStoredData)
+    setPendingPhone('')
+    showMessage('success', 'تم تحديث رقم الهاتف بنجاح!')
   }
 
   return (
@@ -818,107 +879,182 @@ export default function CustomerProfilePage() {
           )}
         </div>
       )}
-
-      {/* Profile tab */}
+{/* Profile tab */}
       {activeTab === 'profile' && (
-        <form onSubmit={handleUpdateProfile} className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-ink mb-1 block">الاسم الكامل</label>
-            <div className="relative">
-              <User className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
-              <input
-                value={user.fullName}
-                onChange={(e) => setUser({ ...user, fullName: e.target.value })}
-                className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
-                placeholder="أدخل اسمك الكامل"
-                required
-              />
+        <div className="space-y-6">
+          <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-ink mb-1 block">الاسم الكامل</label>
+              <div className="relative">
+                <User className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
+                <input
+                  value={user.fullName}
+                  onChange={(e) => setUser({ ...user, fullName: e.target.value })}
+                  className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                  placeholder="أدخل اسمك الكامل"
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-semibold text-ink mb-1 block">البريد الإلكتروني</label>
-            <div className="relative">
-              <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
-              <input
-                value={user.email}
-                disabled
-                className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink-soft outline-none disabled:opacity-60"
-              />
+            <div>
+              <label className="text-xs font-semibold text-ink mb-1 block">البريد الإلكتروني</label>
+              <div className="relative">
+                <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
+                <input
+                  value={user.email}
+                  disabled
+                  className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink-soft outline-none disabled:opacity-60"
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-semibold text-ink mb-1 block">رقم الهاتف</label>
-            <div className="relative">
-              <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
-              <input
-                value={user.phone}
-                onChange={(e) => setUser({ ...user, phone: e.target.value })}
-                className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
-                placeholder="01xxxxxxxxx"
-              />
+            <div>
+              <label className="text-xs font-semibold text-ink mb-1 block">رقم الهاتف</label>
+              <div className="relative">
+                <Phone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
+                <input
+                  value={user.phone}
+                  disabled
+                  className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink-soft outline-none disabled:opacity-60"
+                  placeholder="01xxxxxxxxx"
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-semibold text-ink mb-1 block">المحافظة</label>
-            <div className="relative">
-              <Building2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
-              <input
-                value={user.governorate}
-                onChange={(e) => setUser({ ...user, governorate: e.target.value })}
-                className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
-                placeholder="القاهرة، الإسكندرية…"
-              />
+            <div>
+              <label className="text-xs font-semibold text-ink mb-1 block">المحافظة</label>
+              <div className="relative">
+                <Building2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
+                <input
+                  value={user.governorate}
+                  onChange={(e) => setUser({ ...user, governorate: e.target.value })}
+                  className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber transition disabled:opacity-60"
+                  placeholder="القاهرة، الإسكندرية…"
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-semibold text-ink mb-1 block">العنوان بالتفصيل</label>
-            <div className="relative">
-              <MapPin className="absolute right-3 top-3 h-4 w-4 text-ink-soft" />
-              <textarea
-                value={user.address}
-                onChange={(e) => setUser({ ...user, address: e.target.value })}
-                rows={3}
-                className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber resize-none transition disabled:opacity-60"
-                placeholder="تفاصيل العنوان…"
-              />
+            <div>
+              <label className="text-xs font-semibold text-ink mb-1 block">العنوان بالتفصيل</label>
+              <div className="relative">
+                <MapPin className="absolute right-3 top-3 h-4 w-4 text-ink-soft" />
+                <textarea
+                  value={user.address}
+                  onChange={(e) => setUser({ ...user, address: e.target.value })}
+                  rows={3}
+                  className="w-full rounded-xl border border-border bg-canvas py-2.5 pr-9 pl-3 text-sm text-ink outline-none focus:border-amber resize-none transition disabled:opacity-60"
+                  placeholder="تفاصيل العنوان…"
+                />
+              </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={updating}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-60 cursor-pointer"
-          >
-            {updating && <Loader2 className="h-4 w-4 animate-spin" />}
-            حفظ التعديلات
-          </button>
-
-          {/* أمان الحساب */}
-          <div className="grid sm:grid-cols-2 gap-3 pt-2">
             <button
-              type="button"
-              onClick={() => setIsPasswordModalOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-3 text-xs font-semibold text-ink hover:bg-surface hover:border-amber transition cursor-pointer"
+              type="submit"
+              disabled={updating}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-60 cursor-pointer"
             >
-              <Lock className="h-4 w-4" />
-              تغيير كلمة المرور
+              {updating && <Loader2 className="h-4 w-4 animate-spin" />}
+              حفظ التعديلات
             </button>
-            <button
-              type="button"
-              onClick={() => setIsEmailModalOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-3 text-xs font-semibold text-ink hover:bg-surface hover:border-amber transition cursor-pointer"
-            >
-              <Mail className="h-4 w-4" />
-              تغيير البريد الإلكتروني
-            </button>
+
+            {/* أمان الحساب */}
+            <div className="grid sm:grid-cols-3 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsPasswordModalOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-3 text-xs font-semibold text-ink hover:bg-surface hover:border-amber transition cursor-pointer"
+              >
+                <Lock className="h-4 w-4" />
+                تغيير كلمة المرور
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-3 text-xs font-semibold text-ink hover:bg-surface hover:border-amber transition cursor-pointer"
+              >
+                <Mail className="h-4 w-4" />
+                تغيير البريد الإلكتروني
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPhoneModalOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-3 text-xs font-semibold text-ink hover:bg-surface hover:border-amber transition cursor-pointer"
+              >
+                <Phone className="h-4 w-4" />
+                تغيير رقم الهاتف
+              </button>
+            </div>
+          </form>
+
+          {/* قسم توثيق الحساب (البريد والهاتف) */}
+          <div className="rounded-2xl border border-border bg-surface p-4 space-y-3">
+            <h3 className="text-sm font-bold text-ink mb-1">توثيق الحساب</h3>
+            
+            {/* البريد الإلكتروني */}
+            <div className="rounded-xl border border-border bg-canvas p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-ink-soft shrink-0" />
+                  <span className="text-sm font-semibold text-ink">البريد الإلكتروني</span>
+                </div>
+                {user.isEmailVerified ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 text-xs font-semibold">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    موثق
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1 text-xs font-semibold">
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    غير موثق
+                  </span>
+                )}
+              </div>
+
+              {!user.isEmailVerified && (
+                <button
+                  type="button"
+                  onClick={() => setIsEmailModalOpen(true)}
+                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition cursor-pointer"
+                >
+                  توثيق البريد الإلكتروني
+                </button>
+              )}
+            </div>
+
+            {/* رقم الهاتف */}
+            <div className="rounded-xl border border-border bg-canvas p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-ink-soft shrink-0" />
+                  <span className="text-sm font-semibold text-ink">رقم الهاتف</span>
+                </div>
+                {user.isPhoneVerified ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 text-xs font-semibold">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    موثق
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 text-xs font-semibold">
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    غير موثق
+                  </span>
+                )}
+              </div>
+
+              {!user.isPhoneVerified && (
+                <button
+                  type="button"
+                  onClick={() => setIsPhoneModalOpen(true)}
+                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition cursor-pointer"
+                >
+                  توثيق رقم الهاتف
+                </button>
+              )}
+            </div>
           </div>
-        </form>
+        </div>
       )}
-
       {/* Modals */}
       <ReviewModal
         isOpen={!!reviewModalItem}
@@ -931,7 +1067,36 @@ export default function CustomerProfilePage() {
         isOpen={isEmailModalOpen}
         onClose={() => setIsEmailModalOpen(false)}
         currentEmail={user.email}
-        onSuccess={handleEmailUpdated}
+        onSuccess={(newEmail) => {
+          setPendingEmail(newEmail)
+          setIsEmailModalOpen(false)
+          setIsVerifyEmailModalOpen(true)
+        }}
+      />
+      <VerifyEmailModal
+        isOpen={isVerifyEmailModalOpen}
+        newEmail={pendingEmail}
+        onClose={() => setIsVerifyEmailModalOpen(false)}
+        onVerified={handleEmailVerified}
+      />
+      <ChangePhoneModal
+        isOpen={isPhoneModalOpen}
+        onClose={() => setIsPhoneModalOpen(false)}
+        currentPhone={user.phone}
+        onOtpSent={(phone) => {
+          setPendingPhone(phone)
+          setIsPhoneModalOpen(false)
+          setIsVerifyPhoneModalOpen(true)
+        }}
+      />
+      <VerifyPhoneModal
+        isOpen={isVerifyPhoneModalOpen}
+        phone={pendingPhone}
+        onClose={() => setIsVerifyPhoneModalOpen(false)}
+        onVerified={() => {
+          handlePhoneVerified()
+          setIsVerifyPhoneModalOpen(false)
+        }}
       />
     </div>
   )
