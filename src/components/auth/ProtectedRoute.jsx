@@ -1,9 +1,9 @@
 // File: src/components/auth/ProtectedRoute.jsx
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeRole } from '../../utils/roles'
 
-export default function ProtectedRoute({ permission, role, allowRoles = [] }) {
+export default function ProtectedRoute({ permission, role, allowRoles = [], children }) {
   const { isAuthenticated, user, roles } = useAuth()
   const location = useLocation()
 
@@ -22,7 +22,7 @@ export default function ProtectedRoute({ permission, role, allowRoles = [] }) {
     normalizedUserRoles.some(r => ['OWNER', 'STORE_OWNER', 'SUPERADMIN', 'SUPER_ADMIN'].includes(r));
 
   if (isSuperUser) {
-    return <Outlet />
+    return children
   }
 
   // 3. التحقق من الـ allowRoles المحددة
@@ -45,10 +45,9 @@ export default function ProtectedRoute({ permission, role, allowRoles = [] }) {
   }
 
   // 5. التحقق من الـ Permission (إن وجد نظام صلاحيات مخصص لاحقاً)
-  // ملاحظة: لو كنت تستخدم دالة صلاحيات معينة، يتم التأكد من وجودها أولاً
   // if (permission && typeof hasPermission === 'function' && !hasPermission(permission)) {
   //   return <Navigate to="/admin/forbidden" replace />
   // }
 
-  return <Outlet />
+  return children
 }

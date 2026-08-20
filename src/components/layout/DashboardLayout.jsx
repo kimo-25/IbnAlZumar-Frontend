@@ -5,6 +5,7 @@ import Sidebar from './Sidebar'
 import Navbar from './Navbar'
 
 export default function DashboardLayout() {
+  console.log("DashboardLayout Rendered");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
