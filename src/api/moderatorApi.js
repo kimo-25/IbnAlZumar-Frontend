@@ -14,17 +14,14 @@ async function safeGet(url, params = {}, defaultValue = []) {
   }
 }
 
-// 1. جلب المنتجات للموديريتور بحسب الـ Pagination
+// ==========================================
+// 1. إدارة المنتجات للموديريتور
+// ==========================================
+
 export async function getModeratorProducts(params = {}) {
   return safeGet('/Products', params, [])
 }
 
-// 2. جلب الأقسام
-export async function getModeratorCategories() {
-  return safeGet('/Categories', {}, [])
-}
-
-// 3. إضافة منتج جديد
 export async function createModeratorProduct(productData, imageFile) {
   const formData = new FormData()
 
@@ -44,7 +41,6 @@ export async function createModeratorProduct(productData, imageFile) {
   return response.data
 }
 
-// 4. تعديل منتج
 export async function updateModeratorProduct(id, productData, imageFile) {
   const formData = new FormData()
 
@@ -65,8 +61,30 @@ export async function updateModeratorProduct(id, productData, imageFile) {
   return response.data
 }
 
-// 5. حذف منتج
 export async function deleteModeratorProduct(id) {
   const response = await axiosInstance.delete(`/Products/${id}`)
+  return response.data
+}
+
+// ==========================================
+// 2. إدارة الأقسام للموديريتور
+// ==========================================
+
+export async function getModeratorCategories() {
+  return safeGet('/Categories', {}, [])
+}
+
+export async function createModeratorCategory(categoryData) {
+  const response = await axiosInstance.post('/Categories', categoryData)
+  return response.data
+}
+
+export async function updateModeratorCategory(id, categoryData) {
+  const response = await axiosInstance.put(`/Categories/${id}`, categoryData)
+  return response.data
+}
+
+export async function deleteModeratorCategory(id) {
+  const response = await axiosInstance.delete(`/Categories/${id}`)
   return response.data
 }
