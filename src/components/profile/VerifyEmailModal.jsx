@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, CheckCircle2, Loader2, RotateCcw, ShieldCheck, X } from 'lucide-react'
-import axiosInstance from '../api/axiosInstance'
+import axiosInstance from '../../api/axiosInstance';
 
 export default function VerifyEmailModal({
   isOpen,
