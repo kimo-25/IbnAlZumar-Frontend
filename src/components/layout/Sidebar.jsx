@@ -22,7 +22,9 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const isModerator = user?.roles?.some((r) => r.toLowerCase().includes('moderator'))
   const moderatorPath = isModerator ? '/moderator' : '/admin/moderator'
-
+      console.log("user", user);
+      console.log("hasRole", typeof hasRole);
+      console.log("hasPermission", typeof hasPermission);
   const navGroups = [
     {
       label: null,
