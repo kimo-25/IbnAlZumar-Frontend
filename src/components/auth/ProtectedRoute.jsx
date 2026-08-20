@@ -1,9 +1,10 @@
 // File: src/components/auth/ProtectedRoute.jsx
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { normalizeRole } from '../../utils/roles'
 
 export default function ProtectedRoute({ permission, role, allowRoles = [] }) {
-  const { isAuthenticated, hasPermission, hasRole, user } = useAuth()
+  const { isAuthenticated, user, roles } = useAuth()
   const location = useLocation()
 
   // 1. التأكد من تسجيل الدخول
@@ -11,33 +12,43 @@ export default function ProtectedRoute({ permission, role, allowRoles = [] }) {
     return <Navigate to="/admin/login" replace state={{ from: location }} />
   }
 
+  // تطبيع دور المستخدم الأساسي والأدوار المتاحة لديه
+  const userPrimaryRole = normalizeRole(user?.role);
+  const normalizedUserRoles = Array.isArray(roles) ? roles.map(normalizeRole) : [userPrimaryRole];
+
   // 2. إعطاء صلاحية كاملة ومباشرة للـ Owner والـ Super Admin دون أي قيود
   const isSuperUser = 
-    (typeof hasRole === 'function' && (hasRole('Owner') || hasRole('SuperAdmin'))) || 
-    user?.role === 'Owner' || 
-    user?.role === 'SuperAdmin'
+    ['OWNER', 'STORE_OWNER', 'SUPERADMIN', 'SUPER_ADMIN'].includes(userPrimaryRole) ||
+    normalizedUserRoles.some(r => ['OWNER', 'STORE_OWNER', 'SUPERADMIN', 'SUPER_ADMIN'].includes(r));
 
   if (isSuperUser) {
     return <Outlet />
   }
 
   // 3. التحقق من الـ allowRoles المحددة
-  const hasAllowedRole = Array.isArray(allowRoles) && allowRoles.some((candidateRole) => 
-    typeof hasRole === 'function' && hasRole(candidateRole)
-  )
-  if (hasAllowedRole) {
-    return <Outlet />
+  if (Array.isArray(allowRoles) && allowRoles.length > 0) {
+    const normalizedAllowedRoles = allowRoles.map(normalizeRole);
+    const hasAllowedRole = normalizedUserRoles.some(r => normalizedAllowedRoles.includes(r)) ||
+                           normalizedAllowedRoles.includes(userPrimaryRole);
+    if (!hasAllowedRole) {
+      return <Navigate to="/admin/forbidden" replace />
+    }
   }
 
-  // 4. التحقق من الـ Permission
-  if (permission && typeof hasPermission === 'function' && !hasPermission(permission)) {
-    return <Navigate to="/admin/forbidden" replace />
+  // 4. التحقق من الـ Role الفردي الممرر
+  if (role) {
+    const normalizedTargetRole = normalizeRole(role);
+    const hasSpecificRole = normalizedUserRoles.includes(normalizedTargetRole) || userPrimaryRole === normalizedTargetRole;
+    if (!hasSpecificRole) {
+      return <Navigate to="/admin/forbidden" replace />
+    }
   }
 
-  // 5. التحقق من الـ Role
-  if (role && typeof hasRole === 'function' && !hasRole(role)) {
-    return <Navigate to="/admin/forbidden" replace />
-  }
+  // 5. التحقق من الـ Permission (إن وجد نظام صلاحيات مخصص لاحقاً)
+  // ملاحظة: لو كنت تستخدم دالة صلاحيات معينة، يتم التأكد من وجودها أولاً
+  // if (permission && typeof hasPermission === 'function' && !hasPermission(permission)) {
+  //   return <Navigate to="/admin/forbidden" replace />
+  // }
 
   return <Outlet />
 }
