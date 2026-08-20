@@ -1,9 +1,10 @@
-// App.jsx
-
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { CartProvider } from './context/CartContext'
 import { StorefrontSearchProvider } from './context/StorefrontSearchContext'
 import { useAuth } from './context/AuthContext'
+
+// استيراد الدوال المساعدة لإدارة الأدوار والمسارات
+import { normalizeRole, getRoleHomePath } from './utils/roles'
 
 // استيراد الـ Hook الخاص بالمزامنة التلقائية للأوفلاين
 import { useAutoSync } from './hooks/useAutoSync'
@@ -24,7 +25,7 @@ import ProductDetailsPage from './pages/Shop/ProductDetailsPage'
 import CartPage from './pages/Shop/CartPage'
 import CheckoutPage from './pages/Shop/CheckoutPage'
 
-// Auth & Customer Pages (تم تعديل المسارات لتطابق مكان الملفات الفعلي)
+// Auth & Customer Pages
 import LoginPage from './pages/Login/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
 import VerifyEmailPage from './components/auth/VerifyEmailPage'
@@ -65,8 +66,8 @@ export default function App() {
   // جلب دور المستخدم الحالي لتوجيهه حسب الصلاحية في الراوت العام
   const { role } = useAuth();
   
-  // تطبيع دور المستخدم للتعامل الآمن مع حالات الأحرف
-  const normalizedRole = role ? String(role).trim().toUpperCase() : "";
+  // تطبيع دور المستخدم باستخدام الدالة الموحدة
+  const normalizedRole = normalizeRole(role);
 
   return (
     <>
@@ -194,11 +195,7 @@ export default function App() {
         {/* ---------------- 6. WILDCARD FALLBACK ---------------- */}
         <Route
           path="*"
-          element={
-            normalizedRole === "CASHIER"
-              ? <Navigate to="/pos" replace />
-              : <Navigate to="/" replace />
-          }
+          element={<Navigate to={getRoleHomePath(normalizedRole)} replace />}
         />
       </Routes>
     </>

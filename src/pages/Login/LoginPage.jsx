@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { GoogleLogin } from '@react-oauth/google'
 import axiosInstance from '../../api/axiosInstance'
 import { setStoredAuth } from '../../utils/auth'
+import { getRoleHomePath } from '../../utils/roles'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -22,42 +23,17 @@ export default function LoginPage() {
     ? 'تم تفعيل الحساب بنجاح. يمكنك تسجيل الدخول الآن.'
     : null
 
-  // دالة تحديد المسار المستهدف بناءً على دور المستخدم الفعلي
+  // دالة تحديد المسار المستهدف الموحدة بناءً على دور المستخدم
   const determineDestination = (userData) => {
-    // 1. إذا كان تم تحويل المستخدم من صفحة محمية سابقة
     const fromPath = location.state?.from?.pathname
     if (fromPath && !['/login', '/admin/login', '/'].includes(fromPath)) {
       return fromPath
     }
 
-    // 2. استخراج الأدوار المسجلة بمرونة عالية
-    const rawRoles = userData?.roles || userData?.role || userData?.user?.roles || userData?.user?.role || []
-    const rolesArray = Array.isArray(rawRoles) ? rawRoles : [rawRoles]
-    const normalizedRoles = rolesArray.map((r) => String(r).toUpperCase().trim())
+    const rawRoles =
+      userData?.roles || userData?.role || userData?.user?.roles || userData?.user?.role || []
 
-    // 3. التوجيه الدقيق حسب الرتبة
-    if (normalizedRoles.includes('CASHIER')) {
-      return '/pos' // ✅ التوجيه الصحيح والمباشر للكاشير إلى صفحة نقاط البيع
-    }
-
-    if (normalizedRoles.includes('ONLINE_MANAGER')) {
-      return '/admin/operations'
-    }
-    
-    if (normalizedRoles.includes('MODERATOR')) {
-      return '/moderator' 
-    }
-
-    const isAdminOrOwner = normalizedRoles.some((r) =>
-      ['ADMIN', 'SUPER ADMIN', 'SUPERADMIN', 'STORE_OWNER', 'OWNER'].includes(r)
-    )
-
-    if (isAdminOrOwner) {
-      return '/admin/dashboard'
-    }
-
-    // 4. الافتراضي للعميل العادي
-    return '/profile'
+    return getRoleHomePath(rawRoles)
   }
 
   async function handleSubmit(event) {
@@ -112,11 +88,12 @@ export default function LoginPage() {
       const targetPath = determineDestination(data)
       window.location.href = targetPath
     } catch (err) {
-setError(
-  err?.response?.data?.message ||
-  err?.message ||
-  'حدث خطأ أثناء المصادقة مع جوجل.'
-)    } finally {
+      setError(
+        err?.response?.data?.message ||
+        err?.message ||
+        'حدث خطأ أثناء المصادقة مع جوجل.'
+      )
+    } finally {
       setIsSubmitting(false)
     }
   }

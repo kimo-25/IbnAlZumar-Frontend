@@ -1,18 +1,24 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { normalizeRole, ROLES, ADMIN_AREA_ROLES } from "../utils/roles";
 
 export default function AdminRoute({ children }) {
-  const { role } = useAuth();
-  const normalizedRole = role ? String(role).trim().toUpperCase() : "";
+  const { role, isAuthenticated } = useAuth();
+  const normalizedRole = normalizeRole(role);
 
-  // إذا كان كاشير وحاول الدخول للوحة التحكم، وجهه لنقاط البيع
-  if (normalizedRole === "CASHIER") {
+  if (!isAuthenticated) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  if (normalizedRole === ROLES.CASHIER) {
     return <Navigate to="/pos" replace />;
   }
 
-  const allowedAdminRoles = ["ADMIN", "SUPER ADMIN", "SUPERADMIN", "STORE_OWNER", "OWNER", "ONLINE_MANAGER"];
+  if (normalizedRole === ROLES.MODERATOR) {
+    return <Navigate to="/moderator/dashboard" replace />;
+  }
 
-  if (!allowedAdminRoles.includes(normalizedRole)) {
+  if (!ADMIN_AREA_ROLES.includes(normalizedRole)) {
     return <Navigate to="/admin/forbidden" replace />;
   }
 

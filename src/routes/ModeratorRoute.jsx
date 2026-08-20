@@ -1,17 +1,20 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { normalizeRole, ROLES, MODERATOR_AREA_ROLES } from "../utils/roles";
 
 export default function ModeratorRoute({ children }) {
-  const { role } = useAuth();
-  const normalizedRole = role ? String(role).trim().toUpperCase() : "";
+  const { role, isAuthenticated } = useAuth();
+  const normalizedRole = normalizeRole(role);
 
-  if (normalizedRole === "CASHIER") {
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (normalizedRole === ROLES.CASHIER) {
     return <Navigate to="/pos" replace />;
   }
 
-  const allowedRoles = ["MODERATOR", "ONLINE_MANAGER", "STORE_OWNER", "ADMIN", "SUPER ADMIN", "SUPERADMIN"];
-
-  if (!allowedRoles.includes(normalizedRole)) {
+  if (!MODERATOR_AREA_ROLES.includes(normalizedRole)) {
     return <Navigate to="/admin/forbidden" replace />;
   }
 
