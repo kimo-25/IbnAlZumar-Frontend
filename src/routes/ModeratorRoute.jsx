@@ -1,3 +1,7 @@
+console.log("user", user);
+console.log("role", role);
+console.log("roles", roles);
+console.log("hasRole", hasRole);
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { normalizeRole, ROLES, MODERATOR_AREA_ROLES } from "../utils/roles";

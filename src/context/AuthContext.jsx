@@ -1,7 +1,7 @@
 // src/context/AuthContext.jsx
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { pickPrimaryRole } from "../utils/roles";
+import { pickPrimaryRole, normalizeRole } from "../utils/roles";
 
 const AuthContext = createContext();
 
@@ -40,13 +40,34 @@ export function AuthProvider({ children }) {
     const rolesArray = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
     const primaryRole = pickPrimaryRole(rolesArray);
 
+    const userName = payload?.unique_name || payload?.name || "";
+
     setUser({
       id: payload?.sub || payload?.nameid,
-      name: payload?.unique_name || payload?.name,
+      name: userName,
+      fullName: userName, // لدعم أي مكون يستدم fullName بدلاً من name
       roles: rolesArray, // كل الأدوار زي ما وصلت من التوكن
       role: primaryRole, // الدور الموحّد الفعّال — ده اللي بتستخدمه كل الـ Route Guards
     });
   }, [token]);
+
+  // دالة فحص الأدوار المساعدة لكي لا تحدث أخطاء في Sidebar و ProtectedRoute
+  const hasRole = (targetRole) => {
+    if (!user) return false;
+    const normalizedTarget = normalizeRole(targetRole);
+    const normalizedPrimary = normalizeRole(user.role);
+    
+    if (normalizedPrimary === normalizedTarget) return true;
+
+    return (user.roles || []).map(normalizeRole).includes(normalizedTarget);
+  };
+
+  // دالة فحص الصلاحيات المؤقتة لمنع أي كراش
+  const hasPermission = (permission) => {
+    if (!user) return false;
+    // يمكن ربطها لاحقاً بصلاحيات التوكن إذا وجدت
+    return true;
+  };
 
   const login = (jwtToken) => {
     localStorage.setItem("token", jwtToken);
@@ -69,6 +90,8 @@ export function AuthProvider({ children }) {
         login,
         logout,
         isAuthenticated: !!token,
+        hasRole,
+        hasPermission,
       }}
     >
       {children}
