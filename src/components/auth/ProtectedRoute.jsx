@@ -9,7 +9,7 @@ export default function ProtectedRoute({ permission, role, allowRoles = [], chil
 
   // 1. التأكد من تسجيل الدخول
   if (!isAuthenticated) {
-    return <Navigate to="/admin/login" replace state={{ from: location }} />
+    return <Navigate to="/login" replace state={{ from: location }} />
   }
 
   // تطبيع دور المستخدم الأساسي والأدوار المتاحة لديه
@@ -43,11 +43,6 @@ export default function ProtectedRoute({ permission, role, allowRoles = [], chil
       return <Navigate to="/admin/forbidden" replace />
     }
   }
-
-  // 5. التحقق من الـ Permission (إن وجد نظام صلاحيات مخصص لاحقاً)
-  // if (permission && typeof hasPermission === 'function' && !hasPermission(permission)) {
-  //   return <Navigate to="/admin/forbidden" replace />
-  // }
 
   return children
 }

@@ -1,4 +1,3 @@
-// File: src/pages/moderator/ModeratorHubPage.jsx
 import { useEffect, useState } from 'react'
 import { Edit3, Loader2, Package, Trash2, Upload, X } from 'lucide-react'
 import Card from '../../components/ui/Card'
@@ -144,7 +143,6 @@ export default function ModeratorHubPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-        {/* Form */}
         <Card
           title={
             <div className="flex items-center justify-between">
@@ -316,7 +314,6 @@ export default function ModeratorHubPage() {
           </form>
         </Card>
 
-        {/* List */}
         <Card title={`بيانات الكتالوج (${products.length} منتج)`}>
           {products.length === 0 ? (
             <EmptyState

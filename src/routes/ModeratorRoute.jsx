@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { normalizeRole, ROLES, MODERATOR_AREA_ROLES } from "../utils/roles";
 
 export default function ModeratorRoute({ children }) {
-  const { role, isAuthenticated, user, roles, hasRole } = useAuth();
+  const { role, isAuthenticated } = useAuth();
   const normalizedRole = normalizeRole(role);
 
   if (!isAuthenticated) {

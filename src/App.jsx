@@ -51,22 +51,22 @@ import PosCheckoutPage from './pages/Pos/PosCheckoutPage'
 import ReportsPage from './pages/Reports/ReportsPage'
 import OperationsHubPage from './pages/Operations/OperationsHubPage'
 
-// Owner & Moderator Pages
+// Owner Pages
 import OwnerHubPage from './pages/Owner/OwnerHubPage'
+
+// Moderator Pages (المستقلة)
 import ModeratorHubPage from './pages/Moderator/ModeratorHubPage'
 import ModeratorCatalogPage from './pages/Moderator/ModeratorCatalogPage'
+import ModeratorProductsPage from './pages/Moderator/ModeratorProductsPage'
+import ModeratorCategoriesPage from './pages/Moderator/ModeratorCategoriesPage'
+import ModeratorRemindersPage from './pages/Moderator/ModeratorRemindersPage'
 
 // Profile Page
 import AdminProfilePage from './pages/Profile/AdminProfilePage'
 
 export default function App() {
-  // تفعيل المزامنة التلقائية في الخلفية
   useAutoSync();
-
-  // جلب دور المستخدم الحالي لتوجيهه حسب الصلاحية في الراوت العام
   const { role } = useAuth();
-  
-  // تطبيع دور المستخدم باستخدام الدالة الموحدة
   const normalizedRole = normalizeRole(role);
 
   return (
@@ -74,7 +74,7 @@ export default function App() {
       <ReminderBanner />
 
       <Routes>
-        {/* ---------------- 1. STOREFRONT ROUTES (Protected by CustomerRoute) ---------------- */}
+        {/* ---------------- 1. STOREFRONT ROUTES ---------------- */}
         <Route
           element={
             <CustomerRoute>
@@ -104,7 +104,7 @@ export default function App() {
         <Route path="/admin/login" element={<LoginPage />} />
         <Route path="/admin/forbidden" element={<ForbiddenPage />} />
 
-        {/* ---------------- 3. POS ROUTE (Protected by CashierRoute) ---------------- */}
+        {/* ---------------- 3. POS ROUTE ---------------- */}
         <Route
           path="/pos"
           element={
@@ -114,7 +114,7 @@ export default function App() {
           }
         />
 
-        {/* ---------------- 4. MODERATOR ROUTES (Protected by ModeratorRoute) ---------------- */}
+        {/* ---------------- 4. MODERATOR ROUTES ---------------- */}
         <Route
           path="/moderator"
           element={
@@ -125,11 +125,15 @@ export default function App() {
         >
           <Route index element={<ModeratorHubPage />} />
           <Route path="dashboard" element={<ModeratorHubPage />} />
+          <Route path="operations" element={<OperationsHubPage />} />
+          <Route path="products" element={<ModeratorProductsPage />} />
+          <Route path="categories" element={<ModeratorCategoriesPage />} />
+          <Route path="reminders" element={<ModeratorRemindersPage />} />
           <Route path="catalog" element={<ModeratorCatalogPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
         </Route>
 
-        {/* ---------------- 5. ADMIN ROUTES (Protected by AdminRoute) ---------------- */}
+        {/* ---------------- 5. ADMIN ROUTES ---------------- */}
         <Route 
           path="/admin" 
           element={
@@ -142,11 +146,10 @@ export default function App() {
           <Route path="dashboard" element={<DashboardHome />} />
           <Route path="profile" element={<AdminProfilePage />} />
 
-          {/* Sub-routes with granular role/permission checks */}
           <Route 
             path="operations" 
             element={
-              <ProtectedRoute allowRoles={['ONLINE_MANAGER', 'Moderator', 'moderator', 'MODERATOR', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager']}>
+              <ProtectedRoute allowRoles={['ONLINE_MANAGER', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager']}>
                 <OperationsHubPage />
               </ProtectedRoute>
             } 
@@ -167,7 +170,7 @@ export default function App() {
           <Route 
             path="reminders" 
             element={
-              <ProtectedRoute allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Moderator', 'moderator', 'MODERATOR']}>
+              <ProtectedRoute allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin']}>
                 <AdminRemindersPage />
               </ProtectedRoute>
             } 

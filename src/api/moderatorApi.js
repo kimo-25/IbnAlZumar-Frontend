@@ -1,9 +1,6 @@
 // File: src/api/moderatorApi.js
 import axiosInstance from './axiosInstance'
 
-/**
- * دالة حماية آمنة لمنع إلقاء أخطاء الـ 404 وتجنب توقف الصفحة
- */
 async function safeGet(url, params = {}, defaultValue = []) {
   try {
     const response = await axiosInstance.get(url, { params })
@@ -17,13 +14,9 @@ async function safeGet(url, params = {}, defaultValue = []) {
   }
 }
 
-// 1. جلب المنتجات للموديريتور
+// 1. جلب المنتجات للموديريتور بحسب الـ Pagination
 export async function getModeratorProducts(params = {}) {
-  return safeGet('/Products', {
-    pageNumber: 1,
-    pageSize: 1000,
-    ...params,
-  }, [])
+  return safeGet('/Products', params, [])
 }
 
 // 2. جلب الأقسام
@@ -31,7 +24,7 @@ export async function getModeratorCategories() {
   return safeGet('/Categories', {}, [])
 }
 
-// 3. إضافة منتج جديد من الكتالوج
+// 3. إضافة منتج جديد
 export async function createModeratorProduct(productData, imageFile) {
   const formData = new FormData()
 
@@ -51,7 +44,7 @@ export async function createModeratorProduct(productData, imageFile) {
   return response.data
 }
 
-// 4. تعديل منتج من الكتالوج
+// 4. تعديل منتج
 export async function updateModeratorProduct(id, productData, imageFile) {
   const formData = new FormData()
 

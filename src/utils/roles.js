@@ -1,7 +1,5 @@
 // src/utils/roles.js
 // المصدر الموحّد لأسماء الأدوار ووجهات التوجيه الافتراضية.
-// أي تعديل أو إضافة دور جديد لازم يحصل هنا بس، عشان اللوجن والـ Route Guards والفولباك
-// كلهم ياخدوا القرار من نفس المكان بدل ما كل ملف يكرر نفس الشرط بصيغة مختلفة.
 
 export const ROLES = {
   ADMIN: "ADMIN",
@@ -13,8 +11,6 @@ export const ROLES = {
   CUSTOMER: "CUSTOMER",
 };
 
-// توحيد الأسماء المختلفة اللي ممكن تيجي من الباك إند (Admin, Super Admin, SuperAdmin,
-// Store Owner, Owner...) لقيمة واحدة ثابتة، بغض النظر عن الفراغات أو حالة الأحرف.
 const ROLE_ALIASES = {
   ADMIN: ROLES.ADMIN,
   "SUPER ADMIN": ROLES.SUPER_ADMIN,
@@ -37,7 +33,6 @@ export function normalizeRole(rawRole) {
   return ROLE_ALIASES[cleaned] || cleaned;
 }
 
-// لو المستخدم عنده أكتر من Role في نفس الوقت، الأولوية للأعلى صلاحية
 const ROLE_PRIORITY = [
   ROLES.SUPER_ADMIN,
   ROLES.STORE_OWNER,

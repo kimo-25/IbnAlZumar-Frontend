@@ -6,25 +6,52 @@ import {
   Users, 
   DollarSign, 
   Building2, 
-  Settings, 
-  Loader2, 
-  AlertCircle 
+  Loader2 
 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import { formatCurrency } from '../../utils/catalog'
+import { getOwnerAnalytics } from '../../api/adminApi'
 
 export default function OwnerHubPage() {
   const [stats, setStats] = useState({
-    totalRevenue: 142500,
-    totalOrders: 320,
-    activeAdmins: 4,
-    branchesCount: 2
+    totalRevenue: 0,
+    totalOrders: 0,
+    activeAdmins: 0,
+    branchesCount: 0
   })
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      setLoading(true)
+      try {
+        const data = await getOwnerAnalytics()
+        setStats({
+          totalRevenue: data.totalSales || data.totalRevenue || 0,
+          totalOrders: data.totalOrders || 0,
+          activeAdmins: data.activeAdmins || 4,
+          branchesCount: data.branchesCount || 2
+        })
+      } catch (err) {
+        console.error('Error fetching analytics:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAnalytics()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-ink-soft gap-2">
+        <Loader2 className="animate-spin" size={20} />
+        جاري تحميل الإحصائيات الحقيقية...
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 p-6" dir="rtl">
-      {/* ترويسة لوحة المالك */}
       <div className="border-b border-border pb-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="text-emerald-600" size={24} />
@@ -33,7 +60,6 @@ export default function OwnerHubPage() {
         <p className="text-xs text-ink-soft mt-1">إشراف كامل على إيرادات وأداء متجر ابن الزمر وفروع الورش</p>
       </div>
 
-      {/* بطاقات الإحصائيات العليا */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
           <div className="flex items-center justify-between">
@@ -45,7 +71,7 @@ export default function OwnerHubPage() {
           <div className="mt-4 text-xl font-bold font-mono text-ink">
             {formatCurrency(stats.totalRevenue)}
           </div>
-          <span className="text-[10px] text-emerald-600 font-bold mt-1 inline-block">+12.4% عن الشهر السابق</span>
+          <span className="text-[10px] text-emerald-600 font-bold mt-1 inline-block">تحديث من قاعدة البيانات</span>
         </div>
 
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
@@ -88,16 +114,15 @@ export default function OwnerHubPage() {
         </div>
       </div>
 
-      {/* تقارير وإعدادات متقدمة للمالك */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="صلاحيات الأمان والتحكم الإداري">
           <p className="text-xs text-ink-soft leading-relaxed">
-            تتيح لك هذه اللوحة مراقبة وتفويض المديرين ومسؤولي العمليات (Online Managers) وتعديل صلاحيات الوصول للجداول المالية ومخزون العدد ومستلزمات الورش.
+            تتيح لك هذه اللوحة مراقبة وتفويض المديرين ومسؤولي العمليات وتعديل صلاحيات الوصول للجداول المالية ومخزون العدد ومستلزمات الورش.
           </p>
         </Card>
         <Card title="التقارير المالية والضريبية">
           <p className="text-xs text-ink-soft leading-relaxed">
-            مراجعة فواتير المبيعات الصادرة، والضرائب المقررة، وإ,ردات فروع ابن الزمر مع إمكانية تصدير التقارير بصيغة معتمدة.
+            مراجعة فواتير المبيعات الصادرة، والضرائب المقررة، وإيرادات فروع ابن الزمر مع إمكانية تصدير التقارير بصيغة معتمدة.
           </p>
         </Card>
       </div>

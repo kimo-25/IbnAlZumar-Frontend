@@ -1,4 +1,3 @@
-// File: src/components/layout/Sidebar.jsx
 import { NavLink } from 'react-router-dom'
 import {
   ArrowLeftRight,
@@ -20,66 +19,78 @@ import { useAuth } from '../../context/AuthContext'
 export default function Sidebar({ isOpen, onClose }) {
   const { hasPermission, hasRole, user } = useAuth()
 
-  const isModerator = user?.roles?.some((r) => r.toLowerCase().includes('moderator'))
-  const moderatorPath = isModerator ? '/moderator' : '/admin/moderator'
+  const isModeratorOnly = user?.roles?.some((r) => r.toLowerCase().includes('moderator')) && 
+    !user?.roles?.some((r) => ['admin', 'superadmin', 'store_owner'].includes(r.toLowerCase()))
 
-  const navGroups = [
-    {
-      label: null,
-      items: [
-        { to: '/admin/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
-        { 
-          to: '/admin/operations', 
-          label: 'مركز العمليات (الطلبات)', 
-          icon: Truck, 
-          allowRoles: ['ONLINE_MANAGER', 'moderator', 'Moderator', 'STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'] 
+  const navGroups = isModeratorOnly
+    ? [
+        {
+          label: 'مساحة المشرف',
+          items: [
+            { to: '/moderator/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
+            { to: '/moderator/operations', label: 'مركز العمليات (الطلبات)', icon: Truck },
+            { to: '/moderator/products', label: 'المنتجات', icon: Package },
+            { to: '/moderator/categories', label: 'الأقسام', icon: Tags },
+            { to: '/moderator/reminders', label: 'إدارة الأذكار', icon: BookOpen },
+          ],
         },
-        { to: '/admin/owner', label: 'لوحة المالك', icon: BarChart3, role: 'STORE_OWNER' },
-        { 
-          to: moderatorPath, 
-          label: 'لوحة المشرف', 
-          icon: ShieldCheck, 
-          allowRoles: ['moderator', 'Moderator', 'Admin', 'SuperAdmin', 'admin'] 
+      ]
+    : [
+        {
+          label: null,
+          items: [
+            { to: '/admin/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
+            { 
+              to: '/admin/operations', 
+              label: 'مركز العمليات (الطلبات)', 
+              icon: Truck, 
+              allowRoles: ['ONLINE_MANAGER', 'STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'] 
+            },
+            { to: '/admin/owner', label: 'لوحة المالك', icon: BarChart3, role: 'STORE_OWNER' },
+            { 
+              to: '/moderator/dashboard', 
+              label: 'لوحة المشرف', 
+              icon: ShieldCheck, 
+              allowRoles: ['Admin', 'SuperAdmin', 'admin'] 
+            },
+          ],
         },
-      ],
-    },
-    {
-      label: 'الكتالوج والأصناف',
-      items: [
-        { to: '/admin/catalog/categories', label: 'الأقسام', icon: Tags, permission: 'Categories.Manage' },
-        { to: '/admin/catalog/products', label: 'المنتجات', icon: Package, permission: 'Products.View', allowRoles: ['STORE_OWNER', 'moderator', 'Moderator', 'Admin', 'SuperAdmin', 'admin'] },
-        { to: '/admin/reminders', label: 'إدارة الأذكار', icon: BookOpen, allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'Moderator', 'moderator', 'admin'] },
-      ],
-    },
-    {
-      label: 'إدارة المخزون',
-      items: [
-        { to: '/admin/inventory/adjust', label: 'تسوية المخزون', icon: SlidersHorizontal, permission: 'Inventory.Adjust' },
-        { to: '/admin/inventory/transfer', label: 'نقل المخزون', icon: ArrowLeftRight, permission: 'Inventory.Transfer' },
-      ],
-    },
-    {
-      label: 'المبيعات والشركاء',
-      items: [
-        { to: '/admin/pos', label: 'كاشير المعرض', icon: ShoppingCart, permission: 'Orders.Create' },
-        { to: '/admin/customers', label: 'العملاء', icon: Users, permission: 'Customers.View' },
-        { to: '/admin/purchasing', label: 'المشتريات', icon: Truck, permission: 'Purchasing.View' },
-      ],
-    },
-    {
-      label: null,
-      items: [
-        { 
-          to: '/admin/reports', 
-          label: 'التقارير', 
-          icon: BarChart3, 
-          permission: 'Reports.View', 
-          allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'], 
-          hiddenForRoles: ['moderator', 'Moderator'] 
-        }
-      ],
-    },
-  ]
+        {
+          label: 'الكتالوج والأصناف',
+          items: [
+            { to: '/admin/catalog/categories', label: 'الأقسام', icon: Tags, permission: 'Categories.Manage' },
+            { to: '/admin/catalog/products', label: 'المنتجات', icon: Package, permission: 'Products.View', allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'] },
+            { to: '/admin/reminders', label: 'إدارة الأذكار', icon: BookOpen, allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'] },
+          ],
+        },
+        {
+          label: 'إدارة المخزون',
+          items: [
+            { to: '/admin/inventory/adjust', label: 'تسوية المخزون', icon: SlidersHorizontal, permission: 'Inventory.Adjust' },
+            { to: '/admin/inventory/transfer', label: 'نقل المخزون', icon: ArrowLeftRight, permission: 'Inventory.Transfer' },
+          ],
+        },
+        {
+          label: 'المبيعات والشركاء',
+          items: [
+            { to: '/admin/pos', label: 'كاشير المعرض', icon: ShoppingCart, permission: 'Orders.Create' },
+            { to: '/admin/customers', label: 'العملاء', icon: Users, permission: 'Customers.View' },
+            { to: '/admin/purchasing', label: 'المشتريات', icon: Truck, permission: 'Purchasing.View' },
+          ],
+        },
+        {
+          label: null,
+          items: [
+            { 
+              to: '/admin/reports', 
+              label: 'التقارير', 
+              icon: BarChart3, 
+              permission: 'Reports.View', 
+              allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin']
+            }
+          ],
+        },
+      ]
 
   return (
     <>
