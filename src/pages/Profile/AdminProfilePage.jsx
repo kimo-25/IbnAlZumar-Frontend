@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Camera, Check, Mail, Phone, Shield, User } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import VoiceEnrollmentButton from '../../components/admin/VoiceEnrollmentButton'
+import VoiceEnrollmentButton from '../admin/VoiceEnrollmentButton'
 
 export default function AdminProfilePage() {
   const { user, setAuth } = useAuth()
