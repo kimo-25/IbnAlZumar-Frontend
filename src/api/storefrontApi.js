@@ -33,7 +33,7 @@ export async function getCategories() {
  * @param {String} [token] - توكن المصادقة اختياري (JWT)
  */
 export async function createGuestOrder(orderData, token = null) {
-  // استخدام التوكن المُمرر أو جحبه تلقائياً من الـ localStorage كاحتياطي إضافي
+  // استخدام التوكن المُمرر أو جلبه تلقائياً من الـ localStorage كاحتياطي إضافي
   const activeToken = token || localStorage.getItem('token')
   const headers = {}
   
@@ -44,9 +44,22 @@ export async function createGuestOrder(orderData, token = null) {
   const response = await axiosInstance.post('/Orders', orderData, { headers })
   return response.data
 }
+
+/**
+ * إرسال طلب إلغاء لطلب معين
+ * @param {Number|String} orderId - معرف الطلب المراد إلغاؤه
+ * @param {String} reason - سبب الإلغاء
+ */
 export async function requestOrderCancellation(orderId, reason) {
-  const response = await axiosInstance.post(`/Orders/${orderId}/request-cancel`, JSON.stringify(reason), {
-    headers: { 'Content-Type': 'application/json' }
-  })
+  console.log('REQUEST-CANCEL CALLED')
+  
+  const response = await axiosInstance.post(
+    `/Orders/${orderId}/request-cancel`,
+    JSON.stringify(reason),
+    {
+      headers: { 'Content-Type': 'application/json' }
+    }
+  )
+  
   return response.data
 }
