@@ -1,3 +1,4 @@
+// File: src/pages/Customers/CustomerProfilePage.jsx
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -25,13 +26,11 @@ import axiosInstance from '../../api/axiosInstance'
 import { useAuth } from '../../context/AuthContext'
 import { formatCurrency } from '../../utils/catalog'
 import { printInvoice } from '../../utils/printInvoice'
+import { requestOrderCancellation } from '../../api/storefrontApi'
 import ChangePhoneModal from '../../components/profile/ChangePhoneModal'
 import VerifyPhoneModal from '../../components/profile/VerifyPhoneModal'
 import VerifyEmailModal from '../../components/profile/VerifyEmailModal'
 
-// ==========================================
-// Constants & Helpers
-// ==========================================
 const TRACKING_STEPS = [
   { step: 1, label: 'قيد المراجعة' },
   { step: 2, label: 'تم التأكيد' },
@@ -86,10 +85,7 @@ function formatDate(dateStr) {
     : d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-// ==========================================
-// Tracking Progress
-// ==========================================
-function TrackingProgress({ currentStep, onCancel, isCanceling }) {
+function TrackingProgress({ currentStep, onCancelClick, isCanceling }) {
   if (currentStep === -1) {
     return (
       <div className="flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-sm text-rose-700 mb-4">
@@ -110,7 +106,7 @@ function TrackingProgress({ currentStep, onCancel, isCanceling }) {
         <h4 className="text-sm font-bold text-ink">تتبع مراحل الشحنة</h4>
         {currentStep === 1 && (
           <button
-            onClick={onCancel}
+            onClick={onCancelClick}
             disabled={isCanceling}
             className="flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-50 cursor-pointer"
           >
@@ -157,10 +153,7 @@ function TrackingProgress({ currentStep, onCancel, isCanceling }) {
   )
 }
 
-// ==========================================
-// Order Card
-// ==========================================
-function OrderCard({ order, isExpanded, onToggle, onCancel, cancelingOrderId, onOpenReview, userInfo, onPrintInvoice }) {
+function OrderCard({ order, isExpanded, onToggle, onOpenCancelModal, cancelingOrderId, onOpenReview, userInfo, onPrintInvoice }) {
   const orderId = order.id ?? order.orderNumber
   const currentStep = getStepNumber(order.status)
   const items = order.items || order.orderItems || []
@@ -201,7 +194,7 @@ function OrderCard({ order, isExpanded, onToggle, onCancel, cancelingOrderId, on
         <div className="border-t border-border p-4">
           <TrackingProgress
             currentStep={currentStep}
-            onCancel={() => onCancel(orderId)}
+            onCancelClick={() => onOpenCancelModal(orderId)}
             isCanceling={cancelingOrderId === orderId}
           />
 
@@ -260,9 +253,6 @@ function OrderCard({ order, isExpanded, onToggle, onCancel, cancelingOrderId, on
   )
 }
 
-// ==========================================
-// Review Modal
-// ==========================================
 function ReviewModal({ isOpen, item, onClose, onSubmit }) {
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
@@ -359,9 +349,6 @@ function ReviewModal({ isOpen, item, onClose, onSubmit }) {
   )
 }
 
-// ==========================================
-// Change Password Modal
-// ==========================================
 function ChangePasswordModal({ isOpen, onClose }) {
   const [formData, setFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [submitting, setSubmitting] = useState(false)
@@ -470,9 +457,6 @@ function ChangePasswordModal({ isOpen, onClose }) {
   )
 }
 
-// ==========================================
-// Change Email Modal
-// ==========================================
 function ChangeEmailModal({ isOpen, onClose, currentEmail, onSuccess }) {
   const [formData, setFormData] = useState({ newEmail: '', password: '' })
   const [submitting, setSubmitting] = useState(false)
@@ -569,9 +553,6 @@ function ChangeEmailModal({ isOpen, onClose, currentEmail, onSuccess }) {
   )
 }
 
-// ==========================================
-// Main Component
-// ==========================================
 export default function CustomerProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = searchParams.get('tab') === 'profile' ? 'profile' : 'orders'
@@ -592,6 +573,10 @@ export default function CustomerProfilePage() {
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [ordersError, setOrdersError] = useState(null)
   const [expandedOrders, setExpandedOrders] = useState({})
+  
+  // حالات مودال إلغاء الطلب
+  const [cancelModalOrderId, setCancelModalOrderId] = useState(null)
+  const [cancelReason, setCancelReason] = useState('')
   const [cancelingOrderId, setCancelingOrderId] = useState(null)
 
   const [updating, setUpdating] = useState(false)
@@ -601,10 +586,8 @@ export default function CustomerProfilePage() {
   const [reviewModalItem, setReviewModalItem] = useState(null)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
-
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false)
   const [isVerifyPhoneModalOpen, setIsVerifyPhoneModalOpen] = useState(false)
-
   const [isVerifyEmailModalOpen, setIsVerifyEmailModalOpen] = useState(false)
 
   const [pendingPhone, setPendingPhone] = useState('')
@@ -618,7 +601,6 @@ export default function CustomerProfilePage() {
 
   useEffect(() => () => messageTimerRef.current && clearTimeout(messageTimerRef.current), [])
 
-  // جلب بيانات الحساب
   useEffect(() => {
     const controller = new AbortController()
     async function fetchProfile() {
@@ -654,7 +636,6 @@ export default function CustomerProfilePage() {
     return () => controller.abort()
   }, [authUser])
 
-  // جلب الطلبات
   const fetchCustomerOrders = useCallback(async () => {
     setLoadingOrders(true)
     setOrdersError(null)
@@ -666,7 +647,7 @@ export default function CustomerProfilePage() {
         const firstId = data[0].id ?? data[0].orderNumber
         setExpandedOrders({ [firstId]: true })
       }
-    } catch (err) {
+    } catch {
       setOrdersError('حدث خطأ أثناء تحميل سجل الطلبات. يرجى المحاولة مرة أخرى.')
     } finally {
       setLoadingOrders(false)
@@ -681,20 +662,21 @@ export default function CustomerProfilePage() {
     setExpandedOrders((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  async function handleCancelOrder(orderId) {
-    if (!window.confirm('هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟')) return
-    setCancelingOrderId(orderId)
+  // الدالة المصححة للتعامل مع الـ API الصحيح
+  async function handleConfirmCancelOrder() {
+    if (!cancelReason.trim()) {
+      alert('يرجى كتابة سبب الإلغاء')
+      return
+    }
+    setCancelingOrderId(cancelModalOrderId)
     try {
-      await axiosInstance.put(`/Orders/${orderId}/cancel`)
-      setOrders((prev) =>
-        prev.map((o) => {
-          const currentId = o.id ?? o.orderNumber
-          return currentId === orderId ? { ...o, status: -1, statusText: 'تم إلغاء الطلب' } : o
-        })
-      )
-      showMessage('success', 'تم إلغاء الطلب بنجاح')
+      await requestOrderCancellation(cancelModalOrderId, cancelReason)
+      showMessage('success', 'تم إرسال طلب الإلغاء للمراجعة بنجاح.')
+      setCancelModalOrderId(null)
+      setCancelReason('')
+      await fetchCustomerOrders()
     } catch (err) {
-      showMessage('error', err.response?.data?.message || 'تعذر إلغاء الطلب حالياً. يرجى التواصل مع الدعم.')
+      showMessage('error', err.response?.data?.message || 'تعذر إرسال طلب الإلغاء حالياً.')
     } finally {
       setCancelingOrderId(null)
     }
@@ -742,42 +724,21 @@ export default function CustomerProfilePage() {
   }
 
   const handleEmailVerified = (newEmail, token) => {
-    const updated = {
-      ...user,
-      email: newEmail,
-      isEmailVerified: true,
-    }
-
+    const updated = { ...user, email: newEmail, isEmailVerified: true }
     setUser(updated)
-
     const currentStored = JSON.parse(localStorage.getItem('user') || '{}')
-
-    const newStoredData = {
-      ...currentStored,
-      email: newEmail,
-      isEmailVerified: true,
-    }
-
+    const newStoredData = { ...currentStored, email: newEmail, isEmailVerified: true }
     localStorage.setItem('user', JSON.stringify(newStoredData))
-
-    if (token) {
-      localStorage.setItem('token', token)
-    }
-
-    if (typeof updateAuthUser === 'function') {
-      updateAuthUser(newStoredData)
-    }
-
+    if (token) localStorage.setItem('token', token)
+    if (typeof updateAuthUser === 'function') updateAuthUser(newStoredData)
     setPendingEmail('')
     setIsVerifyEmailModalOpen(false)
     showMessage('success', 'تم تحديث البريد الإلكتروني بنجاح!')
   }
 
-  // يُستدعى بعد نجاح تأكيد كود التحقق الخاص برقم الهاتف الجديد
   const handlePhoneVerified = () => {
     const updated = { ...user, phone: pendingPhone, isPhoneVerified: true }
     setUser(updated)
-
     const currentStored = JSON.parse(localStorage.getItem('user') || '{}')
     const newStoredData = { ...currentStored, phone: pendingPhone, isPhoneVerified: true }
     localStorage.setItem('user', JSON.stringify(newStoredData))
@@ -787,14 +748,12 @@ export default function CustomerProfilePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Header */}
+    <div className="max-w-4xl mx-auto px-4 py-8" dir="rtl">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-ink">مرحباً، {user.fullName || 'عزيزنا العميل'} 👋</h1>
         <p className="text-sm text-ink-soft mt-1">يمكنك متابعة حالة طلباتك الحالية والسابقة أو تعديل بيانات حسابك الشخصي.</p>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b border-border">
         <button
           onClick={() => handleTabChange('orders')}
@@ -819,7 +778,6 @@ export default function CustomerProfilePage() {
         </button>
       </div>
 
-      {/* Flash message */}
       {message && (
         <div
           className={`mb-4 p-3 rounded-xl text-sm flex items-center gap-2 ${
@@ -833,7 +791,6 @@ export default function CustomerProfilePage() {
         </div>
       )}
 
-      {/* Orders tab */}
       {activeTab === 'orders' && (
         <div>
           {loadingOrders ? (
@@ -867,7 +824,7 @@ export default function CustomerProfilePage() {
                     order={order}
                     isExpanded={!!expandedOrders[orderKey]}
                     onToggle={() => toggleOrderExpand(orderKey)}
-                    onCancel={handleCancelOrder}
+                    onOpenCancelModal={(id) => setCancelModalOrderId(id)}
                     cancelingOrderId={cancelingOrderId}
                     onOpenReview={(item) => setReviewModalItem(item)}
                     userInfo={user}
@@ -879,7 +836,7 @@ export default function CustomerProfilePage() {
           )}
         </div>
       )}
-{/* Profile tab */}
+
       {activeTab === 'profile' && (
         <div className="space-y-6">
           <form onSubmit={handleUpdateProfile} className="space-y-4">
@@ -958,7 +915,6 @@ export default function CustomerProfilePage() {
               حفظ التعديلات
             </button>
 
-            {/* أمان الحساب */}
             <div className="grid sm:grid-cols-3 gap-3 pt-2">
               <button
                 type="button"
@@ -987,11 +943,9 @@ export default function CustomerProfilePage() {
             </div>
           </form>
 
-          {/* قسم توثيق الحساب (البريد والهاتف) */}
           <div className="rounded-2xl border border-border bg-surface p-4 space-y-3">
             <h3 className="text-sm font-bold text-ink mb-1">توثيق الحساب</h3>
             
-            {/* البريد الإلكتروني */}
             <div className="rounded-xl border border-border bg-canvas p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -1022,7 +976,6 @@ export default function CustomerProfilePage() {
               )}
             </div>
 
-            {/* رقم الهاتف */}
             <div className="rounded-xl border border-border bg-canvas p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -1055,7 +1008,40 @@ export default function CustomerProfilePage() {
           </div>
         </div>
       )}
-      {/* Modals */}
+
+      {/* Modal طلب إلغاء الطلب */}
+      {cancelModalOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCancelModalOrderId(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative">
+            <button onClick={() => setCancelModalOrderId(null)} className="absolute top-4 left-4 text-ink-soft hover:text-ink cursor-pointer">
+              <X size={20} />
+            </button>
+            <h3 className="text-lg font-bold text-ink mb-1">طلب إلغاء الطلب #{cancelModalOrderId}</h3>
+            <p className="text-xs text-ink-soft mb-4">يرجى كتابة سبب الإلغاء ليتم مراجعته من الإدارة.</p>
+
+            <div className="space-y-3">
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={4}
+                disabled={!!cancelingOrderId}
+                placeholder="اكتب سبب الإلغاء هنا..."
+                className="w-full rounded-xl border border-border bg-canvas p-3 text-sm text-ink outline-none focus:border-amber resize-none transition"
+              />
+              <button
+                type="button"
+                onClick={handleConfirmCancelOrder}
+                disabled={!!cancelingOrderId}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 transition cursor-pointer"
+              >
+                {cancelingOrderId && <Loader2 size={16} className="animate-spin" />}
+                إرسال طلب الإلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ReviewModal
         isOpen={!!reviewModalItem}
         item={reviewModalItem}

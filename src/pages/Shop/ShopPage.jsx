@@ -1,12 +1,13 @@
 // File: src/pages/Shop/ShopPage.jsx
 import { useEffect, useMemo, useState } from 'react'
-import { Filter, Loader2, PackageSearch, Search, Wrench } from 'lucide-react'
+import { Filter, Loader2, PackageSearch, Search, Wrench, X, Upload } from 'lucide-react'
 import ProductCard from '../../components/storefront/ProductCard'
 import ProductFiltersPanel from '../../components/storefront/ProductFiltersPanel'
 import Pagination from '../../components/ui/Pagination'
 import { getCategories, getProducts } from '../../api/storefrontApi'
 import { useStorefrontSearch } from '../../context/StorefrontSearchContext'
 import { collectUniqueValues, normalizeCategoriesResponse, normalizeProductsResponse } from '../../utils/catalog'
+import axiosInstance from '../../api/axiosInstance'
 
 export default function ShopPage() {
   const { searchInput, setSearchInput } = useStorefrontSearch()
@@ -28,6 +29,12 @@ export default function ShopPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  // حالات مودال الصيانة الجديد
+  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false)
+  const [maintenanceForm, setMaintenanceForm] = useState({ description: '', deliveryMethod: 1 })
+  const [maintenanceImage, setMaintenanceImage] = useState(null)
+  const [submittingMaintenance, setSubmittingMaintenance] = useState(false)
+
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350)
     return () => clearTimeout(timeout)
@@ -39,15 +46,12 @@ export default function ShopPage() {
 
   useEffect(() => {
     getCategories()
-      .then((data) => {
-        setCategories(normalizeCategoriesResponse(data))
-      })
+      .then((data) => setCategories(normalizeCategoriesResponse(data)))
       .catch(() => setCategories([]))
   }, [])
 
   useEffect(() => {
     let isActive = true
-
     setIsLoading(true)
     setError(null)
 
@@ -66,34 +70,25 @@ export default function ShopPage() {
     getProducts(requestParams)
       .then((data) => {
         if (!isActive) return
-
         const items = data?.items ?? data?.Items ?? data?.data?.items ?? data?.Data?.Items ?? data
         const total = Number(data?.totalCount ?? data?.TotalCount ?? data?.count ?? data?.Count ?? (Array.isArray(items) ? items.length : 0))
         const nextTotalPages = Math.max(1, Math.ceil(total / pageSize))
 
-        const normalized = normalizeProductsResponse(items)
-        setProducts(normalized)
+        setProducts(normalizeProductsResponse(items))
         setTotalPages(nextTotalPages)
 
-        if (currentPage > nextTotalPages) {
-          setCurrentPage(nextTotalPages)
-        }
+        if (currentPage > nextTotalPages) setCurrentPage(nextTotalPages)
       })
       .catch((err) => {
         if (!isActive) return
-
         setError(err?.message || 'تعذر تحميل المنتجات')
         setProducts([])
         setTotalPages(1)
       })
       .finally(() => {
-        if (!isActive) return
-
-        setIsLoading(false)
+        if (isActive) setIsLoading(false)
       })
-    return () => {
-      isActive = false
-    }
+    return () => { isActive = false }
   }, [currentPage, pageSize, debouncedSearch, filters])
 
   const safeProducts = Array.isArray(products) ? products : []
@@ -133,6 +128,38 @@ export default function ShopPage() {
     setDebouncedSearch('')
     setFilters({ categoryId: null, brand: '', material: '', finish: '', minPrice: '', maxPrice: '' })
     setCurrentPage(1)
+  }
+
+  // دالة إرسال نموذج الصيانة المربوط بالباك إند
+  async function handleMaintenanceSubmit(e) {
+    e.preventDefault()
+    if (!maintenanceForm.description.trim()) {
+      alert('يرجى كتابة وصف المشكلة أو الصيانة المطلوب.')
+      return
+    }
+
+    try {
+      setSubmittingMaintenance(true)
+      const formData = new FormData()
+      formData.append('description', maintenanceForm.description)
+      formData.append('deliveryMethod', maintenanceForm.deliveryMethod)
+      if (maintenanceImage) {
+        formData.append('image', maintenanceImage)
+      }
+
+      const res = await axiosInstance.post('/Maintenance', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+
+      alert(res.data?.message || 'تم إرسال طلب الصيانة بنجاح!')
+      setIsMaintenanceModalOpen(false)
+      setMaintenanceForm({ description: '', deliveryMethod: 1 })
+      setMaintenanceImage(null)
+    } catch (err) {
+      alert(err?.response?.data?.message || 'تعذر إرسال طلب الصيانة. يرجى التأكد من تسجيل الدخول أولاً.')
+    } finally {
+      setSubmittingMaintenance(false)
+    }
   }
 
   return (
@@ -181,7 +208,7 @@ export default function ShopPage() {
         <div className="receipt-tear relative opacity-20" />
       </section>
 
-      {/* سكشن استفسارات الورش والصيانة الجديد */}
+      {/* سكشن استفسارات الورش والصيانة */}
       <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6" dir="rtl">
         <div className="rounded-2xl border border-amber/35 bg-gradient-to-r from-amber/10 via-surface to-surface p-5 sm:p-6 shadow-subtle flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-right">
@@ -195,8 +222,8 @@ export default function ShopPage() {
           </div>
           <button
             type="button"
-            onClick={() => alert('سيتم فتح نموذج استفسارات الصيانة والورش قريباً!')}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-graphite-900 px-5 py-3 text-xs font-semibold text-amber shadow-subtle hover:bg-graphite-800 transition shrink-0 w-full sm:w-auto"
+            onClick={() => setIsMaintenanceModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-graphite-900 px-5 py-3 text-xs font-semibold text-amber shadow-subtle hover:bg-graphite-800 transition shrink-0 w-full sm:w-auto cursor-pointer"
           >
             طلب صيانة واستفسار ورشة
           </button>
@@ -261,6 +288,70 @@ export default function ShopPage() {
           </div>
         </div>
       </section>
+
+      {/* Modal طلب الصيانة والورش */}
+      {isMaintenanceModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" dir="rtl" onClick={() => setIsMaintenanceModalOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative">
+            <button onClick={() => setIsMaintenanceModalOpen(false)} className="absolute top-4 left-4 text-ink-soft hover:text-ink cursor-pointer">
+              <X size={20} />
+            </button>
+            <h3 className="text-lg font-bold text-ink mb-1">طلب صيانة / استفسار ورشة</h3>
+            <p className="text-xs text-ink-soft mb-4">اكتب تفاصيل المشكلة وسيقوم مهندس الصيانة بالتواصل معك.</p>
+
+            <form onSubmit={handleMaintenanceSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-ink mb-1 block">وصف المشكلة / المعدة *</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={maintenanceForm.description}
+                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, description: e.target.value })}
+                  placeholder="وصف المشكلة بالكامل..."
+                  className="w-full rounded-xl border border-border bg-canvas p-3 text-sm text-ink outline-none focus:border-amber resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-ink mb-1 block">طريقة التسليم والمتابعة</label>
+                <select
+                  value={maintenanceForm.deliveryMethod}
+                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, deliveryMethod: Number(e.target.value) })}
+                  className="w-full rounded-xl border border-border bg-canvas p-3 text-sm text-ink outline-none focus:border-amber"
+                >
+                  <option value={1}>زيارة مقر الورشة</option>
+                  <option value={2}>استلام عبر مندوب شحن</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-ink mb-1 block">صورة المعدة / العطل (اختياري)</label>
+                <div className="relative flex items-center justify-center border-2 border-dashed border-border rounded-xl p-4 bg-canvas hover:border-amber transition cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setMaintenanceImage(e.target.files[0])}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                  <div className="flex items-center gap-2 text-xs text-ink-soft">
+                    <Upload size={16} />
+                    <span>{maintenanceImage ? maintenanceImage.name : 'اضغط لرفع صورة العطل'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingMaintenance}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-graphite-900 py-3 text-sm font-semibold text-amber hover:bg-graphite-800 transition cursor-pointer disabled:opacity-60"
+              >
+                {submittingMaintenance && <Loader2 size={16} className="animate-spin" />}
+                إرسال طلب الصيانة
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {isFiltersOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
