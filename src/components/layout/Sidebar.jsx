@@ -13,13 +13,15 @@ import {
   X,
   ShieldCheck,
   BookOpen,
+  Wallet,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 export default function Sidebar({ isOpen, onClose }) {
   const { hasPermission, hasRole, user } = useAuth()
 
-  const isModeratorOnly = user?.roles?.some((r) => r.toLowerCase().includes('moderator')) && 
+  const isModeratorOnly =
+    user?.roles?.some((r) => r.toLowerCase().includes('moderator')) &&
     !user?.roles?.some((r) => ['admin', 'superadmin', 'store_owner'].includes(r.toLowerCase()))
 
   const navGroups = isModeratorOnly
@@ -40,18 +42,18 @@ export default function Sidebar({ isOpen, onClose }) {
           label: null,
           items: [
             { to: '/admin/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
-            { 
-              to: '/admin/operations', 
-              label: 'مركز العمليات (الطلبات)', 
-              icon: Truck, 
-              allowRoles: ['ONLINE_MANAGER', 'STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'] 
+            {
+              to: '/admin/operations',
+              label: 'مركز العمليات (الطلبات)',
+              icon: Truck,
+              allowRoles: ['ONLINE_MANAGER', 'STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'],
             },
             { to: '/admin/owner', label: 'لوحة المالك', icon: BarChart3, role: 'STORE_OWNER' },
-            { 
-              to: '/moderator/dashboard', 
-              label: 'لوحة المشرف', 
-              icon: ShieldCheck, 
-              allowRoles: ['Admin', 'SuperAdmin', 'admin'] 
+            {
+              to: '/moderator/dashboard',
+              label: 'لوحة المشرف',
+              icon: ShieldCheck,
+              allowRoles: ['Admin', 'SuperAdmin', 'admin'],
             },
           ],
         },
@@ -59,8 +61,19 @@ export default function Sidebar({ isOpen, onClose }) {
           label: 'الكتالوج والأصناف',
           items: [
             { to: '/admin/catalog/categories', label: 'الأقسام', icon: Tags, permission: 'Categories.Manage' },
-            { to: '/admin/catalog/products', label: 'المنتجات', icon: Package, permission: 'Products.View', allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'] },
-            { to: '/admin/reminders', label: 'إدارة الأذكار', icon: BookOpen, allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'] },
+            {
+              to: '/admin/catalog/products',
+              label: 'المنتجات',
+              icon: Package,
+              permission: 'Products.View',
+              allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'],
+            },
+            {
+              to: '/admin/reminders',
+              label: 'إدارة الأذكار',
+              icon: BookOpen,
+              allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'],
+            },
           ],
         },
         {
@@ -76,18 +89,24 @@ export default function Sidebar({ isOpen, onClose }) {
             { to: '/admin/pos', label: 'كاشير المعرض', icon: ShoppingCart, permission: 'Orders.Create' },
             { to: '/admin/customers', label: 'العملاء', icon: Users, permission: 'Customers.View' },
             { to: '/admin/purchasing', label: 'المشتريات', icon: Truck, permission: 'Purchasing.View' },
+            {
+              to: '/admin/payroll',
+              label: 'الرواتب والحضور',
+              icon: Wallet,
+              allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'],
+            },
           ],
         },
         {
           label: null,
           items: [
-            { 
-              to: '/admin/reports', 
-              label: 'التقارير', 
-              icon: BarChart3, 
-              permission: 'Reports.View', 
-              allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin']
-            }
+            {
+              to: '/admin/reports',
+              label: 'التقارير',
+              icon: BarChart3,
+              permission: 'Reports.View',
+              allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'],
+            },
           ],
         },
       ]
@@ -95,10 +114,10 @@ export default function Sidebar({ isOpen, onClose }) {
   return (
     <>
       {isOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-graphite-950/60 backdrop-blur-sm lg:hidden transition-opacity" 
-          onClick={onClose} 
-          aria-hidden="true" 
+        <div
+          className="fixed inset-0 z-40 bg-graphite-950/60 backdrop-blur-sm lg:hidden transition-opacity"
+          onClick={onClose}
+          aria-hidden="true"
         />
       )}
 

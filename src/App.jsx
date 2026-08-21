@@ -50,6 +50,7 @@ import PurchasingPage from './pages/Purchasing/PurchasingPage'
 import PosCheckoutPage from './pages/Pos/PosCheckoutPage'
 import ReportsPage from './pages/Reports/ReportsPage'
 import OperationsHubPage from './pages/Operations/OperationsHubPage'
+import PayrollPage from './pages/admin/PayrollPage'
 
 // Owner Pages
 import OwnerHubPage from './pages/Owner/OwnerHubPage'
@@ -184,6 +185,15 @@ export default function App() {
 
           <Route path="purchasing" element={<PurchasingPage />} />
           <Route path="pos" element={<PosCheckoutPage />} />
+
+          <Route 
+            path="payroll" 
+            element={
+              <ProtectedRoute allowRoles={['STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'admin']}>
+                <PayrollPage />
+              </ProtectedRoute>
+            } 
+          />
 
           <Route 
             path="reports" 

@@ -5,6 +5,7 @@ import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import Pagination from "../../components/ui/Pagination";
 import { getCustomers, createCustomer } from "../../api/adminApi";
 import { clearStoredAuth } from "../../utils/auth";
+import VoiceAttendanceButton from "../../components/pos/VoiceAttendanceButton";
 
 import {
   addLocalTransaction,
@@ -380,6 +381,8 @@ export default function PosCheckoutPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <VoiceAttendanceButton />
+
           <button
             type="button"
             onClick={() => setShowExpenseModal(true)}

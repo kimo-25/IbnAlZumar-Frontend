@@ -249,3 +249,57 @@ export async function approveOrderCancellation(orderId) {
   const response = await axiosInstance.post(`/Orders/${orderId}/approve-cancel`)
   return response.data
 }
+// ==========================================
+// 5. الحضور والانصراف بالبصمة الصوتية (Voice Biometric Attendance)
+// ==========================================
+
+/**
+ * تسجيل بصمة صوت الموظف الحالي لأول مرة.
+ * audioBlob: Blob قادم من MediaRecorder API.
+ */
+export async function enrollVoice(audioBlob, fileName = 'enroll.webm') {
+  const formData = new FormData()
+  formData.append('audio', audioBlob, fileName)
+
+  const response = await axiosInstance.post('/attendance/enroll-voice', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return response.data
+}
+
+/**
+ * إرسال تسجيل صوتي لتسجيل حضور أو انصراف الموظف صاحب الصوت.
+ * الباك إند هو من يحدد إن كانت العملية Check-In أو Check-Out تلقائياً.
+ */
+export async function processVoiceAttendance(audioBlob, notes = '', fileName = 'attendance.webm') {
+  const formData = new FormData()
+  formData.append('audio', audioBlob, fileName)
+  if (notes) {
+    formData.append('notes', notes)
+  }
+
+  const response = await axiosInstance.post('/attendance/voice-check', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return response.data
+}
+
+/**
+ * سجل الحضور والانصراف الكامل — متاح للأدمن فقط.
+ * params: { from, to } بصيغة ISO date.
+ */
+export async function getAttendanceLogs(params = {}) {
+  return safeGet('/attendance/logs', params, [])
+}
+
+// ==========================================
+// 6. الرواتب (Payroll) — للأدمن فقط
+// ==========================================
+
+/**
+ * ملخص الرواتب لكل الموظفين خلال فترة زمنية محددة.
+ * params: { startDate, endDate } بصيغة ISO date.
+ */
+export async function getPayrollSummary(params = {}) {
+  return safeGet('/payroll/summary', params, [])
+}
