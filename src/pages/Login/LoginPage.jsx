@@ -55,13 +55,15 @@ export default function LoginPage() {
 
       const data = response.data
 
+      // 1. حفظ التوكن وبيانات المستخدم في localStorage
       login(data.token)
-
       localStorage.setItem("user", JSON.stringify(data))
 
+      // 2. تحديد المسار المناسب حسب الدور
       const targetPath = determineDestination(data)
 
-      navigate(targetPath, { replace: true })
+      // 3. التوجيه المباشر لتحديث AuthContext وتفادي الانتقال اللحظي لـ ForbiddenPage
+      window.location.hash = targetPath
 
     } catch (err) {
       setError(
@@ -84,9 +86,12 @@ export default function LoginPage() {
 
       const data = response.data
       setStoredAuth(data)
+      if (data.token) {
+        login(data.token)
+      }
 
       const targetPath = determineDestination(data)
-      window.location.href = targetPath
+      window.location.hash = targetPath
     } catch (err) {
       setError(
         err?.response?.data?.message ||

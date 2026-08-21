@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Edit3, Loader2, Package, Trash2, Upload, X } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
+import Pagination from '../../components/ui/Pagination'
 import { formatCurrency } from '../../utils/catalog'
 import {
   createModeratorProduct,
@@ -41,33 +42,48 @@ export default function ModeratorHubPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
+  // حالة Pagination للمنتجات
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const pageSize = 20
+
   const [productForm, setProductForm] = useState(initialProductState)
   const [imageFile, setImageFile] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const results = await Promise.allSettled([
-        getModeratorProducts(),
+        getModeratorProducts({ pageNumber: currentPage, pageSize }),
         getModeratorCategories(),
       ])
 
-      const productsData = results[0].status === 'fulfilled' ? results[0].value : []
+      const productsRes = results[0].status === 'fulfilled' ? results[0].value : {}
       const categoriesData = results[1].status === 'fulfilled' ? results[1].value : []
 
-      setProducts(normalizeArray(productsData))
+      const items = normalizeArray(productsRes)
+      const total = Number(
+        Array.isArray(productsRes)
+          ? productsRes.length
+          : (productsRes.totalCount ?? productsRes.TotalCount ?? productsRes.count ?? items.length)
+      )
+
+      setProducts(items)
+      setTotalCount(total)
+      setTotalPages(Math.max(1, Math.ceil(total / pageSize)))
       setCategories(normalizeArray(categoriesData))
     } catch (err) {
       console.error('Error loading moderator hub data:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, pageSize])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const handleProductSubmit = async (event) => {
     event.preventDefault()
@@ -119,14 +135,14 @@ export default function ModeratorHubPage() {
     if (window.confirm('هل أنت تأكد من رغبتك في حذف هذا المنتج؟')) {
       try {
         await deleteModeratorProduct(productId)
-        setProducts((current) => current.filter((item) => item.id !== productId))
+        await loadData()
       } catch (err) {
         alert('حدث خطأ أثناء الحذف')
       }
     }
   }
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
       <div className="flex items-center justify-center gap-2 py-24 text-ink-soft">
         <Loader2 className="animate-spin" size={18} />
@@ -314,7 +330,7 @@ export default function ModeratorHubPage() {
           </form>
         </Card>
 
-        <Card title={`بيانات الكتالوج (${products.length} منتج)`}>
+        <Card title={`بيانات الكتالوج (${totalCount} منتج)`}>
           {products.length === 0 ? (
             <EmptyState
               icon={Package}
@@ -322,56 +338,66 @@ export default function ModeratorHubPage() {
               description="سيظهر هنا الكتالوج الكامل للموديريتور."
             />
           ) : (
-            <div className="space-y-3 max-h-[700px] overflow-y-auto pr-1">
-              {products.map((product) => {
-                const displayName = product.nameAr || product.NameAr || product.name || product.Name
-                const subName = (product.nameAr || product.NameAr) ? (product.name || product.Name) : ''
+            <div className="space-y-4">
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                {products.map((product) => {
+                  const displayName = product.nameAr || product.NameAr || product.name || product.Name
+                  const subName = (product.nameAr || product.NameAr) ? (product.name || product.Name) : ''
 
-                return (
-                  <div
-                    key={product.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-border p-3.5 hover:border-emerald-600/30 transition bg-surface"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm text-ink truncate" dir="auto">
-                          {displayName}
-                        </p>
-                        {product.sku && (
-                          <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200 font-mono">
-                            {product.sku}
-                          </span>
+                  return (
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between gap-4 rounded-xl border border-border p-3.5 hover:border-emerald-600/30 transition bg-surface"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-sm text-ink truncate" dir="auto">
+                            {displayName}
+                          </p>
+                          {product.sku && (
+                            <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200 font-mono">
+                              {product.sku}
+                            </span>
+                          )}
+                        </div>
+                        {subName && (
+                          <p className="text-xs text-ink-soft truncate mt-0.5">{subName}</p>
                         )}
+                        <div className="flex items-center gap-3 text-xs mt-1">
+                          <span className="font-semibold text-emerald-600" dir="ltr">
+                            {formatCurrency(product.sellingPrice || product.SellingPrice || 0)}
+                          </span>
+                        </div>
                       </div>
-                      {subName && (
-                        <p className="text-xs text-ink-soft truncate mt-0.5">{subName}</p>
-                      )}
-                      <div className="flex items-center gap-3 text-xs mt-1">
-                        <span className="font-semibold text-emerald-600" dir="ltr">
-                          {formatCurrency(product.sellingPrice || product.SellingPrice || 0)}
-                        </span>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEditClick(product)}
-                        className="rounded-lg border border-border p-2 text-ink-soft hover:text-emerald-600 hover:bg-emerald-50"
-                        title="تعديل المنتج"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="rounded-lg border border-border p-2 text-danger hover:bg-danger/5"
-                        title="حذف المنتج"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEditClick(product)}
+                          className="rounded-lg border border-border p-2 text-ink-soft hover:text-emerald-600 hover:bg-emerald-50"
+                          title="تعديل المنتج"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(product.id)}
+                          className="rounded-lg border border-border p-2 text-danger hover:bg-danger/5"
+                          title="حذف المنتج"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
+
+              {/* إضافة أزرار التنقل بين الصفحات */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                className="pt-2 border-t border-border"
+              />
             </div>
           )}
         </Card>

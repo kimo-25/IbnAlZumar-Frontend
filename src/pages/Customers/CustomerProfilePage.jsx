@@ -50,13 +50,30 @@ function calculateShippingCost(governorate) {
 function getStepNumber(status) {
   if (status === null || status === undefined) return 1
   if (typeof status === 'number') {
+    if (status === -2) return -2
     if (status === -1) return -1
     if (status === 5) return 5
     if (status >= 0 && status <= 4) return status + 1
     return 1
   }
   const s = String(status).toLowerCase().trim()
-  if (s.includes('cancel') || s.includes('ملغ') || s.includes('reject')) return -1
+
+  if (
+    s.includes('cancellationrequested') ||
+    s.includes('cancelrequest') ||
+    s.includes('طلب إلغاء')
+  ) {
+    return -2
+  }
+
+  if (
+    s === 'cancelled' ||
+    s.includes('تم إلغاء') ||
+    s.includes('ملغ')
+  ) {
+    return -1
+  }
+
   if (s.includes('pending') || s.includes('مراجعة') || s.includes('انتظار')) return 1
   if (s.includes('confirm') || s.includes('تأكيد') || s.includes('مؤكد')) return 2
   if (s.includes('prep') || s.includes('process') || s.includes('تجهيز')) return 3
@@ -67,9 +84,23 @@ function getStepNumber(status) {
 
 function getStatusBadge(status) {
   const step = getStepNumber(status)
-  if (step === -1) {
-    return { label: 'تم إلغاء الطلب', className: 'bg-rose-50 text-rose-700 border-rose-200', icon: XCircle }
+
+  if (step === -2) {
+    return {
+      label: 'طلب الإلغاء قيد المراجعة',
+      className: 'bg-orange-50 text-orange-700 border-orange-200',
+      icon: Clock,
+    }
   }
+
+  if (step === -1) {
+    return {
+      label: 'تم إلغاء الطلب',
+      className: 'bg-rose-50 text-rose-700 border-rose-200',
+      icon: XCircle,
+    }
+  }
+
   if (step === 5) {
     return { label: 'تم التوصيل بنجاح', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle }
   }
@@ -86,6 +117,15 @@ function formatDate(dateStr) {
 }
 
 function TrackingProgress({ currentStep, onCancelClick, isCanceling }) {
+  if (currentStep === -2) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl bg-orange-50 border border-orange-200 p-3 text-sm text-orange-700 mb-4">
+        <Clock className="h-4 w-4 shrink-0" />
+        تم إرسال طلب الإلغاء للإدارة وهو قيد المراجعة حالياً.
+      </div>
+    )
+  }
+
   if (currentStep === -1) {
     return (
       <div className="flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-sm text-rose-700 mb-4">
