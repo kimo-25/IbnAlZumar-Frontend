@@ -1,4 +1,3 @@
-// File: src/components/storefront/StorefrontHeader.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, Grid2X2, Languages, LogIn, LogOut, Menu, Mic, MicOff, Search, ShoppingCart, Store, UserCircle2, Wrench, X } from 'lucide-react'
@@ -136,13 +135,22 @@ export default function StorefrontHeader() {
   const languageLabel = language === 'ar' ? 'AR' : 'EN'
   const listeningStyle = isListening ? 'border-danger/40 bg-danger/10 text-danger shadow-[0_0_0_4px_rgba(214,69,69,0.12)]' : 'text-ink-soft hover:bg-canvas hover:text-ink'
 
+  // تحديد مسار البروفايل بناءً على الرتبة (زي ما عملت في الـ Navbar)
+  const rawRoles = user?.roles || user?.role || []
+  const userRoles = Array.isArray(rawRoles) ? rawRoles : [rawRoles]
+  const getProfileLink = () => {
+    if (userRoles.length === 0) return '/profile'
+    const rolesStr = userRoles.map(r => String(r).toLowerCase()).join(' ')
+    if (rolesStr.includes('moderator')) return '/moderator/profile'
+    if (rolesStr.includes('admin') || rolesStr.includes('owner') || rolesStr.includes('store_owner')) return '/admin/profile'
+    return '/profile'
+  }
+
   return (
     <header className="border-b border-border bg-surface/95 shadow-subtle backdrop-blur relative z-40">
       <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6">
-        {/* الصف العلوي: اللوجو وأزرار التحكم */}
         <div className="flex items-center justify-between gap-2">
           
-          {/* الجانب الأيمن للموبايل: زر الهامبرجر والشعار */}
           <div className="flex items-center gap-2.5">
             <button
               type="button"
@@ -153,7 +161,6 @@ export default function StorefrontHeader() {
               <Menu size={20} />
             </button>
 
-            {/* الشعار والاسم */}
             <Link to="/" className="flex items-center gap-2 shrink-0">
               <div className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-graphite-900 text-amber shadow-subtle">
                 <Wrench size={18} strokeWidth={2.5} />
@@ -167,7 +174,6 @@ export default function StorefrontHeader() {
             </Link>
           </div>
 
-          {/* أزرار الإجراءات للشاشات الكبيرة */}
           <div className="hidden items-center gap-2 lg:flex">
             <button
               type="button"
@@ -182,7 +188,8 @@ export default function StorefrontHeader() {
 
             {isAuthenticated ? (
               <div className="flex items-center gap-2 rounded-2xl border border-border bg-canvas px-3 py-2 shadow-subtle">
-                <Link to="/admin/login" className="inline-flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm font-semibold text-ink transition hover:border-amber hover:bg-canvas">
+                {/* تم تعديل مسار الحساب هنا */}
+                <Link to={getProfileLink()} className="inline-flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm font-semibold text-ink transition hover:border-amber hover:bg-canvas">
                   <UserCircle2 size={18} />
                   <span className="max-w-40 truncate" dir="auto">
                     {user?.fullName || 'حسابي'}
@@ -199,11 +206,12 @@ export default function StorefrontHeader() {
               </div>
             ) : (
               <div className="flex items-center gap-2 rounded-2xl border border-border bg-canvas px-3 py-2 shadow-subtle">
-                <Link to="/admin/login" className="inline-flex items-center gap-2 rounded-xl bg-graphite-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-graphite-800">
+                {/* تم تعديل مسار تسجيل الدخول للحساب العادي */}
+                <Link to="/login" className="inline-flex items-center gap-2 rounded-xl bg-graphite-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-graphite-800">
                   <LogIn size={16} />
                   <span>تسجيل الدخول / الاشتراك</span>
                 </Link>
-                <Link to="/admin/login" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-ink-soft transition hover:bg-surface hover:text-ink">
+                <Link to="/login" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-ink-soft transition hover:bg-surface hover:text-ink">
                   <UserCircle2 size={16} />
                   <span>حسابي</span>
                 </Link>
@@ -226,7 +234,6 @@ export default function StorefrontHeader() {
             </button>
           </div>
 
-          {/* أزرار الموبايل السريعة (اللغة والسلة فقط) */}
           <div className="flex items-center gap-1.5 lg:hidden">
             <button
               type="button"
@@ -253,7 +260,6 @@ export default function StorefrontHeader() {
           </div>
         </div>
 
-        {/* شريط البحث */}
         <div className="mt-3 relative w-full">
           <Search size={18} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
           <input
@@ -284,7 +290,6 @@ export default function StorefrontHeader() {
           </button>
         </div>
 
-        {/* التصنيفات وحالة البحث */}
         <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2" ref={categoriesMenuRef}>
           <div className="relative">
             <button
@@ -327,19 +332,15 @@ export default function StorefrontHeader() {
         </div>
       </div>
 
-      {/* قائمة الموبايل الجانبية (Mobile Drawer) بدون سكرول وبلور للخلفية */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          {/* الخلفية المعتمة مع البلور */}
           <div 
             className="fixed inset-0 bg-black/40 backdrop-blur-md transition-opacity" 
             onClick={() => setIsMobileMenuOpen(false)}
           />
 
-          {/* محتوى القائمة بدون شريط تمرير ظاهر */}
           <div className="relative ml-auto w-80 max-w-[85%] bg-surface border-r border-border shadow-2xl flex flex-col h-screen z-10 p-5 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             
-            {/* رأس القائمة الجانبية */}
             <div className="flex items-center justify-between pb-4 border-b border-border shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="grid h-9 w-9 place-items-center rounded-xl bg-graphite-900 text-amber">
@@ -360,12 +361,12 @@ export default function StorefrontHeader() {
               </button>
             </div>
 
-            {/* قسم الحساب والتسجيل */}
             <div className="py-4 border-b border-border shrink-0">
               {isAuthenticated ? (
                 <div className="flex flex-col gap-2">
+                  {/* تم التعديل للموبايل برضه */}
                   <Link 
-                    to="/admin/login" 
+                    to={getProfileLink()} 
                     className="flex items-center gap-2.5 rounded-xl bg-canvas px-3.5 py-3 text-sm font-semibold text-ink border border-border hover:border-amber transition"
                   >
                     <UserCircle2 size={18} className="text-amber" />
@@ -383,14 +384,14 @@ export default function StorefrontHeader() {
               ) : (
                 <div className="flex flex-col gap-2.5">
                   <Link 
-                    to="/admin/login" 
+                    to="/login" 
                     className="flex items-center justify-center gap-2 rounded-xl bg-graphite-900 px-4 py-3 text-sm font-semibold text-white shadow-subtle hover:bg-graphite-800 transition"
                   >
                     <LogIn size={16} className="text-amber" />
                     <span>تسجيل الدخول / الاشتراك</span>
                   </Link>
                   <Link 
-                    to="/admin/login" 
+                    to="/login" 
                     className="flex items-center justify-center gap-2 rounded-xl border border-border bg-canvas px-4 py-2.5 text-sm font-medium text-ink hover:border-amber transition"
                   >
                     <UserCircle2 size={16} />
@@ -400,7 +401,6 @@ export default function StorefrontHeader() {
               )}
             </div>
 
-            {/* الأقسام والتصنيفات */}
             <div className="py-4 flex-1">
               <span className="block text-xs font-semibold uppercase tracking-widest text-ink-soft mb-3">
                 الأقسام والتصنيفات السريعة
@@ -420,7 +420,6 @@ export default function StorefrontHeader() {
               </div>
             </div>
 
-            {/* تذييل القائمة (تبديل اللغة) */}
             <div className="pt-4 pb-6 border-t border-border flex items-center justify-between shrink-0">
               <span className="text-xs text-ink-soft font-medium">اللغة الحالية: {languageLabel}</span>
               <button

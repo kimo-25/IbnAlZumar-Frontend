@@ -1,3 +1,4 @@
+// File: src/pages/Customers/OrderDetailsPage.jsx
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
@@ -11,12 +12,15 @@ import {
   Printer,
   Loader2,
   AlertCircle,
-  XCircle
+  XCircle,
+  RotateCcw,
+  X
 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import axiosInstance from '../../api/axiosInstance'
 import { formatCurrency } from '../../utils/catalog'
 import { printInvoice } from '../../utils/printInvoice'
+import { requestOrderCancellation } from '../../api/storefrontApi'
 
 const TRACKING_STEPS = [
   { step: 1, label: 'قيد المراجعة', description: 'تم استلام طلبك وجاري مراجعته' },
@@ -29,7 +33,6 @@ const TRACKING_STEPS = [
 function getStepNumber(status) {
   if (status === null || status === undefined) return 1
 
-  // 1. التعامل مع الحالات النصية (Strings)
   if (typeof status === 'string') {
     const s = status.toLowerCase()
     if (s.includes('cancel') || s.includes('ملغ') || s.includes('رفض') || s.includes('reject')) return -1
@@ -40,11 +43,10 @@ function getStepNumber(status) {
     if (s.includes('complet') || s.includes('deliver') || s.includes('تم')) return 5
   }
 
-  // 2. التعامل مع أرقام الـ Enum من C# (دعم Zero-indexed و One-indexed)
   if (typeof status === 'number') {
-    if (status === -1 || status === 5) return -1 // حالة الإلغاء إذا كانت معرفة برقم خاص
-    if (status >= 0 && status <= 4) return status + 1 // C# 0-indexed (0 = Pending -> Step 1)
-    if (status >= 1 && status <= 5) return status // 1-indexed
+    if (status === -1 || status === 5) return -1
+    if (status >= 0 && status <= 4) return status + 1
+    if (status >= 1 && status <= 5) return status
   }
 
   return 1
@@ -56,6 +58,11 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  // حالات مودال طلب الإلغاء مع السبب
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [canceling, setCanceling] = useState(false)
 
   useEffect(() => {
     fetchOrderDetails()
@@ -87,6 +94,25 @@ export default function OrderDetailsPage() {
       setError('تعذر الاتصال بالخادم.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleCancelSubmit() {
+    if (!cancelReason.trim()) {
+      alert('يرجى كتابة سبب الإلغاء.')
+      return
+    }
+    try {
+      setCanceling(true)
+      await requestOrderCancellation(order.id || orderId, cancelReason)
+      alert('تم إرسال طلب الإلغاء بنجاح للمراجعة.')
+      setShowCancelModal(false)
+      setCancelReason('')
+      await fetchOrderDetails()
+    } catch (err) {
+      alert(err?.response?.data?.message || 'حدث خطأ أثناء إرسال طلب الإلغاء.')
+    } finally {
+      setCanceling(false)
     }
   }
 
@@ -129,13 +155,24 @@ export default function OrderDetailsPage() {
         >
           <ArrowRight size={18} /> العودة لسجل الطلبات
         </Link>
-        <button
-          onClick={() => printInvoice(order)}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
-        >
-          <Printer size={16} />
-          طباعة / حفظ الفاتورة (PDF)
-        </button>
+        <div className="flex items-center gap-2">
+          {currentStep === 1 && !isCancelled && (
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+            >
+              <RotateCcw size={15} />
+              طلب إلغاء الطلب
+            </button>
+          )}
+          <button
+            onClick={() => printInvoice(order)}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
+          >
+            <Printer size={16} />
+            طباعة / حفظ الفاتورة (PDF)
+          </button>
+        </div>
       </div>
 
       {/* الترويسة الرئيسية */}
@@ -300,6 +337,46 @@ export default function OrderDetailsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Modal طلب الإلغاء مع السبب */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowCancelModal(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative"
+          >
+            <button onClick={() => setShowCancelModal(false)} className="absolute top-4 left-4 text-ink-soft hover:text-ink cursor-pointer">
+              <X size={20} />
+            </button>
+            <h3 className="text-lg font-bold text-ink mb-1">طلب إلغاء الطلب</h3>
+            <p className="text-xs text-ink-soft mb-4">يرجى توضيح سبب إلغاء الطلب ليتم مراجعته من قِبل الإدارة.</p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-ink mb-1 block">سبب الإلغاء *</label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  rows={4}
+                  disabled={canceling}
+                  placeholder="اكتب سبب الإلغاء هنا..."
+                  className="w-full rounded-xl border border-border bg-canvas p-3 text-sm text-ink outline-none focus:border-amber resize-none transition disabled:opacity-60"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCancelSubmit}
+                disabled={canceling}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 transition disabled:opacity-60 cursor-pointer"
+              >
+                {canceling && <Loader2 size={16} className="animate-spin" />}
+                إرسال طلب الإلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

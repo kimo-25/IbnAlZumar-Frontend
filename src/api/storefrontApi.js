@@ -44,3 +44,9 @@ export async function createGuestOrder(orderData, token = null) {
   const response = await axiosInstance.post('/Orders', orderData, { headers })
   return response.data
 }
+export async function requestOrderCancellation(orderId, reason) {
+  const response = await axiosInstance.post(`/Orders/${orderId}/request-cancel`, JSON.stringify(reason), {
+    headers: { 'Content-Type': 'application/json' }
+  })
+  return response.data
+}

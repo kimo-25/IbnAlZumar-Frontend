@@ -1,6 +1,6 @@
 // File: src/pages/Shop/ShopPage.jsx
 import { useEffect, useMemo, useState } from 'react'
-import { Filter, Loader2, PackageSearch, Search } from 'lucide-react'
+import { Filter, Loader2, PackageSearch, Search, Wrench } from 'lucide-react'
 import ProductCard from '../../components/storefront/ProductCard'
 import ProductFiltersPanel from '../../components/storefront/ProductFiltersPanel'
 import Pagination from '../../components/ui/Pagination'
@@ -179,6 +179,28 @@ export default function ShopPage() {
           </div>
         </div>
         <div className="receipt-tear relative opacity-20" />
+      </section>
+
+      {/* سكشن استفسارات الورش والصيانة الجديد */}
+      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6" dir="rtl">
+        <div className="rounded-2xl border border-amber/35 bg-gradient-to-r from-amber/10 via-surface to-surface p-5 sm:p-6 shadow-subtle flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 text-right">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-graphite-900 text-amber shrink-0 shadow-subtle">
+              <Wrench size={22} strokeWidth={2.2} />
+            </div>
+            <div>
+              <h2 className="font-display text-base sm:text-lg font-semibold text-ink">هل تواجه مشكلة في معدة أو تحتاج صيانة خاصة؟</h2>
+              <p className="text-xs text-ink-soft mt-0.5">ارفع صورة المشكلة، صف حالتها، واختار طريقة الاستلام (مندوب أو زيارة الورشة).</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => alert('سيتم فتح نموذج استفسارات الصيانة والورش قريباً!')}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-graphite-900 px-5 py-3 text-xs font-semibold text-amber shadow-subtle hover:bg-graphite-800 transition shrink-0 w-full sm:w-auto"
+          >
+            طلب صيانة واستفسار ورشة
+          </button>
+        </div>
       </section>
 
       <section id="products" className="mx-auto max-w-7xl px-4 py-8 sm:px-6">

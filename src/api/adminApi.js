@@ -54,7 +54,7 @@ export async function createProduct(productData, imageFile = null) {
   formData.append('categoryId', Number(productData.categoryId) || 1)
 
   if (productData.brandId) formData.append('brandId', Number(productData.brandId))
-  
+
   if (imageFile) {
     formData.append('imageFile', imageFile)
   } else if (productData.imageUrl) {
@@ -217,4 +217,35 @@ export async function getOwnerAnalytics(params = {}) {
 
 export async function getShifts(params = {}) {
   return safeGet('/Shifts', params, [])
+}
+
+// ==========================================
+// 4. تنبيهات نقص المخزون وإعادة التموين (Low Stock / Restock)
+// ==========================================
+
+/**
+ * GET /api/inventory/low-stock
+ * ترجع كل المنتجات التي وصلت (أو أقل من) الحد الأدنى المسموح به للمخزون.
+ * متاحة للـ Owner و Admin و Moderator على مستوى الـ Back-end.
+ */
+export async function getLowStockProducts() {
+  return safeGet('/Inventory/low-stock', {}, [])
+}
+
+/**
+ * POST /api/inventory/adjust
+ * تعديل سريع لكمية مخزون منتج معين (إضافة كمية جديدة بعد استلام توريد مثلاً).
+ * ⚠️ عدّل أسماء الحقول (productId / quantity / reason) لو الـ AdjustStockDto الفعلي مختلف عندك.
+ */
+export async function adjustStock({ productId, quantity, reason = 'إعادة تموين من لوحة التحكم' }) {
+  const response = await axiosInstance.post('/Inventory/adjust', {
+    productId,
+    quantity,
+    reason
+  })
+  return response.data
+}
+export async function approveOrderCancellation(orderId) {
+  const response = await axiosInstance.post(`/Orders/${orderId}/approve-cancel`)
+  return response.data
 }

@@ -88,3 +88,7 @@ export async function deleteModeratorCategory(id) {
   const response = await axiosInstance.delete(`/Categories/${id}`)
   return response.data
 }
+export async function approveOrderCancellation(orderId) {
+  const response = await axiosInstance.post(`/Orders/${orderId}/approve-cancel`)
+  return response.data
+}

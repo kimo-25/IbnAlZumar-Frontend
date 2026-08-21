@@ -46,7 +46,7 @@ import AdminRemindersPage from './pages/Catalog/AdminRemindersPage'
 import InventoryAdjustPage from './pages/Inventory/InventoryAdjustPage'
 import InventoryTransferPage from './pages/Inventory/InventoryTransferPage'
 import CustomersPage from './pages/Customers/CustomersPage'
-import PurchaseOrdersPage from './pages/Purchasing/PurchaseOrdersPage'
+import PurchasingPage from './pages/Purchasing/PurchasingPage'
 import PosCheckoutPage from './pages/Pos/PosCheckoutPage'
 import ReportsPage from './pages/Reports/ReportsPage'
 import OperationsHubPage from './pages/Operations/OperationsHubPage'
@@ -182,7 +182,7 @@ export default function App() {
           <Route path="customers" element={<CustomersPage />} />
           <Route path="customers/:id" element={<CustomerDetailsPage />} />
 
-          <Route path="purchasing" element={<PurchaseOrdersPage />} />
+          <Route path="purchasing" element={<PurchasingPage />} />
           <Route path="pos" element={<PosCheckoutPage />} />
 
           <Route 
