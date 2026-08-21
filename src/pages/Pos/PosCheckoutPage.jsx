@@ -5,7 +5,7 @@ import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import Pagination from "../../components/ui/Pagination";
 import { getCustomers, createCustomer } from "../../api/adminApi";
 import { clearStoredAuth } from "../../utils/auth";
-import VoiceAttendanceButton from "../../components/pos/VoiceAttendanceButton";
+import VoiceAttendanceButton from './VoiceAttendanceButton';
 
 import {
   addLocalTransaction,

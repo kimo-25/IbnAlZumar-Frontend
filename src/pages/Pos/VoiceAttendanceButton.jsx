@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { Mic, Square, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { processVoiceAttendance } from '../../api/adminApi'
+import { convertBlobToWav } from '../../utils/audioToWav'
 
 const MAX_RECORDING_MS = 6000
 
@@ -43,12 +44,15 @@ export default function VoiceAttendanceButton() {
   const handleRecordingStopped = useCallback(async () => {
     setStatus('processing')
 
-    const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' })
+    const rawBlob = new Blob(chunksRef.current, { type: 'audio/webm' })
     chunksRef.current = []
     cleanupStream()
 
     try {
-      const result = await processVoiceAttendance(audioBlob, '', 'attendance.webm')
+      // تحويل التسجيل إلى WAV لضمان التوافق مع خدمة التعرف على الصوت والـ backend
+      const wavBlob = await convertBlobToWav(rawBlob)
+
+      const result = await processVoiceAttendance(wavBlob, '', 'attendance.wav')
 
       if (result?.success) {
         setStatus('success')
@@ -68,7 +72,7 @@ export default function VoiceAttendanceButton() {
       setStatus('error')
       setFeedback({
         title: 'حدث خطأ',
-        message: err?.response?.data?.message || 'تعذر الاتصال بخدمة الحضور، حاول مرة أخرى.'
+        message: err?.response?.data?.message || err?.message || 'تعذر الاتصال بخدمة الحضور، حاول مرة أخرى.'
       })
     }
 
