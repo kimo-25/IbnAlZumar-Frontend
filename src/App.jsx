@@ -132,6 +132,8 @@ export default function App() {
           <Route path="reminders" element={<ModeratorRemindersPage />} />
           <Route path="catalog" element={<ModeratorCatalogPage />} />
           <Route path="profile" element={<AdminProfilePage />} />
+          <Route path="Profile" element={<Navigate to="/moderator/profile" replace />} />
+          <Route path="admin-profile" element={<Navigate to="/moderator/profile" replace />} />
         </Route>
 
         {/* ---------------- 5. ADMIN ROUTES ---------------- */}
@@ -146,6 +148,8 @@ export default function App() {
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardHome />} />
           <Route path="profile" element={<AdminProfilePage />} />
+          <Route path="Profile" element={<Navigate to="/admin/profile" replace />} />
+          <Route path="admin-profile" element={<Navigate to="/admin/profile" replace />} />
 
           <Route 
             path="operations" 

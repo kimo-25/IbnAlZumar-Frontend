@@ -13,7 +13,8 @@ import {
   PackageX,
   RefreshCw,
   Loader2,
-  ClipboardList
+  ClipboardList,
+  User // 👈 إضافة أيقونة البروفايل
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import Card from '../../components/ui/Card'
@@ -26,6 +27,9 @@ const QUICK_LINKS = [
   { to: '/admin/catalog/categories', label: 'الأقسام', icon: Tags, permission: 'Categories.Manage' },
   { to: '/admin/reports', label: 'التقارير', icon: BarChart3, permission: 'Reports.View', hideForRoles: ['moderator', 'Moderator'], allowRoles: ['STORE_OWNER'] },
   { to: '/admin/operations', label: 'مركز العمليات', icon: Store, role: 'ONLINE_MANAGER' },
+
+  // 👤 رابط مباشر للملف الشخصي (تسجيل البصمة الصوتية)
+  { to: '/admin/profile', label: 'الملف الشخصي', icon: User },
 
   // 👑 للمالك فقط
   { to: '/admin/owner', label: 'لوحة المالك', icon: Building2, role: 'STORE_OWNER' },
