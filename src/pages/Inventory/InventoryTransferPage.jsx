@@ -1,10 +1,8 @@
-// File: src/pages/Inventory/InventoryTransferPage.jsx
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeftRight,
   Search,
   Trash2,
-  Plus,
   Loader2,
   CheckCircle2,
   AlertTriangle,
@@ -25,7 +23,7 @@ export default function InventoryTransferPage() {
   const [search, setSearch] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
 
-  const [lines, setLines] = useState([]) // { productId, sku, name, available, quantity }
+  const [lines, setLines] = useState([])
 
   const [submitting, setSubmitting] = useState(false)
   const [banner, setBanner] = useState(null)
@@ -44,7 +42,7 @@ export default function InventoryTransferPage() {
     setStockLoading(true)
     const timeout = setTimeout(() => {
       getStockLevels({ warehouseId: fromWarehouseId, search }).then((data) => {
-        setSourceStock(data.filter((s) => s.quantityOnHand > 0))
+        setSourceStock(data || [])
         setStockLoading(false)
       })
     }, 250)
@@ -59,6 +57,7 @@ export default function InventoryTransferPage() {
   const sameWarehouse = fromWarehouseId && toWarehouseId && fromWarehouseId === toWarehouseId
 
   function addLine(product) {
+    if (product.quantityOnHand <= 0) return
     setShowDropdown(false)
     setSearch('')
     setLines((prev) => {
@@ -115,10 +114,10 @@ export default function InventoryTransferPage() {
         items: lines.map((l) => ({ productId: l.productId, quantity: parseInt(l.quantity, 10) }))
       })
       setLastResult(result)
-      setBanner({ type: 'success', message: `تم تنفيذ التحويل رقم #${result.stockTransferId} بنجاح وتحديث أرصدة المستودعين.` })
+      setBanner({ type: 'success', message: `تم تنفيذ التحويل بنجاح وتحديث أرصدة المستودعين.` })
       setLines([])
       setNotes('')
-      getStockLevels({ warehouseId: fromWarehouseId, search: '' }).then((data) => setSourceStock(data.filter((s) => s.quantityOnHand > 0)))
+      getStockLevels({ warehouseId: fromWarehouseId, search: '' }).then((data) => setSourceStock(data || []))
     } catch (err) {
       const message = err?.response?.data?.message || 'حدث خطأ أثناء تنفيذ عملية التحويل'
       setBanner({ type: 'error', message })
@@ -141,7 +140,6 @@ export default function InventoryTransferPage() {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">
-          {/* اختيار المستودعات */}
           <div className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -182,7 +180,6 @@ export default function InventoryTransferPage() {
             )}
           </div>
 
-          {/* إضافة أصناف */}
           <div className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
             <h3 className="text-sm font-bold text-ink mb-3 flex items-center gap-2">
               <PackagePlus size={16} className="text-emerald-600" /> إضافة أصناف للتحويل
@@ -204,23 +201,29 @@ export default function InventoryTransferPage() {
                       <Loader2 size={14} className="animate-spin" /> جاري التحميل...
                     </div>
                   ) : sourceStock.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-ink-soft">لا توجد أصناف متاحة بهذا المستودع</div>
+                    <div className="p-4 text-center text-xs text-ink-soft">لا توجد أصناف مطابقة للبحث</div>
                   ) : (
-                    sourceStock.map((p) => (
-                      <button
-                        type="button"
-                        key={p.productId}
-                        onClick={() => addLine(p)}
-                        disabled={lines.some((l) => l.productId === p.productId)}
-                        className="flex w-full items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5 text-right text-xs last:border-0 hover:bg-canvas transition disabled:opacity-40"
-                      >
-                        <div>
-                          <div className="font-bold text-ink">{p.productNameAr || p.productName}</div>
-                          <div className="text-[10px] text-ink-soft font-mono">{p.sku}</div>
-                        </div>
-                        <span className="font-mono font-bold text-ink-soft">{p.quantityOnHand} وحدة</span>
-                      </button>
-                    ))
+                    sourceStock.map((p) => {
+                      const isAlreadyAdded = lines.some((l) => l.productId === p.productId)
+                      const isOutOfStock = p.quantityOnHand <= 0
+                      return (
+                        <button
+                          type="button"
+                          key={p.productId}
+                          onClick={() => addLine(p)}
+                          disabled={isAlreadyAdded || isOutOfStock}
+                          className="flex w-full items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5 text-right text-xs last:border-0 hover:bg-canvas transition disabled:opacity-40"
+                        >
+                          <div>
+                            <div className="font-bold text-ink">{p.productNameAr || p.productName}</div>
+                            <div className="text-[10px] text-ink-soft font-mono">{p.sku}</div>
+                          </div>
+                          <span className={`font-mono font-bold ${isOutOfStock ? 'text-red-500' : 'text-ink-soft'}`}>
+                            {p.quantityOnHand} وحدة
+                          </span>
+                        </button>
+                      )
+                    })
                   )}
                 </div>
               )}
@@ -277,7 +280,6 @@ export default function InventoryTransferPage() {
           </div>
         </div>
 
-        {/* ملخص وتأكيد */}
         <div className="space-y-4 h-fit">
           <div className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
             <h3 className="text-sm font-bold text-ink mb-3 flex items-center gap-2">
@@ -322,7 +324,7 @@ export default function InventoryTransferPage() {
                 من {lastResult.sourceWarehouseName} إلى {lastResult.destinationWarehouseName}
               </p>
               <ul className="space-y-1">
-                {lastResult.items.map((it) => (
+                {lastResult.items?.map((it) => (
                   <li key={it.productId} className="flex items-center justify-between text-[11px] text-emerald-800">
                     <span>{it.productName}</span>
                     <span className="font-mono font-bold">{it.quantity} وحدة</span>

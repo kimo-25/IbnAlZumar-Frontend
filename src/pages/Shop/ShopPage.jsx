@@ -29,10 +29,10 @@ export default function ShopPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // حالات مودال الصيانة الجديد
+  // حالات مودال الصيانة الجديد (دعم صور متعددة)
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false)
   const [maintenanceForm, setMaintenanceForm] = useState({ description: '', deliveryMethod: 1 })
-  const [maintenanceImage, setMaintenanceImage] = useState(null)
+  const [maintenanceImages, setMaintenanceImages] = useState([])
   const [submittingMaintenance, setSubmittingMaintenance] = useState(false)
 
   useEffect(() => {
@@ -130,7 +130,13 @@ export default function ShopPage() {
     setCurrentPage(1)
   }
 
-  // دالة إرسال نموذج الصيانة المربوط بالباك إند
+  function handleImageChange(e) {
+    if (e.target.files) {
+      setMaintenanceImages(Array.from(e.target.files))
+    }
+  }
+
+  // دالة إرسال نموذج الصيانة المربوط بالباك إند مع الصور المتعددة
   async function handleMaintenanceSubmit(e) {
     e.preventDefault()
     if (!maintenanceForm.description.trim()) {
@@ -143,8 +149,12 @@ export default function ShopPage() {
       const formData = new FormData()
       formData.append('description', maintenanceForm.description)
       formData.append('deliveryMethod', maintenanceForm.deliveryMethod)
-      if (maintenanceImage) {
-        formData.append('image', maintenanceImage)
+      
+      if (maintenanceImages.length > 0) {
+        maintenanceImages.forEach((img) => {
+          formData.append('images', img)
+        })
+        formData.append('image', maintenanceImages[0])
       }
 
       const res = await axiosInstance.post('/Maintenance', formData, {
@@ -154,7 +164,7 @@ export default function ShopPage() {
       alert(res.data?.message || 'تم إرسال طلب الصيانة بنجاح!')
       setIsMaintenanceModalOpen(false)
       setMaintenanceForm({ description: '', deliveryMethod: 1 })
-      setMaintenanceImage(null)
+      setMaintenanceImages([])
     } catch (err) {
       alert(err?.response?.data?.message || 'تعذر إرسال طلب الصيانة. يرجى التأكد من تسجيل الدخول أولاً.')
     } finally {
@@ -217,7 +227,7 @@ export default function ShopPage() {
             </div>
             <div>
               <h2 className="font-display text-base sm:text-lg font-semibold text-ink">هل تواجه مشكلة في معدة أو تحتاج صيانة خاصة؟</h2>
-              <p className="text-xs text-ink-soft mt-0.5">ارفع صورة المشكلة، صف حالتها، واختار طريقة الاستلام (مندوب أو زيارة الورشة).</p>
+              <p className="text-xs text-ink-soft mt-0.5">ارفع صورة المشكلة، صف حالتها، واختار طريقة التسليم (مندوب أو زيارة الورشة).</p>
             </div>
           </div>
           <button
@@ -325,17 +335,22 @@ export default function ShopPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-ink mb-1 block">صورة المعدة / العطل (اختياري)</label>
+                <label className="text-xs font-semibold text-ink mb-1 block">صور المعدة / العطل (اختياري - يمكنك اختيار عدة صور)</label>
                 <div className="relative flex items-center justify-center border-2 border-dashed border-border rounded-xl p-4 bg-canvas hover:border-amber transition cursor-pointer">
                   <input
                     type="file"
+                    multiple
                     accept="image/*"
-                    onChange={(e) => setMaintenanceImage(e.target.files[0])}
+                    onChange={handleImageChange}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
                   <div className="flex items-center gap-2 text-xs text-ink-soft">
                     <Upload size={16} />
-                    <span>{maintenanceImage ? maintenanceImage.name : 'اضغط لرفع صورة العطل'}</span>
+                    <span>
+                      {maintenanceImages.length > 0
+                        ? `تم تحديد ${maintenanceImages.length} صور`
+                        : 'اضغط لرفع صور الأعطال'}
+                    </span>
                   </div>
                 </div>
               </div>

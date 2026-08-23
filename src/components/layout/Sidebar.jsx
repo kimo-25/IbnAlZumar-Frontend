@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   BookOpen,
   Wallet,
+  HelpCircle
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -31,6 +32,7 @@ export default function Sidebar({ isOpen, onClose }) {
           items: [
             { to: '/moderator/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
             { to: '/moderator/operations', label: 'مركز العمليات (الطلبات)', icon: Truck },
+            { to: '/moderator/operations?tab=inquiries', label: 'طلبات الصيانة والورشة', icon: Wrench },
             { to: '/moderator/products', label: 'المنتجات', icon: Package },
             { to: '/moderator/categories', label: 'الأقسام', icon: Tags },
             { to: '/moderator/reminders', label: 'إدارة الأذكار', icon: BookOpen },
@@ -77,10 +79,11 @@ export default function Sidebar({ isOpen, onClose }) {
           ],
         },
         {
-          label: 'إدارة المخزون',
+          label: 'إدارة المخزون والخدمات',
           items: [
             { to: '/admin/inventory/adjust', label: 'تسوية المخزون', icon: SlidersHorizontal, permission: 'Inventory.Adjust' },
             { to: '/admin/inventory/transfer', label: 'نقل المخزون', icon: ArrowLeftRight, permission: 'Inventory.Transfer' },
+            { to: '/admin/operations?tab=inquiries', label: 'طلبات استفسارات الصيانة', icon: Wrench, allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'] },
           ],
         },
         {

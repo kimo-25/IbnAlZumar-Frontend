@@ -97,9 +97,7 @@ function StatusChangeDropdown({ currentStatus, onSelect }) {
       </button>
 
       {open && (
-        <div
-          className="absolute left-0 z-20 mt-1 w-56 overflow-hidden rounded-lg bg-white shadow-lg shadow-black/10 ring-1 ring-black/5"
-        >
+        <div className="absolute left-0 z-20 mt-1 w-56 overflow-hidden rounded-lg bg-white shadow-lg shadow-black/10 ring-1 ring-black/5">
           <ul className="py-1">
             {ORDER_STATUS_OPTIONS.map((st) => {
               const StatusIcon = st.icon
@@ -239,7 +237,69 @@ function OrdersTab({ orders, loading, error, processingId, onUpdateStatus, onPri
   )
 }
 
-// 2. إدارة مناطق الشحن
+// 2. جدول طلبات الصيانة واستفسارات الورشة
+function MaintenanceInquiriesTab({ inquiries, loading }) {
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 size={32} className="animate-spin text-emerald-600" />
+      </div>
+    )
+  }
+
+  return (
+    <Card title="طلبات صيانة الورشة والمعدات الواردة">
+      {inquiries.length === 0 ? (
+        <p className="text-xs text-ink-soft py-10 text-center">
+          لا توجد استفسارات أو طلبات صيانة ورشة معلقة حالياً.
+        </p>
+      ) : (
+        <div className="overflow-x-auto mt-2">
+          <table className="w-full text-right text-xs">
+            <thead className="bg-canvas border-b border-border text-ink-soft font-semibold">
+              <tr>
+                <th className="p-3">وصف المشكلة / المعدة</th>
+                <th className="p-3">طريقة التسليم</th>
+                <th className="p-3">صور الأعطال</th>
+                <th className="p-3">التاريخ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {inquiries.map((item) => (
+                <tr key={item.id} className="hover:bg-canvas/50 transition">
+                  <td className="p-3 font-bold text-ink">{item.description || item.notes}</td>
+                  <td className="p-3 text-ink-soft">
+                    {Number(item.deliveryMethod) === 2 ? 'استلام عبر مندوب شحن' : 'زيارة مقر الورشة'}
+                  </td>
+                  <td className="p-3">
+                    {item.imageUrl || item.image ? (
+                      <a href={item.imageUrl || item.image} target="_blank" rel="noreferrer" className="text-emerald-600 underline font-semibold">
+                        معاينة الصورة
+                      </a>
+                    ) : item.images && item.images.length > 0 ? (
+                      <div className="flex gap-2">
+                        {item.images.map((imgUrl, idx) => (
+                          <a key={idx} href={imgUrl} target="_blank" rel="noreferrer" className="text-emerald-600 underline font-semibold">
+                            صورة {idx + 1}
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      'بدون صورة'
+                    )}
+                  </td>
+                  <td className="p-3 text-ink-soft">{new Date(item.createdAt || Date.now()).toLocaleDateString('ar-EG')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// 3. إدارة مناطق الشحن
 function ShippingTab({ zones, loading, adding, newZone, setNewZone, onAddZone, onDeleteZone }) {
   return (
     <div className="space-y-6">
@@ -343,7 +403,7 @@ function ShippingTab({ zones, loading, adding, newZone, setNewZone, onAddZone, o
   )
 }
 
-// 3. ظهور ونشر المنتجات (Products Visibility & Status Tab)
+// 4. ظهور ونشر المنتجات (Products Visibility & Status Tab)
 function ProductsVisibilityTab({ products, loading, searchTerm, setSearchTerm, onToggleVisibility }) {
   const filteredProducts = products.filter(p =>
     (p.name || p.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -455,7 +515,7 @@ function ProductsVisibilityTab({ products, loading, searchTerm, setSearchTerm, o
   )
 }
 
-// 4. تنبيهات النواقص وطلبات التموين (Low Stock / Restock Tab)
+// 5. تنبيهات النواقص وطلبات التموين (Low Stock / Restock Tab)
 function RestockTab({ products, loading, error, onRefresh, onQuickRestock, restockingId }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -621,13 +681,16 @@ function RestockTab({ products, loading, error, onRefresh, onQuickRestock, resto
 // ==========================================
 export default function OperationsHubPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = searchParams.get('tab') === 'restock' ? 'restock' : 'orders'
+  const initialTab = searchParams.get('tab') || 'orders'
 
   const [activeTab, setActiveTab] = useState(initialTab)
   const [orders, setOrders] = useState([])
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [ordersError, setOrdersError] = useState(null)
   const [processingId, setProcessingId] = useState(null)
+
+  const [inquiries, setInquiries] = useState([])
+  const [loadingInquiries, setLoadingInquiries] = useState(false)
 
   const [shippingZones, setShippingZones] = useState([])
   const [loadingZones, setLoadingZones] = useState(false)
@@ -655,6 +718,19 @@ export default function OperationsHubPage() {
       setOrdersError('حدث خطأ أثناء جلب قائمة الطلبات والعمليات.')
     } finally {
       setLoadingOrders(false)
+    }
+  }, [])
+
+  const fetchInquiries = useCallback(async () => {
+    try {
+      setLoadingInquiries(true)
+      const res = await axiosInstance.get('/Maintenance')
+      const list = Array.isArray(res.data) ? res.data : (res.data?.$values || res.data?.data || [])
+      setInquiries(list)
+    } catch (err) {
+      console.warn('تعذر جلب طلبات الصيانة:', err)
+    } finally {
+      setLoadingInquiries(false)
     }
   }, [])
 
@@ -702,6 +778,8 @@ export default function OperationsHubPage() {
   useEffect(() => {
     if (activeTab === 'orders') {
       fetchOrders()
+    } else if (activeTab === 'inquiries') {
+      fetchInquiries()
     } else if (activeTab === 'shipping') {
       fetchShippingZones()
     } else if (activeTab === 'products') {
@@ -709,11 +787,11 @@ export default function OperationsHubPage() {
     } else if (activeTab === 'restock') {
       fetchLowStock()
     }
-  }, [activeTab, fetchOrders, fetchShippingZones, fetchProducts, fetchLowStock])
+  }, [activeTab, fetchOrders, fetchInquiries, fetchShippingZones, fetchProducts, fetchLowStock])
 
   function handleTabChange(tab) {
     setActiveTab(tab)
-    setSearchParams(tab === 'restock' ? { tab: 'restock' } : {}, { replace: true })
+    setSearchParams(tab !== 'orders' ? { tab } : {}, { replace: true })
   }
 
   async function handleAddZone(e) {
@@ -830,6 +908,7 @@ export default function OperationsHubPage() {
           type="button"
           onClick={() => {
             if (activeTab === 'orders') fetchOrders()
+            else if (activeTab === 'inquiries') fetchInquiries()
             else if (activeTab === 'shipping') fetchShippingZones()
             else if (activeTab === 'products') fetchProducts()
             else if (activeTab === 'restock') fetchLowStock()
@@ -845,8 +924,9 @@ export default function OperationsHubPage() {
         <button
           type="button"
           onClick={() => handleTabChange('orders')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${activeTab === 'orders' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
-            }`}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
+            activeTab === 'orders' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
+          }`}
         >
           <Package size={15} />
           <span>الطلبات والأونلاين</span>
@@ -855,8 +935,9 @@ export default function OperationsHubPage() {
         <button
           type="button"
           onClick={() => handleTabChange('inquiries')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${activeTab === 'inquiries' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
-            }`}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
+            activeTab === 'inquiries' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
+          }`}
         >
           <HelpCircle size={15} />
           <span>استفسارات الورشة</span>
@@ -865,8 +946,9 @@ export default function OperationsHubPage() {
         <button
           type="button"
           onClick={() => handleTabChange('shipping')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${activeTab === 'shipping' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
-            }`}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
+            activeTab === 'shipping' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
+          }`}
         >
           <Truck size={15} />
           <span>إدارة مناطق الشحن</span>
@@ -875,8 +957,9 @@ export default function OperationsHubPage() {
         <button
           type="button"
           onClick={() => handleTabChange('products')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${activeTab === 'products' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
-            }`}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
+            activeTab === 'products' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
+          }`}
         >
           <Eye size={15} />
           <span>ظهور المنتجات</span>
@@ -885,8 +968,9 @@ export default function OperationsHubPage() {
         <button
           type="button"
           onClick={() => handleTabChange('restock')}
-          className={`relative flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${activeTab === 'restock' ? 'bg-rose-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
-            }`}
+          className={`relative flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
+            activeTab === 'restock' ? 'bg-rose-600 text-white shadow-xs' : 'bg-surface text-ink-soft hover:text-ink'
+          }`}
         >
           <AlertTriangle size={15} />
           <span>تنبيهات النواقص والتموين</span>
@@ -914,11 +998,7 @@ export default function OperationsHubPage() {
       )}
 
       {activeTab === 'inquiries' && (
-        <Card title="استفسارات الورشة وطلبات المعدات الخاصة">
-          <p className="text-xs text-ink-soft py-10 text-center">
-            لا توجد استفسارات ورشة جديدة معلقة في الوقت الحالي.
-          </p>
-        </Card>
+        <MaintenanceInquiriesTab inquiries={inquiries} loading={loadingInquiries} />
       )}
 
       {activeTab === 'shipping' && (
