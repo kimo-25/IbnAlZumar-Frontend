@@ -1,6 +1,5 @@
 ﻿// File: src/pages/Operations/OperationsHubPage.jsx
-import { Link } from 'react-router-dom'
-import { RefreshCw, Package, HelpCircle, Truck, Eye, AlertTriangle, FileSpreadsheet, CheckCircle2, XCircle } from 'lucide-react'
+import { RefreshCw, Package, HelpCircle, Truck, Eye, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 import { useOperationsHub } from '../../hooks/useOperationsHub'
 import OrdersTab from '../../components/operations/OrdersTab'
 import MaintenanceInquiriesTab from '../../components/operations/MaintenanceInquiriesTab'
@@ -22,13 +21,6 @@ export default function OperationsHubPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            to="/admin/products/import"
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer"
-          >
-            <FileSpreadsheet size={15} />
-            <span>استيراد منتجات بالإكسيل</span>
-          </Link>
           <button
             type="button"
             onClick={hub.refreshActiveTab}

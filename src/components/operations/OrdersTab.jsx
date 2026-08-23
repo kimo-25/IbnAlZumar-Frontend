@@ -1,6 +1,6 @@
 // File: src/components/operations/OrdersTab.jsx
 import { useState, useEffect, useRef } from 'react'
-import { Clock, Loader2, Printer, Package, Truck, CheckCircle2, XCircle, AlertCircle, ShieldCheck, ChevronDown } from 'lucide-react'
+import { Clock, Loader2, Printer, Package, Truck, CheckCircle2, XCircle, AlertCircle, ShieldCheck, ChevronDown, MapPinPlus } from 'lucide-react'
 import { formatCurrency } from '../../utils/catalog'
 
 const ORDER_STATUS_OPTIONS = [
@@ -119,7 +119,7 @@ export default function OrdersTab({ orders, loading, error, processingId, onUpda
             <tr>
               <th className="p-4">رقم الطلب</th>
               <th className="p-4">العميل ورقم الهاتف</th>
-              <th className="p-4">العنوان</th>
+              <th className="p-4">العنوان والمنطقة</th>
               <th className="p-4">المبلغ</th>
               <th className="p-4">الحالة الحالية</th>
               <th className="p-4 text-center">الإجراءات وتغيير الحالة</th>
@@ -130,6 +130,10 @@ export default function OrdersTab({ orders, loading, error, processingId, onUpda
               const currentStatus = order.status ?? order.statusValue ?? 1
               const badge = getStatusBadge(currentStatus)
               const StatusIcon = badge.icon
+              const isCustomZone =
+                order.isCustomZoneRequested ||
+                order.notes?.includes('منطقة جديدة') ||
+                order.notes?.includes('[طلب منطقة جديدة]')
 
               return (
                 <tr key={order.id} className="hover:bg-canvas/50 transition">
@@ -144,8 +148,15 @@ export default function OrdersTab({ orders, loading, error, processingId, onUpda
                       {order.phone || order.customerPhone || 'غير محدد'}
                     </div>
                   </td>
-                  <td className="p-4 max-w-xs truncate text-ink-soft" title={order.shippingAddress || order.address || ''}>
-                    {order.shippingAddress || order.address || '-'}
+                  <td className="p-4 max-w-xs space-y-1">
+                    <div className="truncate text-ink-soft" title={order.shippingAddress || order.address || ''}>
+                      {order.shippingAddress || order.address || '-'}
+                    </div>
+                    {isCustomZone && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
+                        <MapPinPlus size={11} /> {order.customZoneName || order.notes || 'منطقة جديدة قيد التحديد'}
+                      </span>
+                    )}
                   </td>
                   <td className="p-4 font-mono font-bold text-ink">
                     {formatCurrency(order.totalAmount || order.total || 0)}

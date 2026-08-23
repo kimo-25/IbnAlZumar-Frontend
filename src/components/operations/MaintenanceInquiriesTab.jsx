@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { Loader2, AlertCircle, Wrench, ImageOff, ClipboardEdit } from 'lucide-react'
 import { formatCurrency } from '../../utils/catalog'
-import { toAbsoluteMediaUrl } from '../../utils/mediaUrl'
+import { getImageUrl, handleImageError } from '../../utils/imageHelper'
 import { getMaintenanceStatusMeta, getDeliveryMethodLabel } from '../../constants/maintenance'
 
 export default function MaintenanceInquiriesTab({ requests, loading, error, onReview }) {
@@ -81,7 +81,8 @@ export default function MaintenanceInquiriesTab({ requests, loading, error, onRe
                 {filtered.map((item) => {
                   const meta = getMaintenanceStatusMeta(item.status)
                   const StatusIcon = meta.icon
-                  const imageUrl = toAbsoluteMediaUrl(item.imageUrl || item.image)
+                  const rawImg = item.imageUrl || item.image
+                  const imgPath = rawImg?.startsWith('http') ? rawImg : getImageUrl(rawImg)
 
                   return (
                     <tr key={item.id} className="hover:bg-canvas/50 transition align-top">
@@ -101,11 +102,12 @@ export default function MaintenanceInquiriesTab({ requests, loading, error, onRe
                         {getDeliveryMethodLabel(item.deliveryMethod)}
                       </td>
                       <td className="p-3">
-                        {imageUrl ? (
-                          <a href={imageUrl} target="_blank" rel="noreferrer">
+                        {rawImg ? (
+                          <a href={imgPath} target="_blank" rel="noreferrer">
                             <img
-                              src={imageUrl}
+                              src={imgPath}
                               alt="صورة العطل"
+                              onError={handleImageError}
                               className="w-12 h-12 rounded-lg object-cover border border-border hover:opacity-80 transition"
                             />
                           </a>
