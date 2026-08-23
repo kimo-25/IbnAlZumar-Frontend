@@ -31,7 +31,7 @@ export default function MaintenanceInquiriesTab({ requests, loading, error, onRe
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       <div className="flex flex-wrap items-center justify-between gap-3 bg-surface border border-border p-4 rounded-2xl shadow-xs">
         <div className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
           <Wrench size={16} className="text-emerald-600" />
@@ -82,7 +82,13 @@ export default function MaintenanceInquiriesTab({ requests, loading, error, onRe
                   const meta = getMaintenanceStatusMeta(item.status)
                   const StatusIcon = meta.icon
                   const rawImg = item.imageUrl || item.image
-                  const imgPath = rawImg?.startsWith('http') ? rawImg : getImageUrl(rawImg)
+                  
+                  // معالجة الرابط بشكل يحميه من التكرار
+                  const displayImgUrl = rawImg
+                    ? rawImg.startsWith('http')
+                      ? rawImg
+                      : `https://ibnalzumar-api-bub8fyaceheggxec.southafricanorth-01.azurewebsites.net/${rawImg.replace(/^\/+/, '')}`
+                    : null
 
                   return (
                     <tr key={item.id} className="hover:bg-canvas/50 transition align-top">
@@ -102,13 +108,13 @@ export default function MaintenanceInquiriesTab({ requests, loading, error, onRe
                         {getDeliveryMethodLabel(item.deliveryMethod)}
                       </td>
                       <td className="p-3">
-                        {rawImg ? (
-                          <a href={imgPath} target="_blank" rel="noreferrer">
+                        {displayImgUrl ? (
+                          <a href={displayImgUrl} target="_blank" rel="noreferrer">
                             <img
-                              src={imgPath}
+                              src={displayImgUrl}
                               alt="صورة العطل"
                               onError={handleImageError}
-                              className="w-12 h-12 rounded-lg object-cover border border-border hover:opacity-80 transition"
+                              className="w-12 h-12 rounded-lg object-cover border border-border hover:opacity-80 transition cursor-pointer"
                             />
                           </a>
                         ) : (

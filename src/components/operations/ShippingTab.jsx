@@ -1,6 +1,6 @@
 // File: src/components/operations/ShippingTab.jsx
 import { useState } from 'react'
-import { Loader2, Plus, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Loader2, Plus, Trash2, CheckCircle, XCircle } from 'lucide-react'
 import Card from '../ui/Card'
 import { formatCurrency } from '../../utils/catalog'
 
@@ -12,7 +12,7 @@ export default function ShippingTab({
   setNewZone,
   onAddZone,
   onDeleteZone,
-  pendingZoneRequests = [], // قائمة طلبات المناطق الجديدة الممررة من الباك إند
+  pendingZoneRequests = [],
   onAcceptRequest,
   onRejectRequest,
 }) {
@@ -44,12 +44,12 @@ export default function ShippingTab({
                     <td className="p-3">
                       <input
                         type="number"
-                        placeholder="أدخل السعر المقترح"
+                        placeholder="أدخل السعر"
                         value={selectedRequestPrice[req.id] || ''}
                         onChange={(e) =>
                           setSelectedRequestPrice({ ...selectedRequestPrice, [req.id]: e.target.value })
                         }
-                        className="w-32 rounded-lg border border-border bg-white px-2 py-1 text-xs text-ink outline-none focus:border-emerald-600"
+                        className="w-32 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs text-ink outline-none focus:border-emerald-600 transition"
                       />
                     </td>
                     <td className="p-3 text-center">
@@ -57,14 +57,14 @@ export default function ShippingTab({
                         <button
                           type="button"
                           onClick={() => onAcceptRequest && onAcceptRequest(req.id, selectedRequestPrice[req.id])}
-                          className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs text-white hover:bg-emerald-700 transition"
+                          className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition cursor-pointer"
                         >
                           <CheckCircle size={14} /> قبول وإضافة
                         </button>
                         <button
                           type="button"
                           onClick={() => onRejectRequest && onRejectRequest(req.id)}
-                          className="flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs text-white hover:bg-rose-700 transition"
+                          className="flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition cursor-pointer"
                         >
                           <XCircle size={14} /> رفض
                         </button>
@@ -118,10 +118,10 @@ export default function ShippingTab({
           <button
             type="submit"
             disabled={adding}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition cursor-pointer disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition cursor-pointer disabled:opacity-60"
           >
             {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            إضافة المنطقة
+            <span>إضافة المنطقة</span>
           </button>
         </form>
       </Card>

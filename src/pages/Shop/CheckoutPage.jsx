@@ -1,3 +1,4 @@
+// File: src/pages/Checkout/CheckoutPage.jsx
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, UserCheck, MapPinPlus } from 'lucide-react'
@@ -39,7 +40,7 @@ export default function CheckoutPage() {
     guestPhone: '',
     shippingAddress: '',
     deliveryGovernorate: '',
-    customGovernorate: '', // حقل كتابة المنطقة الجديدة
+    customGovernorate: '',
   })
 
   const [isOtherZone, setIsOtherZone] = useState(false)
@@ -55,7 +56,6 @@ export default function CheckoutPage() {
   const [user, setUser] = useState(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
 
-  // 1. جلب مناطق الشحن
   const fetchShippingZones = useCallback(async () => {
     try {
       const res = await axiosInstance.get('/ShippingZones')
@@ -67,7 +67,6 @@ export default function CheckoutPage() {
     }
   }, [])
 
-  // 2. جلب ملف المستخدم الحالي من الباك إند
   const fetchUserProfile = useCallback(async () => {
     setLoadingProfile(true)
     try {
@@ -89,7 +88,6 @@ export default function CheckoutPage() {
     }
   }, [])
 
-  // التحميل المبدئي للبيانات
   useEffect(() => {
     fetchShippingZones()
 
@@ -117,12 +115,11 @@ export default function CheckoutPage() {
     }
   }, [fetchShippingZones, fetchUserProfile])
 
-  // 3. مزامنة تكلفة الشحن وحالة خيار Other
   useEffect(() => {
     if (form.deliveryGovernorate === 'OTHER') {
       setIsOtherZone(true)
       setSelectedZone(null)
-      setSelectedZonePrice(0) // تكلفة الشحن تحدد لاحقاً بواسطة الأدمن
+      setSelectedZonePrice(0)
     } else if (form.deliveryGovernorate && shippingZones.length > 0) {
       setIsOtherZone(false)
       const found = shippingZones.find(
@@ -173,8 +170,7 @@ export default function CheckoutPage() {
         unitPrice: Number(item.price || 0),
       }))
 
-      const finalGovernorate = isOtherZone ? formData.customGovernorate : formData.deliveryGovernorate
-
+      // فصل العنوان والمحافظة، وإرسال تنبيه مستقل بطلب المنطقة الجديدة
       const orderPayload = {
         customerName: formData.guestName,
         customerPhone: formData.guestPhone,
@@ -183,8 +179,8 @@ export default function CheckoutPage() {
         isCustomZoneRequested: isOtherZone,
         customZoneName: isOtherZone ? formData.customGovernorate : null,
         notes: isOtherZone
-          ? `[طلب منطقة جديدة]: ${formData.customGovernorate} - سيتم تحديد الشحن من قبل الأدمن`
-          : `المحافظة: ${formData.deliveryGovernorate} - الإجمالي الكلي: ${currentTotal}`,
+          ? `[طلب منطقة جديدة]: ${formData.customGovernorate}`
+          : `المحافظة: ${formData.deliveryGovernorate}`,
         items: formattedItems,
       }
 
@@ -200,7 +196,7 @@ export default function CheckoutPage() {
         fullName: formData.guestName,
         phone: formData.guestPhone,
         address: formData.shippingAddress,
-        governorate: finalGovernorate,
+        governorate: isOtherZone ? formData.customGovernorate : formData.deliveryGovernorate,
       }
 
       localStorage.setItem('user', JSON.stringify(updatedUser))
