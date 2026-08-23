@@ -1,6 +1,6 @@
 ﻿// File: src/pages/Operations/OperationsHubPage.jsx
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import {
   Clock,
   Loader2,
@@ -21,6 +21,7 @@ import {
   Search,
   ShieldCheck,
   ChevronDown,
+  FileSpreadsheet,
   Check,
   X as XIcon
 } from 'lucide-react'
@@ -904,20 +905,29 @@ export default function OperationsHubPage() {
             إدارة الطلبات المباشرة، استفسارات الورش، ومناطق الشحن والظهور
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (activeTab === 'orders') fetchOrders()
-            else if (activeTab === 'inquiries') fetchInquiries()
-            else if (activeTab === 'shipping') fetchShippingZones()
-            else if (activeTab === 'products') fetchProducts()
-            else if (activeTab === 'restock') fetchLowStock()
-          }}
-          className="inline-flex items-center gap-2 rounded-xl bg-surface border border-border px-4 py-2 text-xs font-semibold text-ink shadow-xs hover:bg-canvas transition cursor-pointer"
-        >
-          <RefreshCw size={14} />
-          <span>تحديث البيانات</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/admin/products/import"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer"
+          >
+            <FileSpreadsheet size={15} />
+            <span>استيراد منتجات بالإكسيل</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              if (activeTab === 'orders') fetchOrders()
+              else if (activeTab === 'inquiries') fetchInquiries()
+              else if (activeTab === 'shipping') fetchShippingZones()
+              else if (activeTab === 'products') fetchProducts()
+              else if (activeTab === 'restock') fetchLowStock()
+            }}
+            className="inline-flex items-center gap-2 rounded-xl bg-surface border border-border px-4 py-2 text-xs font-semibold text-ink shadow-xs hover:bg-canvas transition cursor-pointer"
+          >
+            <RefreshCw size={14} />
+            <span>تحديث البيانات</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 border-b border-border pb-3">

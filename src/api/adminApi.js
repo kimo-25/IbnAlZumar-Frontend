@@ -110,6 +110,22 @@ export async function updateProductVisibility(id, isVisible) {
   return updateProduct(id, { isActive: isVisible })
 }
 
+/**
+ * رفع ملف اكسل (.xlsx / .xls) لاستيراد المنتجات دفعة واحدة (Bulk Import).
+ * الباك إند يرجع BulkImportResultDto:
+ * { totalRows, successCount, failedCount, importedSkus, errors: [{ rowNumber, sku, errors: [] }] }
+ * لا نستخدم safeGet هنا عمداً: عايزين الخطأ الحقيقي يوصل للمكوّن عشان نعرض تفاصيل الصفوف الغلط.
+ */
+export async function uploadProductsExcel(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await axiosInstance.post('/Products/bulk-import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return response.data
+}
+
 // ==========================================
 // 2. إدارة الأقسام والعملاء
 // ==========================================

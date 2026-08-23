@@ -1,6 +1,7 @@
 // File: src/pages/Moderator/ModeratorProductsPage.jsx
 import { useEffect, useState, useCallback } from 'react'
-import { Loader2, Package, Search, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Loader2, Package, Search, Trash2, FileSpreadsheet } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import Pagination from '../../components/ui/Pagination'
@@ -87,14 +88,23 @@ export default function ModeratorProductsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-xl font-semibold text-ink">المنتجات (لوحة المشرف)</h1>
           <p className="text-sm text-ink-soft">استعراض، بحث، وإدارة المنتجات للكتالوج.</p>
         </div>
-        <div className="inline-flex w-fit rounded-full border border-amber/20 bg-amber/10 px-3 py-1 text-sm font-medium text-amber-dark">
-          إجمالي المنتجات: {totalCount} منتج
+        <div className="flex items-center gap-3">
+          <Link
+            to="/moderator/products/import"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer"
+          >
+            <FileSpreadsheet size={15} />
+            <span>استيراد عبر اكسل</span>
+          </Link>
+          <div className="inline-flex w-fit rounded-full border border-amber/20 bg-amber/10 px-3 py-1 text-sm font-medium text-amber-dark">
+            إجمالي المنتجات: {totalCount} منتج
+          </div>
         </div>
       </div>
 
