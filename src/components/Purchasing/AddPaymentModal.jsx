@@ -23,6 +23,7 @@ export default function AddPaymentModal({ supplierId, supplierName, onClose, onS
     setSaving(true)
     try {
       await createSupplierPayment(supplierId, {
+        supplierId: Number(supplierId), // تم إضافة الـ supplierId هنا بوضوح لتطابق الـ Backend
         amount: Number(amount),
         paymentMethod,
         paymentDate: new Date(paymentDate).toISOString(),
