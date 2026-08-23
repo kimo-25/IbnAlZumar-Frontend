@@ -5,7 +5,7 @@ import { getSupplierDetails, getSupplierLedger } from '../../api/purchasingApi'
 import { formatCurrency } from '../../utils/catalog'
 import { innerTabClass } from './constants'
 import SupplierLedgerTable from './SupplierLedgerTable'
-import SupplierPaymentsTable from './SupplierPaymentsTable'
+import SupplierPaymentsTable from './SupplierPaymentTable'
 import SupplierOrdersTable from './SupplierOrdersTable'
 import AddPaymentModal from './AddPaymentModal'
 
