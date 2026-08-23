@@ -1,14 +1,25 @@
 // File: src/components/operations/ProductsVisibilityTab.jsx
 import { Loader2, Search, Package, Eye, EyeOff } from 'lucide-react'
 import { formatCurrency } from '../../utils/catalog'
+import Pagination from '../ui/Pagination'
 
-export default function ProductsVisibilityTab({ products, loading, searchTerm, setSearchTerm, onToggleVisibility }) {
+export default function ProductsVisibilityTab({
+  products = [],
+  loading,
+  searchTerm,
+  setSearchTerm,
+  onToggleVisibility,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange
+}) {
   const filteredProducts = products.filter(p =>
-    (p.name || p.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.categoryName || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (p.name || p.title || p.nameAr || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.categoryName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.sku || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
       <div className="flex justify-center py-16">
         <Loader2 size={32} className="animate-spin text-emerald-600" />
@@ -17,7 +28,7 @@ export default function ProductsVisibilityTab({ products, loading, searchTerm, s
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-surface border border-border p-4 rounded-2xl shadow-xs">
         <div className="relative w-full sm:w-96">
           <Search size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
@@ -25,12 +36,12 @@ export default function ProductsVisibilityTab({ products, loading, searchTerm, s
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="ابحث باسم المعدة أو التصنيف..."
+            placeholder="ابحث باسم المعدة، الـ SKU، أو التصنيف..."
             className="w-full rounded-xl border border-border bg-canvas pr-10 pl-4 py-2 text-xs text-ink outline-none focus:border-emerald-600 transition"
           />
         </div>
         <div className="text-xs font-semibold text-ink-soft">
-          إجمالي المعدات المعروضة: <span className="font-mono font-bold text-emerald-600">{filteredProducts.length}</span>
+          المعدات المعروضة بالصفحة: <span className="font-mono font-bold text-emerald-600">{filteredProducts.length}</span>
         </div>
       </div>
 
@@ -69,21 +80,19 @@ export default function ProductsVisibilityTab({ products, loading, searchTerm, s
                           </div>
                         )}
                         <div>
-                          <div className="font-bold text-ink">{product.name || product.title}</div>
+                          <div className="font-bold text-ink">{product.nameAr || product.name || product.title}</div>
                           <div className="font-mono text-[10px] text-ink-soft">SKU: {product.sku || `PRD-${product.id}`}</div>
                         </div>
                       </td>
                       <td className="p-4 text-ink-soft">{product.categoryName || product.category?.name || 'مستلزمات ورش'}</td>
-                      <td className="p-4 font-mono font-bold text-ink">{formatCurrency(product.price || product.unitPrice || 0)}</td>
+                      <td className="p-4 font-mono font-bold text-ink">{formatCurrency(product.sellingPrice || product.price || product.unitPrice || 0)}</td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${(product.stock ?? product.quantity ?? 10) > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'
-                          }`}>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${(product.stock ?? product.quantity ?? 10) > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
                           {(product.stock ?? product.quantity ?? 10) > 0 ? 'متوفر بالمخزن' : 'نفذت الكمية'}
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold border ${isVisible ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200'
-                          }`}>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold border ${isVisible ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {isVisible ? <Eye size={13} className="text-emerald-600" /> : <EyeOff size={13} className="text-gray-500" />}
                           {isVisible ? 'منشور للعملاء' : 'مخفي'}
                         </span>
@@ -109,6 +118,15 @@ export default function ProductsVisibilityTab({ products, loading, searchTerm, s
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && onPageChange && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          className="justify-between pt-2"
+        />
+      )}
     </div>
   )
 }

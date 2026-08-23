@@ -1,4 +1,3 @@
-// File: src/pages/Checkout/CheckoutPage.jsx
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, UserCheck, MapPinPlus } from 'lucide-react'

@@ -145,6 +145,9 @@ export default function OperationsHubPage() {
           searchTerm={hub.productSearch}
           setSearchTerm={hub.setProductSearch}
           onToggleVisibility={hub.handleToggleProductVisibility}
+          currentPage={hub.productPage}
+          totalPages={hub.productTotalPages}
+          onPageChange={hub.setProductPage}
         />
       )}
 

@@ -70,6 +70,10 @@ export async function deleteModeratorProduct(id) {
 // 2. إدارة الأقسام للموديريتور
 // ==========================================
 
+export async function getCategories() {
+  return safeGet('/Categories', {}, [])
+}
+
 export async function getModeratorCategories() {
   return safeGet('/Categories', {}, [])
 }
@@ -88,6 +92,7 @@ export async function deleteModeratorCategory(id) {
   const response = await axiosInstance.delete(`/Categories/${id}`)
   return response.data
 }
+
 export async function approveOrderCancellation(orderId) {
   const response = await axiosInstance.post(`/Orders/${orderId}/approve-cancel`)
   return response.data

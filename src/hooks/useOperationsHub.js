@@ -31,10 +31,13 @@ export function useOperationsHub() {
   const [newZone, setNewZone] = useState({ name: '', price: '', estimatedDays: '' })
   const [addingZone, setAddingZone] = useState(false)
 
-  // ---------- Products ----------
+  // ---------- Products & Pagination ----------
   const [products, setProducts] = useState([])
   const [loadingProducts, setLoadingProducts] = useState(false)
   const [productSearch, setProductSearch] = useState('')
+  const [productPage, setProductPage] = useState(1)
+  const [productTotalPages, setProductTotalPages] = useState(1)
+  const pageSize = 20
 
   // ---------- Restock ----------
   const [lowStockProducts, setLowStockProducts] = useState([])
@@ -43,7 +46,7 @@ export function useOperationsHub() {
   const [restockingId, setRestockingId] = useState(null)
 
   // ---------- Toast ----------
-  const [toast, setToast] = useState(null) // { message, type: 'success' | 'error' }
+  const [toast, setToast] = useState(null)
   const toastTimerRef = useRef(null)
 
   const showToast = useCallback((message, type = 'success') => {
@@ -101,16 +104,33 @@ export function useOperationsHub() {
   const fetchProducts = useCallback(async () => {
     try {
       setLoadingProducts(true)
-      const res = await axiosInstance.get('/Products', { params: { pageSize: 500 } })
+      const params = {
+        pageNumber: productPage,
+        pageSize: pageSize,
+      }
+      if (productSearch.trim()) {
+        params.searchTerm = productSearch.trim()
+      }
+
+      const res = await axiosInstance.get('/Products', { params })
       const data = res.data
       const list = Array.isArray(data) ? data : (data.items || data.Items || data.$values || [])
+      const total = Number(
+        Array.isArray(data)
+          ? data.length
+          : (data.totalCount ?? data.TotalCount ?? data.count ?? list.length)
+      )
+
       setProducts(list)
+      setProductTotalPages(Math.max(1, Math.ceil(total / pageSize)))
     } catch (err) {
       console.error('فشل جلب المنتجات:', err)
+      setProducts([])
+      setProductTotalPages(1)
     } finally {
       setLoadingProducts(false)
     }
-  }, [])
+  }, [productPage, productSearch])
 
   const fetchLowStock = useCallback(async () => {
     try {
@@ -191,7 +211,6 @@ export function useOperationsHub() {
     setMaintenanceSaveError(null)
   }
 
-  // payload: { status, estimatedPrice, scheduledDate, adminNotes, maintenanceReportUrl }
   async function saveMaintenanceResponse(requestId, payload) {
     try {
       setSavingMaintenance(true)
@@ -294,6 +313,7 @@ export function useOperationsHub() {
     shippingZones, loadingZones, newZone, setNewZone, addingZone, handleAddZone, handleDeleteZone,
 
     products, loadingProducts, productSearch, setProductSearch, handleToggleProductVisibility,
+    productPage, setProductPage, productTotalPages,
 
     lowStockProducts, loadingLowStock, lowStockError, fetchLowStock, handleQuickRestock, restockingId,
 
