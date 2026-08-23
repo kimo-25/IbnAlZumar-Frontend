@@ -52,3 +52,30 @@ export async function receivePurchaseOrder(purchaseOrderId, receivedDate = new D
   })
   return response.data
 }
+
+// ---------------- Supplier Ledger & Payments ----------------
+
+export async function getSupplierDetails(supplierId) {
+  try {
+    const res = await axiosInstance.get(`/Purchasing/suppliers/${supplierId}`)
+    return res.data
+  } catch (error) {
+    console.warn('[Purchasing API] Failed to fetch supplier details:', error)
+    return null
+  }
+}
+
+export async function getSupplierLedger(supplierId) {
+  try {
+    const res = await axiosInstance.get(`/Purchasing/suppliers/${supplierId}/ledger`)
+    return res.data
+  } catch (error) {
+    console.warn('[Purchasing API] Failed to fetch supplier ledger:', error)
+    return []
+  }
+}
+
+export async function createSupplierPayment(supplierId, data) {
+  const response = await axiosInstance.post(`/Purchasing/suppliers/${supplierId}/payments`, data)
+  return response.data
+}
