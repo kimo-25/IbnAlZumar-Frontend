@@ -1,8 +1,10 @@
 // File: src/components/profile/MyRequests.jsx
 import { useState, useEffect } from 'react'
-import { Wrench, Clock, AlertCircle, FileText, ExternalLink, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { Wrench, AlertCircle, FileText, ExternalLink, Loader2 } from 'lucide-react'
 import axiosInstance from '../../api/axiosInstance'
 import { formatCurrency } from '../../utils/catalog'
+import { toAbsoluteMediaUrl } from '../../utils/mediaUrl'
+import { getMaintenanceStatusMeta } from '../../constants/maintenance'
 
 export default function MyRequests() {
   const [requests, setRequests] = useState([])
@@ -52,53 +54,11 @@ export default function MyRequests() {
     )
   }
 
-  // دالة لمطابقة Enum الباك إند مع النص والألوان المناسبة لكل حالة
-  const getStatusDetails = (status) => {
-    const statusVal = Number(status)
-    switch (statusVal) {
-      case 1: // MaintenanceStatus.Pending
-        return {
-          text: 'قيد المراجعة',
-          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
-          icon: Clock
-        }
-      case 2: // MaintenanceStatus.Priced
-        return {
-          text: 'تم التسعير وفي انتظار الموافقة',
-          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-          icon: Clock
-        }
-      case 3: // MaintenanceStatus.Approved
-        return {
-          text: 'تمت الموافقة وجاري التنفيذ',
-          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-          icon: Clock
-        }
-      case 4: // MaintenanceStatus.Rejected
-        return {
-          text: 'تم رفض الطلب',
-          badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
-          icon: XCircle
-        }
-      case 5: // MaintenanceStatus.Completed
-        return {
-          text: 'تم الانتهاء',
-          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          icon: CheckCircle2
-        }
-      default:
-        return {
-          text: 'قيد المراجعة',
-          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
-          icon: Clock
-        }
-    }
-  }
-
   return (
     <div className="space-y-4" dir="rtl">
       {requests.map((req) => {
-        const { text: statusText, badgeColor, icon: StatusIcon } = getStatusDetails(req.status)
+        const { label: statusText, className: badgeColor, icon: StatusIcon } = getMaintenanceStatusMeta(req.status)
+        const reportUrl = toAbsoluteMediaUrl(req.maintenanceReportUrl)
 
         return (
           <div key={req.id} className="rounded-2xl border border-border bg-surface p-5 shadow-xs space-y-3">
@@ -125,7 +85,7 @@ export default function MyRequests() {
               <p className="bg-canvas p-3 rounded-xl border border-border">{req.problemDescription}</p>
             </div>
 
-            {req.estimatedPrice && (
+            {req.estimatedPrice != null && (
               <div className="flex items-center justify-between bg-emerald-50/60 border border-emerald-200 p-3 rounded-xl text-xs">
                 <span className="font-bold text-emerald-800">التكلفة التقديرية للصيانة:</span>
                 <span className="font-mono font-bold text-emerald-700 text-sm">{formatCurrency(req.estimatedPrice)}</span>
@@ -141,10 +101,10 @@ export default function MyRequests() {
               </div>
             )}
 
-            {req.maintenanceReportUrl && (
+            {reportUrl && (
               <div className="pt-1">
                 <a
-                  href={req.maintenanceReportUrl}
+                  href={reportUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:underline"
