@@ -21,6 +21,7 @@ import {
   Mail,
   ShieldCheck,
   ShieldAlert,
+  Wrench,
 } from 'lucide-react'
 import axiosInstance from '../../api/axiosInstance'
 import { useAuth } from '../../context/AuthContext'
@@ -30,6 +31,7 @@ import { requestOrderCancellation } from '../../api/storefrontApi'
 import ChangePhoneModal from '../../components/profile/ChangePhoneModal'
 import VerifyPhoneModal from '../../components/profile/VerifyPhoneModal'
 import VerifyEmailModal from '../../components/profile/VerifyEmailModal'
+import MyRequests from '../../components/profile/MyRequests'
 
 const TRACKING_STEPS = [
   { step: 1, label: 'قيد المراجعة' },
@@ -595,7 +597,8 @@ function ChangeEmailModal({ isOpen, onClose, currentEmail, onSuccess }) {
 
 export default function CustomerProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const activeTab = searchParams.get('tab') === 'profile' ? 'profile' : 'orders'
+  const activeTabParam = searchParams.get('tab')
+  const activeTab = activeTabParam === 'profile' ? 'profile' : activeTabParam === 'requests' ? 'requests' : 'orders'
   const handleTabChange = (tab) => setSearchParams({ tab })
 
   const { user: authUser, updateUser: updateAuthUser } = useAuth()
@@ -702,7 +705,6 @@ export default function CustomerProfilePage() {
     setExpandedOrders((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  // الدالة المصححة للتعامل مع الـ API الصحيح
   async function handleConfirmCancelOrder() {
     if (!cancelReason.trim()) {
       alert('يرجى كتابة سبب الإلغاء')
@@ -791,25 +793,36 @@ export default function CustomerProfilePage() {
     <div className="max-w-4xl mx-auto px-4 py-8" dir="rtl">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-ink">مرحباً، {user.fullName || 'عزيزنا العميل'} 👋</h1>
-        <p className="text-sm text-ink-soft mt-1">يمكنك متابعة حالة طلباتك الحالية والسابقة أو تعديل بيانات حسابك الشخصي.</p>
+        <p className="text-sm text-ink-soft mt-1">يمكنك متابعة حالة طلباتك الحالية والسابقة، استفسارات الصيانة، أو تعديل بيانات حسابك الشخصي.</p>
       </div>
 
-      <div className="flex gap-2 mb-6 border-b border-border">
+      <div className="flex gap-2 mb-6 border-b border-border overflow-x-auto">
         <button
           onClick={() => handleTabChange('orders')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition cursor-pointer shrink-0 ${
             activeTab === 'orders' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-ink-soft hover:text-ink'
           }`}
         >
           <ShoppingBag className="h-4 w-4" />
-          طلباتي ومتابعة الشحنات
+          طلبات الشراء ومتابعة الشحنات
           {orders.length > 0 && (
             <span className="bg-canvas border border-border text-[10px] px-1.5 py-0.5 rounded-full">{orders.length}</span>
           )}
         </button>
+
+        <button
+          onClick={() => handleTabChange('requests')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition cursor-pointer shrink-0 ${
+            activeTab === 'requests' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-ink-soft hover:text-ink'
+          }`}
+        >
+          <Wrench className="h-4 w-4" />
+          طلبات واستفسارات الصيانة
+        </button>
+
         <button
           onClick={() => handleTabChange('profile')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition cursor-pointer shrink-0 ${
             activeTab === 'profile' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-ink-soft hover:text-ink'
           }`}
         >
@@ -876,6 +889,8 @@ export default function CustomerProfilePage() {
           )}
         </div>
       )}
+
+      {activeTab === 'requests' && <MyRequests />}
 
       {activeTab === 'profile' && (
         <div className="space-y-6">
