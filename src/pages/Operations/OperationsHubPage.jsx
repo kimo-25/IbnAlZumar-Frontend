@@ -238,7 +238,7 @@ function OrdersTab({ orders, loading, error, processingId, onUpdateStatus, onPri
   )
 }
 
-// 2. جدول طلبات الصيانة واستفسارات الورشة
+// 2. جدول طلبات الصيانة واستفسارات الورشة (مُعدل لإظهار بيانات العميل كاملاً)
 function MaintenanceInquiriesTab({ inquiries, loading }) {
   if (loading) {
     return (
@@ -259,6 +259,9 @@ function MaintenanceInquiriesTab({ inquiries, loading }) {
           <table className="w-full text-right text-xs">
             <thead className="bg-canvas border-b border-border text-ink-soft font-semibold">
               <tr>
+                <th className="p-3">اسم العميل</th>
+                <th className="p-3">الإيميل</th>
+                <th className="p-3">الهاتف</th>
                 <th className="p-3">وصف المشكلة / المعدة</th>
                 <th className="p-3">طريقة التسليم</th>
                 <th className="p-3">صور الأعطال</th>
@@ -268,7 +271,16 @@ function MaintenanceInquiriesTab({ inquiries, loading }) {
             <tbody className="divide-y divide-border">
               {inquiries.map((item) => (
                 <tr key={item.id} className="hover:bg-canvas/50 transition">
-                  <td className="p-3 font-bold text-ink">{item.description || item.notes}</td>
+                  <td className="p-3 font-bold text-ink">
+                    {item.userName || item.customerName || item.fullName || 'عميل غير مسجل'}
+                  </td>
+                  <td className="p-3 text-ink-soft dir-ltr text-right">
+                    {item.userEmail || item.customerEmail || item.email || '-'}
+                  </td>
+                  <td className="p-3 font-mono text-ink-soft">
+                    {item.userPhone || item.customerPhone || item.phone || '-'}
+                  </td>
+                  <td className="p-3 font-bold text-ink">{item.problemDescription || item.description || item.notes}</td>
                   <td className="p-3 text-ink-soft">
                     {Number(item.deliveryMethod) === 2 ? 'استلام عبر مندوب شحن' : 'زيارة مقر الورشة'}
                   </td>
@@ -751,9 +763,10 @@ export default function OperationsHubPage() {
   const fetchProducts = useCallback(async () => {
     try {
       setLoadingProducts(true)
-      const res = await axiosInstance.get('/Products')
+      const res = await axiosInstance.get('/Products', { params: { pageSize: 500 } })
       const data = res.data
-      setProducts(Array.isArray(data) ? data : (data.$values || data.data || []))
+      const list = Array.isArray(data) ? data : (data.items || data.Items || data.$values || [])
+      setProducts(list)
     } catch (err) {
       console.error('فشل جلب المنتجات:', err)
     } finally {

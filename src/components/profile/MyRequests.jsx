@@ -1,6 +1,6 @@
 // File: src/components/profile/MyRequests.jsx
 import { useState, useEffect } from 'react'
-import { Wrench, Clock, CheckCircle2, AlertCircle, FileText, ExternalLink, Loader2 } from 'lucide-react'
+import { Wrench, Clock, AlertCircle, FileText, ExternalLink, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import axiosInstance from '../../api/axiosInstance'
 import { formatCurrency } from '../../utils/catalog'
 
@@ -52,13 +52,53 @@ export default function MyRequests() {
     )
   }
 
+  // دالة لمطابقة Enum الباك إند مع النص والألوان المناسبة لكل حالة
+  const getStatusDetails = (status) => {
+    const statusVal = Number(status)
+    switch (statusVal) {
+      case 1: // MaintenanceStatus.Pending
+        return {
+          text: 'قيد المراجعة',
+          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+          icon: Clock
+        }
+      case 2: // MaintenanceStatus.Priced
+        return {
+          text: 'تم التسعير وفي انتظار الموافقة',
+          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+          icon: Clock
+        }
+      case 3: // MaintenanceStatus.Approved
+        return {
+          text: 'تمت الموافقة وجاري التنفيذ',
+          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+          icon: Clock
+        }
+      case 4: // MaintenanceStatus.Rejected
+        return {
+          text: 'تم رفض الطلب',
+          badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
+          icon: XCircle
+        }
+      case 5: // MaintenanceStatus.Completed
+        return {
+          text: 'تم الانتهاء',
+          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          icon: CheckCircle2
+        }
+      default:
+        return {
+          text: 'قيد المراجعة',
+          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+          icon: Clock
+        }
+    }
+  }
+
   return (
     <div className="space-y-4" dir="rtl">
       {requests.map((req) => {
-        // تحديد الحالة بناءً على الـ Enum الرقمي الصحيح
-        const statusVal = Number(req.status)
-        const statusText = statusVal === 0 ? 'قيد المراجعة' : statusVal === 1 ? 'تم الرد والتسعير' : statusVal === 2 ? 'جاري الصيانة' : 'مكتمل'
-        const badgeColor = statusVal === 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'
+        const { text: statusText, badgeColor, icon: StatusIcon } = getStatusDetails(req.status)
 
         return (
           <div key={req.id} className="rounded-2xl border border-border bg-surface p-5 shadow-xs space-y-3">
@@ -75,7 +115,7 @@ export default function MyRequests() {
                 </div>
               </div>
               <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold border ${badgeColor}`}>
-                <Clock size={12} />
+                <StatusIcon size={12} />
                 {statusText}
               </span>
             </div>
