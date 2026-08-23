@@ -1,7 +1,7 @@
 // File: src/pages/Checkout/CheckoutPage.jsx
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, UserCheck } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, UserCheck, MapPinPlus } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import { createGuestOrder } from '../../api/storefrontApi'
@@ -22,7 +22,6 @@ function extractErrorMessage(err) {
   if (responseData?.message) return responseData.message
   if (responseData?.title) return responseData.title
 
-  // معالجة أخطاء C# Validation (ASP.NET Core ModelState / FluentValidation)
   if (responseData?.errors && typeof responseData.errors === 'object') {
     const messages = Object.values(responseData.errors).flat()
     if (messages.length > 0) return messages.join(' | ')
@@ -41,11 +40,13 @@ export default function CheckoutPage() {
     guestPhone: '',
     shippingAddress: '',
     deliveryGovernorate: '',
+    customGovernorate: '', // حقل كتابة المنطقة الجديدة
   })
 
+  const [isOtherZone, setIsOtherZone] = useState(false)
   const [shippingZones, setShippingZones] = useState([])
-const [selectedZone, setSelectedZone] = useState(null)
-const [selectedZonePrice, setSelectedZonePrice] = useState(0)
+  const [selectedZone, setSelectedZone] = useState(null)
+  const [selectedZonePrice, setSelectedZonePrice] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [loadingProfile, setLoadingProfile] = useState(false)
   const [error, setError] = useState(null)
@@ -117,30 +118,29 @@ const [selectedZonePrice, setSelectedZonePrice] = useState(0)
     }
   }, [fetchShippingZones, fetchUserProfile])
 
-  // 3. مزامنة تكلفة الشحن تلقائياً عند تغيير المحافظة أو تحميل المناطق
- useEffect(() => {
-  if (form.deliveryGovernorate && shippingZones.length > 0) {
-    const found = shippingZones.find(
-      z =>
-        z.name?.trim().toLowerCase() ===
-        form.deliveryGovernorate?.trim().toLowerCase()
-    )
-
-    setSelectedZone(found || null)
-
-setSelectedZonePrice(
-  found
-    ? Number(
-        found.shippingFee ??
-        found.shippingCost ??
-        0
+  // 3. مزامنة تكلفة الشحن وحالة خيار Other
+  useEffect(() => {
+    if (form.deliveryGovernorate === 'OTHER') {
+      setIsOtherZone(true)
+      setSelectedZone(null)
+      setSelectedZonePrice(0) // تكلفة الشحن تحدد لاحقاً بواسطة الأدمن
+    } else if (form.deliveryGovernorate && shippingZones.length > 0) {
+      setIsOtherZone(false)
+      const found = shippingZones.find(
+        (z) => z.name?.trim().toLowerCase() === form.deliveryGovernorate?.trim().toLowerCase()
       )
-    : 0
-) } else {
-    setSelectedZone(null)
-    setSelectedZonePrice(0)
-  }
-}, [form.deliveryGovernorate, shippingZones])
+
+      setSelectedZone(found || null)
+      setSelectedZonePrice(
+        found ? Number(found.shippingFee ?? found.shippingCost ?? found.price ?? 0) : 0
+      )
+    } else {
+      setIsOtherZone(false)
+      setSelectedZone(null)
+      setSelectedZonePrice(0)
+    }
+  }, [form.deliveryGovernorate, shippingZones])
+
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
   }
@@ -153,7 +153,7 @@ setSelectedZonePrice(
         fullName: formData.guestName,
         phone: formData.guestPhone,
         address: formData.shippingAddress,
-        governorate: formData.deliveryGovernorate,
+        governorate: isOtherZone ? formData.customGovernorate : formData.deliveryGovernorate,
       })
     } catch (e) {
       console.error('فشل تحديث ملف المستخدم في الباك إند:', e)
@@ -168,24 +168,27 @@ setSelectedZonePrice(
       const token = overrideToken || localStorage.getItem('token')
       const formData = overrideForm || form
 
-      // مطابقة العناصر مع DTO الخاص بـ ASP.NET Core Backend
       const formattedItems = items.map((item) => ({
         productId: Number(item.id || item.productId),
         quantity: Number(item.quantity || 1),
         unitPrice: Number(item.price || 0),
       }))
 
- const orderPayload = {
-  customerName: formData.guestName,
-  customerPhone: formData.guestPhone,
-  shippingAddress: formData.shippingAddress,
+      const finalGovernorate = isOtherZone ? formData.customGovernorate : formData.deliveryGovernorate
 
-  shippingZoneId: selectedZone?.id,
+      const orderPayload = {
+        customerName: formData.guestName,
+        customerPhone: formData.guestPhone,
+        shippingAddress: formData.shippingAddress,
+        shippingZoneId: isOtherZone ? null : selectedZone?.id,
+        isCustomZoneRequested: isOtherZone,
+        customZoneName: isOtherZone ? formData.customGovernorate : null,
+        notes: isOtherZone
+          ? `[طلب منطقة جديدة]: ${formData.customGovernorate} - سيتم تحديد الشحن من قبل الأدمن`
+          : `المحافظة: ${formData.deliveryGovernorate} - الإجمالي الكلي: ${currentTotal}`,
+        items: formattedItems,
+      }
 
-  notes: `المحافظة: ${formData.deliveryGovernorate} - الإجمالي الكلي: ${currentTotal}`,
-
-  items: formattedItems,
-}
       const order = await createGuestOrder(orderPayload, token)
 
       if (token) {
@@ -198,7 +201,7 @@ setSelectedZonePrice(
         fullName: formData.guestName,
         phone: formData.guestPhone,
         address: formData.shippingAddress,
-        governorate: formData.deliveryGovernorate,
+        governorate: finalGovernorate,
       }
 
       localStorage.setItem('user', JSON.stringify(updatedUser))
@@ -259,9 +262,10 @@ setSelectedZonePrice(
       !form.guestName.trim() ||
       !form.guestPhone.trim() ||
       !form.shippingAddress.trim() ||
-      !form.deliveryGovernorate.trim()
+      !form.deliveryGovernorate.trim() ||
+      (isOtherZone && !form.customGovernorate.trim())
     ) {
-      setError('يرجى إكمال جميع بيانات التوصيل (الاسم، الهاتف، العنوان، المحافظة).')
+      setError('يرجى إكمال جميع بيانات التوصيل المحددة.')
       return
     }
 
@@ -274,7 +278,6 @@ setSelectedZonePrice(
     await executeOrderSubmission()
   }
 
-  // شاشة السلة الفارغة
   if (!items.length && !orderNumber) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:py-12" dir="rtl">
@@ -295,7 +298,6 @@ setSelectedZonePrice(
     )
   }
 
-  // شاشة نجاح إرسال الطلب
   if (orderNumber) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6" dir="rtl">
@@ -306,11 +308,16 @@ setSelectedZonePrice(
             </div>
             <h1 className="font-display text-2xl font-bold text-ink">تم استلام طلبك بنجاح</h1>
             <p className="max-w-lg text-sm leading-7 text-ink-soft">
-              رقم الطلب <span className="font-mono font-bold text-emerald-600">{orderNumber}</span> تم إرساله إلى النظام. سيقوم فريق المبيعات بالتواصل معك لتأكيد تفاصيل التوصيل والدفع عند الاستلام.
+              رقم الطلب <span className="font-mono font-bold text-emerald-600">{orderNumber}</span> تم إرساله إلى النظام.
+              {isOtherZone && (
+                <span className="block mt-1 font-semibold text-amber-700">
+                  ملاحظة: طلبك يتضمن منطقة شحن جديدة قيد المراجعة. يتواصل معك الفريق لتحديد تكلفة الشحن والموافقة.
+                </span>
+              )}
             </p>
             <div className="rounded-xl border border-border bg-canvas px-6 py-3 my-1">
-              <span className="text-xs text-ink-soft block mb-0.5">إجمالي الطلب (شامل الشحن):</span>
-              <span className="text-lg font-mono font-bold text-ink">{formatCurrency(completedTotal)}</span>
+              <span className="text-xs text-ink-soft block mb-0.5">إجمالي المنتجات:</span>
+              <span className="text-lg font-mono font-bold text-ink">{formatCurrency(subtotal)}</span>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 mt-2 w-full sm:w-auto">
@@ -335,7 +342,6 @@ setSelectedZonePrice(
     )
   }
 
-  // النموذج الرئيسي
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-10 relative" dir="rtl">
       <div className="mb-6">
@@ -422,8 +428,28 @@ setSelectedZonePrice(
                     {zone.name} {zone.price ? `(${formatCurrency(zone.price)})` : ''}
                   </option>
                 ))}
+                <option value="OTHER">📍 أخرى (طلب إضافة منطقة جديدة)</option>
               </select>
             </div>
+
+            {isOtherZone && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 space-y-2 transition-all">
+                <label className="block text-xs font-semibold text-amber-900 flex items-center gap-1.5">
+                  <MapPinPlus size={16} className="text-amber-700" />
+                  اسم المنطقة أو المحافظة الجديدة:
+                </label>
+                <input
+                  type="text"
+                  value={form.customGovernorate}
+                  onChange={(e) => updateField('customGovernorate', e.target.value)}
+                  placeholder="اكتب اسم المنطقه او المحافظه هنا..."
+                  className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                />
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  سيتواصل معك فريق الدعم لمراجعة المنطقة، وتحديد تكلفة الشحن المناسبة قبل الإرسال.
+                </p>
+              </div>
+            )}
 
             <button
               type="submit"
@@ -444,11 +470,15 @@ setSelectedZonePrice(
             </div>
             <div className="flex items-center justify-between text-sm text-ink-soft">
               <span>تكلفة الشحن</span>
-              <span className="font-mono text-base font-semibold text-ink">{formatCurrency(selectedZonePrice)}</span>
+              <span className="font-mono text-base font-semibold text-ink">
+                {isOtherZone ? 'يحدد لاحقاً' : formatCurrency(selectedZonePrice)}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm font-bold text-ink border-t border-border pt-3">
               <span>الإجمالي الكلي</span>
-              <span className="font-mono text-lg text-emerald-600">{formatCurrency(grandTotal)}</span>
+              <span className="font-mono text-lg text-emerald-600">
+                {isOtherZone ? `${formatCurrency(subtotal)} + الشحن` : formatCurrency(grandTotal)}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm text-ink-soft">
               <span>طريقة الدفع</span>

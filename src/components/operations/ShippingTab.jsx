@@ -1,11 +1,84 @@
 // File: src/components/operations/ShippingTab.jsx
-import { Loader2, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Loader2, Plus, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import Card from '../ui/Card'
 import { formatCurrency } from '../../utils/catalog'
 
-export default function ShippingTab({ zones, loading, adding, newZone, setNewZone, onAddZone, onDeleteZone }) {
+export default function ShippingTab({
+  zones,
+  loading,
+  adding,
+  newZone,
+  setNewZone,
+  onAddZone,
+  onDeleteZone,
+  pendingZoneRequests = [], // قائمة طلبات المناطق الجديدة الممررة من الباك إند
+  onAcceptRequest,
+  onRejectRequest,
+}) {
+  const [selectedRequestPrice, setSelectedRequestPrice] = useState({})
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
+      {/* 1. جدول طلبات المناطق الجديدة المنشأة من العملاء */}
+      {pendingZoneRequests.length > 0 && (
+        <Card title="طلبات المناطق الجديدة (من العملاء)">
+          <div className="overflow-x-auto mt-2">
+            <table className="w-full text-right text-xs">
+              <thead className="bg-amber-50 border-b border-amber-200 text-amber-900 font-semibold">
+                <tr>
+                  <th className="p-3">اسم العميل / الهاتف</th>
+                  <th className="p-3">المنطقة المقترحة</th>
+                  <th className="p-3">تحديد سعر الشحن (ج.م)</th>
+                  <th className="p-3 text-center">إجراء الأدمن</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {pendingZoneRequests.map((req) => (
+                  <tr key={req.id} className="hover:bg-amber-50/30 transition">
+                    <td className="p-3">
+                      <div className="font-bold text-ink">{req.customerName}</div>
+                      <div className="text-[11px] text-ink-soft">{req.customerPhone}</div>
+                    </td>
+                    <td className="p-3 font-semibold text-amber-900">{req.customZoneName}</td>
+                    <td className="p-3">
+                      <input
+                        type="number"
+                        placeholder="أدخل السعر المقترح"
+                        value={selectedRequestPrice[req.id] || ''}
+                        onChange={(e) =>
+                          setSelectedRequestPrice({ ...selectedRequestPrice, [req.id]: e.target.value })
+                        }
+                        className="w-32 rounded-lg border border-border bg-white px-2 py-1 text-xs text-ink outline-none focus:border-emerald-600"
+                      />
+                    </td>
+                    <td className="p-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onAcceptRequest && onAcceptRequest(req.id, selectedRequestPrice[req.id])}
+                          className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs text-white hover:bg-emerald-700 transition"
+                        >
+                          <CheckCircle size={14} /> قبول وإضافة
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onRejectRequest && onRejectRequest(req.id)}
+                          className="flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs text-white hover:bg-rose-700 transition"
+                        >
+                          <XCircle size={14} /> رفض
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* 2. إضافة منطقة شحن جديدة من الأدمن */}
       <Card title="إضافة منطقة شحن جديدة">
         <form onSubmit={onAddZone} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end pt-2">
           <div>
@@ -53,6 +126,7 @@ export default function ShippingTab({ zones, loading, adding, newZone, setNewZon
         </form>
       </Card>
 
+      {/* 3. قائمة المناطق المعتمدة */}
       <Card title="قائمة مناطق الشحن المعتمدة في النظام">
         {loading ? (
           <div className="flex justify-center py-8">
