@@ -27,17 +27,18 @@ export default function PurchaseOrderModal({ onClose, onSaved }) {
   useEffect(() => {
     getSuppliers().then((data) => { setSuppliers(data); if (data.length) setSupplierId(String(data[0].id)) })
     getWarehouses().then((data) => { setWarehouses(data); if (data.length) setWarehouseId(String(data[0].id)) })
-    getAllProducts().then((data) => setProducts(Array.isArray(data) ? data : data?.items || []))
+    // تم طلب pageSize كبير لضمان جلب كافة المنتجات
+    getAllProducts({ pageSize: 1000 }).then((data) => setProducts(Array.isArray(data) ? data : data?.items || []))
   }, [])
 
   const filteredProducts = useMemo(() => {
-    if (!search.trim()) return products.slice(0, 20)
+    if (!search.trim()) return products.slice(0, 50) // عرض أول 50 منتج كافتراضي للسرعة
     const term = search.trim().toLowerCase()
     return products.filter((p) =>
       (p.name || '').toLowerCase().includes(term) ||
       (p.nameAr || '').toLowerCase().includes(term) ||
       (p.sku || '').toLowerCase().includes(term)
-    ).slice(0, 20)
+    )
   }, [products, search])
 
   function addLine(product) {
