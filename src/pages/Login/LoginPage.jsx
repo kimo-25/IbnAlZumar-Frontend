@@ -55,14 +55,14 @@ export default function LoginPage() {
 
       const data = response.data
 
-      // 1. حفظ التوكن وبيانات المستخدم في localStorage
-      login(data.token)
+      // 1. حفظ التوكن المشفّر وتحديث Context فوراً
+      const parsedUser = login(data.token)
       localStorage.setItem("user", JSON.stringify(data))
 
-      // 2. تحديد المسار المناسب حسب الدور
-      const targetPath = determineDestination(data)
+      // 2. تحديد المسار المناسب حسب الأدوار المعالجة
+      const targetPath = determineDestination(parsedUser || data)
 
-      // 3. التوجيه المباشر لتحديث AuthContext وتفادي الانتقال اللحظي لـ ForbiddenPage
+      // 3. التوجيه المباشر دون المرور على ForbiddenPage
       navigate(targetPath, { replace: true })
     } catch (err) {
       setError(
@@ -75,7 +75,7 @@ export default function LoginPage() {
     }
   }
 
-  // استخدام useGoogleLogin بدلاً من المكون الرسمي لمنع إعادة التهيئة والضغط المزدوج
+  // استخدام useGoogleLogin لمنع إعادة التهيئة والضغط المزدوج
   const loginWithGoogle = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setError(null)
@@ -87,12 +87,14 @@ export default function LoginPage() {
 
         const data = response.data
         setStoredAuth(data)
+        
+        let parsedUser = null;
         if (data.token) {
-          login(data.token)
+          parsedUser = login(data.token)
         }
 
-        const targetPath = determineDestination(data)
-      navigate(targetPath, { replace: true })
+        const targetPath = determineDestination(parsedUser || data)
+        navigate(targetPath, { replace: true })
       } catch (err) {
         setError(
           err?.response?.data?.message ||

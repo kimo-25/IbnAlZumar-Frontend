@@ -14,44 +14,46 @@ function parseJwt(token) {
   }
 }
 
+function processTokenData(jwtToken) {
+  if (!jwtToken) return null;
+  const payload = parseJwt(jwtToken);
+  if (!payload) return null;
+
+  const rawRoles =
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
+    payload.role ??
+    payload.Role ??
+    [];
+
+  const rolesArray = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
+  const primaryRole = pickPrimaryRole(rolesArray);
+  const userName = payload?.unique_name || payload?.name || "";
+
+  return {
+    id: payload?.sub || payload?.nameid,
+    name: userName,
+    fullName: userName,
+    roles: rolesArray,
+    role: primaryRole,
+  };
+}
+
 export function AuthProvider({ children }) {
-  // قراءة التوكن المشفر عند بداية تحميل التطبيق
   const [token, setToken] = useState(() => {
     const authData = secureAuthStorage.get();
     return authData?.token || null;
   });
-  const [user, setUser] = useState(null);
+
+  const [user, setUser] = useState(() => processTokenData(token));
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!token) {
       setUser(null);
       return;
     }
-
-    const payload = parseJwt(token);
-    if (!payload) {
-      setUser(null);
-      return;
-    }
-
-    const rawRoles =
-      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
-      payload.role ??
-      payload.Role ??
-      [];
-
-    const rolesArray = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
-    const primaryRole = pickPrimaryRole(rolesArray);
-
-    const userName = payload?.unique_name || payload?.name || "";
-
-    setUser({
-      id: payload?.sub || payload?.nameid,
-      name: userName,
-      fullName: userName,
-      roles: rolesArray,
-      role: primaryRole,
-    });
+    const userData = processTokenData(token);
+    setUser(userData);
   }, [token]);
 
   const hasRole = (targetRole) => {
@@ -64,15 +66,18 @@ export function AuthProvider({ children }) {
     return (user.roles || []).map(normalizeRole).includes(normalizedTarget);
   };
 
-  const hasPermission = (permission) => {
+  const hasPermission = () => {
     if (!user) return false;
     return true;
   };
 
-  // حفظ التوكن بأسلوب مشفّر آمن للـ Offline POS
+  // حفظ التوكن وتحديث حالة الـ State فوراُ قبل التوجيه
   const login = (jwtToken) => {
     secureAuthStorage.set({ token: jwtToken });
+    const userData = processTokenData(jwtToken);
+    setUser(userData);
     setToken(jwtToken);
+    return userData;
   };
 
   // مسح البيانات المشفّرة
@@ -91,7 +96,8 @@ export function AuthProvider({ children }) {
         roles: user?.roles || [],
         login,
         logout,
-        isAuthenticated: !!token,
+        isAuthenticated: !!token && !!user,
+        isLoading,
         hasRole,
         hasPermission,
       }}
