@@ -2,7 +2,8 @@
 import { useMemo, useState } from 'react'
 import { Loader2, AlertCircle, Wrench, ImageOff, ClipboardEdit } from 'lucide-react'
 import { formatCurrency } from '../../utils/catalog'
-import { getImageUrl, handleImageError } from '../../utils/imageHelper'
+import { handleImageError } from '../../utils/imageHelper'
+import { toAbsoluteMediaUrl } from '../../utils/mediaUrl'
 import { getMaintenanceStatusMeta, getDeliveryMethodLabel } from '../../constants/maintenance'
 
 export default function MaintenanceInquiriesTab({ requests, loading, error, onReview }) {
@@ -81,14 +82,10 @@ export default function MaintenanceInquiriesTab({ requests, loading, error, onRe
                 {filtered.map((item) => {
                   const meta = getMaintenanceStatusMeta(item.status)
                   const StatusIcon = meta.icon
-                  const rawImg = item.imageUrl || item.image
-                  
-                  // معالجة الرابط بشكل يحميه من التكرار
-                  const displayImgUrl = rawImg
-                    ? rawImg.startsWith('http')
-                      ? rawImg
-                      : `https://ibnalzumar-api-bub8fyaceheggxec.southafricanorth-01.azurewebsites.net/${rawImg.replace(/^\/+/, '')}`
-                    : null
+                  // رابط موحّد عبر نفس الـ helper المستخدم في مودال المراجعة، بدل بناء
+                  // الرابط يدويًا هنا بـ base URL مكتوب بالكود؛ هذا يضمن اتساق النتيجة
+                  // بين كل الأماكن التي تعرض صورة نفس الطلب، ويعمل بشكل صحيح في أي بيئة.
+                  const displayImgUrl = toAbsoluteMediaUrl(item.imageUrl || item.image)
 
                   return (
                     <tr key={item.id} className="hover:bg-canvas/50 transition align-top">
