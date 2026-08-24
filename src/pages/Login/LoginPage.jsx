@@ -63,8 +63,7 @@ export default function LoginPage() {
       const targetPath = determineDestination(data)
 
       // 3. التوجيه المباشر لتحديث AuthContext وتفادي الانتقال اللحظي لـ ForbiddenPage
-      window.location.hash = targetPath
-
+      navigate(targetPath, { replace: true })
     } catch (err) {
       setError(
         err?.response?.data?.message ||
@@ -93,7 +92,7 @@ export default function LoginPage() {
         }
 
         const targetPath = determineDestination(data)
-        window.location.hash = targetPath
+      navigate(targetPath, { replace: true })
       } catch (err) {
         setError(
           err?.response?.data?.message ||
