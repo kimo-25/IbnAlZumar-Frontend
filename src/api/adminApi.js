@@ -274,11 +274,12 @@ export async function getLowStockProducts() {
  * POST /api/inventory/adjust
  * تعديل سريع لكمية مخزون منتج معين (إضافة كمية جديدة بعد استلام توريد مثلاً).
  */
-export async function adjustStock({ productId, quantity, reason = 'إعادة تموين من لوحة التحكم' }) {
+export async function adjustStock({ productId, quantity, quantityChange, warehouseId = 1, reason = 'إعادة تموين من لوحة التحكم' }) {
   const response = await axiosInstance.post('/Inventory/adjust', {
-    productId,
-    quantity,
-    reason
+    productId: Number(productId),
+    warehouseId: Number(warehouseId) || 1,
+    quantityChange: Number(quantityChange ?? quantity) || 0,
+    reason: reason || 'Other'
   })
   return response.data
 }
