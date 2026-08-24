@@ -1,6 +1,6 @@
 // File: src/components/profile/MyRequests.jsx
 import { useState, useEffect } from 'react'
-import { Wrench, AlertCircle, FileText, ExternalLink, Loader2 } from 'lucide-react'
+import { Wrench, AlertCircle, FileText, ExternalLink, Loader2, Calendar } from 'lucide-react'
 import axiosInstance from '../../api/axiosInstance'
 import { formatCurrency } from '../../utils/catalog'
 import { toAbsoluteMediaUrl } from '../../utils/mediaUrl'
@@ -85,12 +85,26 @@ export default function MyRequests() {
               <p className="bg-canvas p-3 rounded-xl border border-border">{req.problemDescription}</p>
             </div>
 
-            {req.estimatedPrice != null && (
-              <div className="flex items-center justify-between bg-emerald-50/60 border border-emerald-200 p-3 rounded-xl text-xs">
-                <span className="font-bold text-emerald-800">التكلفة التقديرية للصيانة:</span>
-                <span className="font-mono font-bold text-emerald-700 text-sm">{formatCurrency(req.estimatedPrice)}</span>
-              </div>
-            )}
+            {/* الموعد والتكلفة المحجوزة */}
+            <div className="grid sm:grid-cols-2 gap-3">
+              {req.estimatedPrice != null && (
+                <div className="flex items-center justify-between bg-emerald-50/60 border border-emerald-200 p-3 rounded-xl text-xs">
+                  <span className="font-bold text-emerald-800">التكلفة التقديرية:</span>
+                  <span className="font-mono font-bold text-emerald-700 text-sm">{formatCurrency(req.estimatedPrice)}</span>
+                </div>
+              )}
+
+              {req.scheduledDate && (
+                <div className="flex items-center justify-between bg-blue-50/60 border border-blue-200 p-3 rounded-xl text-xs">
+                  <span className="font-bold text-blue-900 flex items-center gap-1">
+                    <Calendar size={14} /> موعد الاستلام/الفحص:
+                  </span>
+                  <span className="font-bold text-blue-800">
+                    {new Date(req.scheduledDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              )}
+            </div>
 
             {req.adminNotes && (
               <div className="text-xs space-y-1 bg-amber-50/40 border border-amber-200/60 p-3 rounded-xl">
