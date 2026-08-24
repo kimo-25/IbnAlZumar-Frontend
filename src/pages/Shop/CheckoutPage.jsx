@@ -525,7 +525,7 @@ export default function CheckoutPage() {
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={() => setError('فشل تسجيل الدخول باستخدام جوجل. حاول مجدداً.')}
-                useOneTap
+                useOneTap={false}
                 theme="outline"
                 shape="pill"
                 locale="ar"
