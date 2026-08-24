@@ -1,4 +1,3 @@
-// File: src/hooks/useOperationsHub.js
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getOnlineOrders, getLowStockProducts, adjustStock } from '../api/adminApi'
@@ -30,6 +29,12 @@ export function useOperationsHub() {
   const [loadingZones, setLoadingZones] = useState(false)
   const [newZone, setNewZone] = useState({ name: '', price: '', estimatedDays: '' })
   const [addingZone, setAddingZone] = useState(false)
+
+  // ---------- Pending custom zone requests ----------
+  const [pendingZoneRequests, setPendingZoneRequests] = useState([])
+  const [loadingZoneRequests, setLoadingZoneRequests] = useState(false)
+  const [zoneRequestsError, setZoneRequestsError] = useState(null)
+  const [processingZoneRequestId, setProcessingZoneRequestId] = useState(null)
 
   // ---------- Products & Pagination ----------
   const [products, setProducts] = useState([])
@@ -101,6 +106,21 @@ export function useOperationsHub() {
     }
   }, [])
 
+  const fetchPendingZoneRequests = useCallback(async () => {
+    try {
+      setLoadingZoneRequests(true)
+      setZoneRequestsError(null)
+      const res = await axiosInstance.get('/ShippingZones/pending-requests')
+      const data = res.data
+      setPendingZoneRequests(Array.isArray(data) ? data : (data.$values || data.data || []))
+    } catch (err) {
+      console.error('فشل جلب طلبات المناطق الجديدة:', err)
+      setZoneRequestsError('حدث خطأ أثناء جلب طلبات المناطق الجديدة.')
+    } finally {
+      setLoadingZoneRequests(false)
+    }
+  }, [])
+
   const fetchProducts = useCallback(async () => {
     try {
       setLoadingProducts(true)
@@ -150,10 +170,10 @@ export function useOperationsHub() {
   useEffect(() => {
     if (activeTab === 'orders') fetchOrders()
     else if (activeTab === 'inquiries') fetchMaintenanceRequests()
-    else if (activeTab === 'shipping') fetchShippingZones()
+    else if (activeTab === 'shipping') { fetchShippingZones(); fetchPendingZoneRequests() }
     else if (activeTab === 'products') fetchProducts()
     else if (activeTab === 'restock') fetchLowStock()
-  }, [activeTab, fetchOrders, fetchMaintenanceRequests, fetchShippingZones, fetchProducts, fetchLowStock])
+  }, [activeTab, fetchOrders, fetchMaintenanceRequests, fetchShippingZones, fetchPendingZoneRequests, fetchProducts, fetchLowStock])
 
   function handleTabChange(tab) {
     setActiveTab(tab)
@@ -163,7 +183,7 @@ export function useOperationsHub() {
   function refreshActiveTab() {
     if (activeTab === 'orders') fetchOrders()
     else if (activeTab === 'inquiries') fetchMaintenanceRequests()
-    else if (activeTab === 'shipping') fetchShippingZones()
+    else if (activeTab === 'shipping') { fetchShippingZones(); fetchPendingZoneRequests() }
     else if (activeTab === 'products') fetchProducts()
     else if (activeTab === 'restock') fetchLowStock()
   }
@@ -268,6 +288,35 @@ export function useOperationsHub() {
     }
   }
 
+  async function handleAcceptZoneRequest(orderId, zoneData) {
+    try {
+      setProcessingZoneRequestId(orderId)
+      await axiosInstance.post(`/ShippingZones/requests/${orderId}/accept`, zoneData)
+      await Promise.all([fetchShippingZones(), fetchPendingZoneRequests()])
+      showToast('تم إنشاء منطقة الشحن وربطها بالطلب بنجاح.', 'success')
+    } catch (err) {
+      console.error('فشل قبول طلب المنطقة:', err)
+      showToast(err?.message || 'حدث خطأ أثناء قبول طلب المنطقة.', 'error')
+    } finally {
+      setProcessingZoneRequestId(null)
+    }
+  }
+
+  async function handleRejectZoneRequest(orderId, reason) {
+    if (!window.confirm('هل أنت متأكد من رفض طلب المنطقة هذا؟')) return
+    try {
+      setProcessingZoneRequestId(orderId)
+      await axiosInstance.post(`/ShippingZones/requests/${orderId}/reject`, { reason })
+      await fetchPendingZoneRequests()
+      showToast('تم رفض طلب المنطقة.', 'success')
+    } catch (err) {
+      console.error('فشل رفض طلب المنطقة:', err)
+      showToast(err?.message || 'حدث خطأ أثناء رفض طلب المنطقة.', 'error')
+    } finally {
+      setProcessingZoneRequestId(null)
+    }
+  }
+
   // ================= Products handlers =================
   async function handleToggleProductVisibility(productId, newVisibility) {
     try {
@@ -311,6 +360,9 @@ export function useOperationsHub() {
     openMaintenanceReview, closeMaintenanceReview, saveMaintenanceResponse,
 
     shippingZones, loadingZones, newZone, setNewZone, addingZone, handleAddZone, handleDeleteZone,
+
+    pendingZoneRequests, loadingZoneRequests, zoneRequestsError, processingZoneRequestId,
+    handleAcceptZoneRequest, handleRejectZoneRequest,
 
     products, loadingProducts, productSearch, setProductSearch, handleToggleProductVisibility,
     productPage, setProductPage, productTotalPages,

@@ -1,5 +1,4 @@
-﻿// File: src/pages/Operations/OperationsHubPage.jsx
-import { RefreshCw, Package, HelpCircle, Truck, Eye, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+﻿import { RefreshCw, Package, HelpCircle, Truck, Eye, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 import { useOperationsHub } from '../../hooks/useOperationsHub'
 import OrdersTab from '../../components/operations/OrdersTab'
 import MaintenanceInquiriesTab from '../../components/operations/MaintenanceInquiriesTab'
@@ -127,6 +126,11 @@ export default function OperationsHubPage() {
           setNewZone={hub.setNewZone}
           onAddZone={hub.handleAddZone}
           onDeleteZone={hub.handleDeleteZone}
+          pendingZoneRequests={hub.pendingZoneRequests}
+          loadingZoneRequests={hub.loadingZoneRequests}
+          processingZoneRequestId={hub.processingZoneRequestId}
+          onAcceptRequest={hub.handleAcceptZoneRequest}
+          onRejectRequest={hub.handleRejectZoneRequest}
         />
       )}
 
