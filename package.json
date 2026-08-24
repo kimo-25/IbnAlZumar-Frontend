@@ -13,6 +13,7 @@
   "dependencies": {
     "@react-oauth/google": "^0.13.5",
     "axios": "^1.19.0",
+    "crypto-js": "^4.2.0",
     "dexie": "^4.4.5",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.14.0",
@@ -20,7 +21,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.23.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

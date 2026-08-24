@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { pickPrimaryRole, normalizeRole } from "../utils/roles";
+import { secureAuthStorage } from "../utils/secureStorage";
 
 const AuthContext = createContext();
 
@@ -14,7 +15,11 @@ function parseJwt(token) {
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  // قراءة التوكن المشفر عند بداية تحميل التطبيق
+  const [token, setToken] = useState(() => {
+    const authData = secureAuthStorage.get();
+    return authData?.token || null;
+  });
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -29,8 +34,6 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    // الباك إند بيحط الـ Roles تحت الـ claim القياسي الطويل بتاع ClaimTypes.Role.
-    // لو المستخدم عنده أكتر من Role، القيمة بتيجي array مش string، فلازم نتعامل مع الحالتين.
     const rawRoles =
       payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
       payload.role ??
@@ -45,13 +48,12 @@ export function AuthProvider({ children }) {
     setUser({
       id: payload?.sub || payload?.nameid,
       name: userName,
-      fullName: userName, // لدعم أي مكون يستدم fullName بدلاً من name
-      roles: rolesArray, // كل الأدوار زي ما وصلت من التوكن
-      role: primaryRole, // الدور الموحّد الفعّال — ده اللي بتستخدمه كل الـ Route Guards
+      fullName: userName,
+      roles: rolesArray,
+      role: primaryRole,
     });
   }, [token]);
 
-  // دالة فحص الأدوار المساعدة لكي لا تحدث أخطاء في Sidebar و ProtectedRoute
   const hasRole = (targetRole) => {
     if (!user) return false;
     const normalizedTarget = normalizeRole(targetRole);
@@ -62,20 +64,20 @@ export function AuthProvider({ children }) {
     return (user.roles || []).map(normalizeRole).includes(normalizedTarget);
   };
 
-  // دالة فحص الصلاحيات المؤقتة لمنع أي كراش
   const hasPermission = (permission) => {
     if (!user) return false;
-    // يمكن ربطها لاحقاً بصلاحيات التوكن إذا وجدت
     return true;
   };
 
+  // حفظ التوكن بأسلوب مشفّر آمن للـ Offline POS
   const login = (jwtToken) => {
-    localStorage.setItem("token", jwtToken);
+    secureAuthStorage.set({ token: jwtToken });
     setToken(jwtToken);
   };
 
+  // مسح البيانات المشفّرة
   const logout = () => {
-    localStorage.removeItem("token");
+    secureAuthStorage.clear();
     setToken(null);
     setUser(null);
   };

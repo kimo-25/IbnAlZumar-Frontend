@@ -2,27 +2,29 @@
 import axios from 'axios'
 import { getStoredAuth, clearStoredAuth, isAuthExpired } from '../utils/auth'
 import { getApiBaseUrl } from '../utils/imageHelper'
+import { secureAuthStorage } from '../utils/secureStorage'
 
 const axiosInstance = axios.create({
-  // تم الربط بالدالة الديناميكية لقراءة رابط Azure من متغيرات البيئة بدلاً من Railway
   baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true, // <-- هذا السطر ضروري جداً ليتوافق مع إعدادات الباك إند
+  withCredentials: true,
 })
 
-// Attach the JWT to every outgoing request
+// Attach the JWT to every outgoing request using secureAuthStorage
 axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const authData = secureAuthStorage.get()
+  const token = authData?.token || localStorage.getItem("token")
 
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`
   } else {
-    const auth = getStoredAuth();
+    const auth = getStoredAuth()
     if (auth && isAuthExpired(auth)) {
-      clearStoredAuth();
+      clearStoredAuth()
+      secureAuthStorage.clear()
     }
   }
-  return config;
+  return config
 })
 
 // Interceptor لمعالجة الأخطاء وعدم الطرد الفوري إلا في حالة انتهاء التوكن فعلياً
@@ -38,10 +40,13 @@ axiosInstance.interceptors.response.use(
       traceId: apiError?.traceId ?? null,
     }
 
-    // نطرد للـ Login فقط لو الـ Token غير موجود أو منتهي فعلياً
     const auth = getStoredAuth()
-    if (normalized.statusCode === 401 && (!auth?.token || isAuthExpired(auth))) {
+    const secureAuth = secureAuthStorage.get()
+    const currentToken = secureAuth?.token || auth?.token
+
+    if (normalized.statusCode === 401 && (!currentToken || isAuthExpired(auth))) {
       clearStoredAuth()
+      secureAuthStorage.clear()
       if (window.location.pathname.includes('/admin') && !window.location.pathname.includes('/admin/login')) {
         window.location.assign(import.meta.env.BASE_URL + 'admin/login')
       }

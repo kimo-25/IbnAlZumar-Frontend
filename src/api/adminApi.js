@@ -1,5 +1,6 @@
 // File: src/api/adminApi.js
 import axiosInstance from './axiosInstance'
+import { validateProduct, validateCustomer, validateCategory } from '../validators/productValidator'
 
 /**
  * دالة حماية فائقة لمنع إلقاء أي أخطاء 404 نهائياً وإعادة قيمة افتراضية آمنة
@@ -35,6 +36,17 @@ export async function getProductById(id) {
 }
 
 export async function createProduct(productData, imageFile = null) {
+  // فحص صحة وتطهير البيانات بواسطة Zod قبل الإرسال
+  const validation = validateProduct({
+    ...productData,
+    price: Number(productData.sellingPrice) || 0,
+    stock: Number(productData.stock) || 0
+  })
+
+  if (!validation.success) {
+    throw new Error(validation.errors.join(' | '))
+  }
+
   const formData = new FormData()
 
   formData.append('sku', productData.sku || '')
@@ -135,6 +147,11 @@ export async function getCategories() {
 }
 
 export async function createCategory(categoryData) {
+  const validation = validateCategory(categoryData)
+  if (!validation.success) {
+    throw new Error(validation.errors.join(' | '))
+  }
+
   const response = await axiosInstance.post('/Categories', categoryData)
   return response.data
 }
@@ -154,6 +171,11 @@ export async function getCustomers(params = {}) {
 }
 
 export async function createCustomer(customerData) {
+  const validation = validateCustomer(customerData)
+  if (!validation.success) {
+    throw new Error(validation.errors.join(' | '))
+  }
+
   const response = await axiosInstance.post('/Customers', customerData)
   return response.data
 }
@@ -251,7 +273,6 @@ export async function getLowStockProducts() {
 /**
  * POST /api/inventory/adjust
  * تعديل سريع لكمية مخزون منتج معين (إضافة كمية جديدة بعد استلام توريد مثلاً).
- * ⚠️ عدّل أسماء الحقول (productId / quantity / reason) لو الـ AdjustStockDto الفعلي مختلف عندك.
  */
 export async function adjustStock({ productId, quantity, reason = 'إعادة تموين من لوحة التحكم' }) {
   const response = await axiosInstance.post('/Inventory/adjust', {
@@ -261,10 +282,12 @@ export async function adjustStock({ productId, quantity, reason = 'إعادة ت
   })
   return response.data
 }
+
 export async function approveOrderCancellation(orderId) {
   const response = await axiosInstance.post(`/Orders/${orderId}/approve-cancel`)
   return response.data
 }
+
 // ==========================================
 // 5. الحضور والانصراف بالبصمة الصوتية (Voice Biometric Attendance)
 // ==========================================
