@@ -1,7 +1,7 @@
 // File: src/components/operations/MaintenanceResponseModal.jsx
 import { useEffect, useState } from 'react'
 import { X, Loader2, Save, AlertCircle, ImageOff, User, Mail, Phone } from 'lucide-react'
-import { toAbsoluteMediaUrl } from '../../utils/mediaUrl'
+import { resolveMaintenanceImageUrl } from '../../utils/mediaUrl'
 import { MAINTENANCE_STATUS_OPTIONS, getDeliveryMethodLabel } from '../../constants/maintenance'
 
 // Converts an ISO/server date string to the yyyy-MM-dd shape <input type="date"> needs.
@@ -31,7 +31,9 @@ export default function MaintenanceResponseModal({ request, onClose, onSave, sav
 
   if (!request) return null
 
-  const imageUrl = toAbsoluteMediaUrl(request.imageUrl || request.image)
+  // رابط موحّد ومقاوم لاختلاف تسمية الحقل بين الـ endpoints، ويُعاد بناؤه
+  // دائماً فوق الـ API Origin الحالي حتى لو كان مخزّناً برابط مطلق قديم.
+  const imageUrl = resolveMaintenanceImageUrl(request)
 
   function handleSubmit(e) {
     e.preventDefault()

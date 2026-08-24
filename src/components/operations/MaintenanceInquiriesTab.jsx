@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Loader2, AlertCircle, Wrench, ImageOff, ClipboardEdit } from 'lucide-react'
 import { formatCurrency } from '../../utils/catalog'
 import { handleImageError } from '../../utils/imageHelper'
-import { toAbsoluteMediaUrl } from '../../utils/mediaUrl'
+import { resolveMaintenanceImageUrl } from '../../utils/mediaUrl'
 import { getMaintenanceStatusMeta, getDeliveryMethodLabel } from '../../constants/maintenance'
 
 export default function MaintenanceInquiriesTab({ requests, loading, error, onReview }) {
@@ -82,10 +82,11 @@ export default function MaintenanceInquiriesTab({ requests, loading, error, onRe
                 {filtered.map((item) => {
                   const meta = getMaintenanceStatusMeta(item.status)
                   const StatusIcon = meta.icon
-                  // رابط موحّد عبر نفس الـ helper المستخدم في مودال المراجعة، بدل بناء
-                  // الرابط يدويًا هنا بـ base URL مكتوب بالكود؛ هذا يضمن اتساق النتيجة
-                  // بين كل الأماكن التي تعرض صورة نفس الطلب، ويعمل بشكل صحيح في أي بيئة.
-                  const displayImgUrl = toAbsoluteMediaUrl(item.imageUrl || item.image)
+                  // رابط موحّد عبر resolveMaintenanceImageUrl: يقرأ الحقل بأي تسمية
+                  // محتملة (imageUrl/ImageUrl/image...) ويعيد بناء الرابط دائماً فوق
+                  // الـ API Origin الحالي، حتى لو كانت القيمة المخزّنة رابطاً مطلقاً
+                  // قديماً بـ Host مختلف.
+                  const displayImgUrl = resolveMaintenanceImageUrl(item)
 
                   return (
                     <tr key={item.id} className="hover:bg-canvas/50 transition align-top">

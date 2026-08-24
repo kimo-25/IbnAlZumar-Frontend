@@ -49,7 +49,7 @@ function AcceptZoneRequestModal({ request, saving, onClose, onConfirm }) {
     setFormError('')
 
     try {
-      await onConfirm(request.id, {
+      await onConfirm(Number(request.orderId), {
         name: form.name.trim(),
         governorate: form.governorate.trim(),
         shippingCost,
@@ -183,7 +183,7 @@ function RejectZoneRequestModal({ request, saving, onClose, onConfirm }) {
     e.preventDefault()
     setFormError('')
     try {
-      await onConfirm(request.id, reason.trim() || null)
+      await onConfirm(Number(request.orderId), reason.trim() || null)
     } catch (err) {
       setFormError(err?.message || 'حدث خطأ أثناء رفض الطلب، برجاء المحاولة مرة أخرى.')
     }
@@ -300,9 +300,9 @@ export default function ShippingTab({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {pendingZoneRequests.map((req) => {
-                    const isBusy = processingZoneRequestId === req.id
+                    const isBusy = processingZoneRequestId === req.orderId
                     return (
-                      <tr key={req.id} className="hover:bg-amber-50/30 transition">
+                      <tr key={req.orderId} className="hover:bg-amber-50/30 transition">
                         <td className="p-3">
                           <div className="font-bold text-ink">{req.customerName}</div>
                           <div className="text-[11px] text-ink-soft">{req.customerPhone}</div>
@@ -441,7 +441,7 @@ export default function ShippingTab({
       {acceptModalRequest && (
         <AcceptZoneRequestModal
           request={acceptModalRequest}
-          saving={processingZoneRequestId === acceptModalRequest.id}
+          saving={processingZoneRequestId === acceptModalRequest.orderId}
           onClose={() => setAcceptModalRequest(null)}
           onConfirm={handleConfirmAccept}
         />
@@ -450,7 +450,7 @@ export default function ShippingTab({
       {rejectModalRequest && (
         <RejectZoneRequestModal
           request={rejectModalRequest}
-          saving={processingZoneRequestId === rejectModalRequest.id}
+          saving={processingZoneRequestId === rejectModalRequest.orderId}
           onClose={() => setRejectModalRequest(null)}
           onConfirm={handleConfirmReject}
         />
