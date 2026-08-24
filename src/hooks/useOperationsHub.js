@@ -336,15 +336,21 @@ export function useOperationsHub() {
   async function handleQuickRestock(productId, addedQuantity) {
     try {
       setRestockingId(productId)
+      
+      // التعديل: إرسال الحقول الكاملة المطابقة لـ AdjustStockDto في الباك إند
       await adjustStock({
         productId,
-        quantity: addedQuantity,
-        reason: 'إعادة تموين سريع من مركز العمليات'
+        warehouseId: 1, // المخزن الرئيسي الافتراضي
+        quantityChange: Number(addedQuantity),
+        reason: 'إعادة تموين سريع من مركز العمليات',
+        notes: 'تمت إضافة الكمية عبر شاشة التموين السريع'
       })
+      
       await fetchLowStock()
+      showToast('تمت تحديث الكمية في المخزون بنجاح.', 'success')
     } catch (err) {
       console.error('فشل تحديث كمية المخزون:', err)
-      alert('حدث خطأ أثناء تحديث الكمية، يرجى إعادة المحاولة.')
+      showToast('حدث خطأ أثناء تحديث الكمية، يرجى إعادة المحاولة.', 'error')
     } finally {
       setRestockingId(null)
     }
