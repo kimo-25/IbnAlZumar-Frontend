@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Navbar from './Navbar'
+import AiChatModal from '../ai/AiChatModal' // <-- تمت الإضافة هنا
 
 export default function DashboardLayout() {
-  // تم ضبط الحالة الافتراضية لتكون false (مغلق على الموبايل، ويدعم lg:translate-x-0 للديسكتوب تلقائياً)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
@@ -18,6 +18,8 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+
+      <AiChatModal /> {/* <-- زرار الشات العائم والنافذة الخاصة بالـ AI */}
     </div>
   )
 }
