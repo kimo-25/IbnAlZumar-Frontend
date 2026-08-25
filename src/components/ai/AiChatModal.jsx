@@ -1,7 +1,7 @@
 // File: src/components/ai/AiChatModal.jsx
 import { useEffect, useRef, useState } from 'react'
 import { Bot, Download, Loader2, Send, Sparkles, X } from 'lucide-react'
-import { sendAiChatMessage } from '../api/AiApi'
+import { sendAiChatMessage } from '../../api/AiApi'
 import { useAuth } from '../../context/AuthContext'
 
 const QUICK_PROMPTS = [

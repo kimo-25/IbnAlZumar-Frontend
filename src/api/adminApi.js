@@ -343,3 +343,18 @@ export async function getAttendanceLogs(params = {}) {
 export async function getPayrollSummary(params = {}) {
   return safeGet('/payroll/summary', params, [])
 }
+
+// ==========================================
+// 7. الأوامر الصوتية (AI Voice Commands - فواتير وإدخال بيانات بالصوت)
+// ==========================================
+
+/**
+ * يرسل نص الأمر الصوتي (بعد تحويله من صوت لنص عبر Web Speech API في المتصفح)
+ * للباك إند ليقوم بتحليله وتنفيذه فعلياً (إنشاء فاتورة / إضافة منتج).
+ * لا نستخدم safeGet هنا عمداً: عايزين رسالة الخطأ الحقيقية (مثلاً "منتج غير معروف")
+ * توصل للمكوّن عشان نعرضها للكاشير.
+ */
+export async function sendVoiceCommand(text) {
+  const response = await axiosInstance.post('/ai/voice-command', { text })
+  return response.data
+}
