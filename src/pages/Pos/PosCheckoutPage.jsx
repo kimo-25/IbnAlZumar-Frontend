@@ -6,6 +6,7 @@ import Pagination from "../../components/ui/Pagination";
 import { getCustomers, createCustomer } from "../../api/adminApi";
 import { clearStoredAuth } from "../../utils/auth";
 import VoiceAttendanceButton from './VoiceAttendanceButton';
+import VoiceInvoiceButton from '../VoiceInvoiceButton';
 
 import {
   addLocalTransaction,
@@ -381,6 +382,7 @@ export default function PosCheckoutPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <VoiceInvoiceButton />
           <VoiceAttendanceButton />
 
           <button

@@ -1,1 +1,3 @@
-(public/favicon.svg, index.html, src/components/auth/RegisterPage.jsx, src/main.jsx, src/pages/Shop/CheckoutPage.jsx)
+(public/favicon.svg, index.html, src/components/auth/RegisterPage.jsx, src/main.jsx, src/pages/Shop/CheckoutPage.jsx).env
+.env.development
+node_modules/
