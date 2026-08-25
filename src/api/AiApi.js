@@ -12,7 +12,8 @@ export async function sendAiChatMessage(prompt, history = [], files = []) {
     })
   }
 
-  const response = await axiosInstance.post('/api/Ai/chat', formData, {
+  // التعديل هنا: استخدام /Ai/chat بدلاً من /api/Ai/chat لمنع تكرار كلمة api
+  const response = await axiosInstance.post('/Ai/chat', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
