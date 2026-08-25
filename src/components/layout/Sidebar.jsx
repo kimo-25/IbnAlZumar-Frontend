@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   BookOpen,
   Wallet,
-  HelpCircle
+  Bot
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -36,6 +36,12 @@ export default function Sidebar({ isOpen, onClose }) {
             { to: '/moderator/products', label: 'المنتجات', icon: Package },
             { to: '/moderator/categories', label: 'الأقسام', icon: Tags },
             { to: '/moderator/reminders', label: 'إدارة الأذكار', icon: BookOpen },
+            { 
+              to: '#ai-chat', 
+              label: 'المساعد الذكي', 
+              icon: Bot, 
+              onClickHandler: () => window.dispatchEvent(new CustomEvent('open-ai-chat')) 
+            },
           ],
         },
       ]
@@ -56,6 +62,13 @@ export default function Sidebar({ isOpen, onClose }) {
               label: 'لوحة المشرف',
               icon: ShieldCheck,
               allowRoles: ['Admin', 'SuperAdmin', 'admin'],
+            },
+            {
+              to: '#ai-chat',
+              label: 'المساعد الذكي',
+              icon: Bot,
+              allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin', 'ONLINE_MANAGER'],
+              onClickHandler: () => window.dispatchEvent(new CustomEvent('open-ai-chat'))
             },
           ],
         },
@@ -162,14 +175,20 @@ export default function Sidebar({ isOpen, onClose }) {
                   </p>
                 )}
                 <div className="space-y-1">
-                  {visibleItems.map(({ to, label, icon: Icon }) => (
+                  {visibleItems.map(({ to, label, icon: Icon, onClickHandler }) => (
                     <NavLink
-                      key={to}
+                      key={label}
                       to={to}
-                      onClick={onClose}
+                      onClick={(e) => {
+                        onClose()
+                        if (onClickHandler) {
+                          e.preventDefault()
+                          onClickHandler()
+                        }
+                      }}
                       className={({ isActive }) =>
                         `flex items-center gap-3 rounded-lg border-s-2 px-3 py-2 text-sm transition ${
-                          isActive
+                          isActive && to !== '#ai-chat'
                             ? 'border-amber bg-white/5 font-medium text-white'
                             : 'border-transparent text-white/60 hover:bg-white/5 hover:text-white'
                         }`

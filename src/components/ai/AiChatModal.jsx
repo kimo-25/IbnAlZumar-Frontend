@@ -1,7 +1,7 @@
 // File: src/components/ai/AiChatModal.jsx
 import { useEffect, useRef, useState } from 'react'
-import { Bot, Loader2, Send, Sparkles, X } from 'lucide-react'
-import { sendAiChatMessage } from '../api/aiApi'
+import { Bot, Download, Loader2, Send, Sparkles, X } from 'lucide-react'
+import { sendAiChatMessage } from '../../api/AiApi'
 import { useAuth } from '../../context/AuthContext'
 
 const QUICK_PROMPTS = [
@@ -45,10 +45,10 @@ function formatAssistantText(text) {
   })
 }
 
-function ChatBubble({ role, content }) {
+function ChatBubble({ role, content, downloadUrl, downloadFileName }) {
   const isUser = role === 'user'
   return (
-    <div className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}>
+    <div className={`flex flex-col ${isUser ? 'items-start' : 'items-end'}`}>
       <div
         className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
           isUser
@@ -57,6 +57,21 @@ function ChatBubble({ role, content }) {
         }`}
       >
         {isUser ? content : formatAssistantText(content)}
+        
+        {!isUser && downloadUrl && (
+          <div className="mt-3 pt-2 border-t border-white/20">
+            <a
+              href={downloadUrl}
+              download={downloadFileName || 'export.xlsx'}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg bg-amber px-3 py-1.5 text-xs font-semibold text-graphite-900 transition hover:bg-amber-400"
+            >
+              <Download size={14} />
+              تحميل الملف {downloadFileName ? `(${downloadFileName})` : ''}
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -88,11 +103,15 @@ export default function AiChatModal() {
   const scrollRef = useRef(null)
 
   useEffect(() => {
+    const handleOpen = () => setIsOpen(true)
+    window.addEventListener('open-ai-chat', handleOpen)
+    return () => window.removeEventListener('open-ai-chat', handleOpen)
+  }, [])
+
+  useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, isSending])
 
-  // Only staff should ever see this widget — mirrors AuthContext / RoleGuard boundaries
-  // used elsewhere in the dashboard. Adjust the role list to match your seeded roles.
   const isStaff =
     isAuthenticated &&
     (hasRole('Admin') || hasRole('Moderator') || hasRole('Cashier') || hasRole('STORE_OWNER') || hasRole('ONLINE_MANAGER'))
@@ -114,8 +133,11 @@ export default function AiChatModal() {
     setIsSending(true)
 
     try {
-      const { reply } = await sendAiChatMessage(prompt, history)
-      setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+      const { reply, downloadUrl, downloadFileName } = await sendAiChatMessage(prompt, history)
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: reply, downloadUrl, downloadFileName }
+      ])
     } catch (err) {
       setError(err?.message || 'تعذر الوصول للمساعد الذكي، حاول مرة أخرى.')
     } finally {
@@ -193,7 +215,13 @@ export default function AiChatModal() {
             )}
 
             {messages.map((m, idx) => (
-              <ChatBubble key={idx} role={m.role} content={m.content} />
+              <ChatBubble
+                key={idx}
+                role={m.role}
+                content={m.content}
+                downloadUrl={m.downloadUrl}
+                downloadFileName={m.downloadFileName}
+              />
             ))}
 
             {isSending && <TypingIndicator />}
