@@ -6,7 +6,7 @@ import Pagination from "../../components/ui/Pagination";
 import { getCustomers, createCustomer } from "../../api/adminApi";
 import { clearStoredAuth } from "../../utils/auth";
 import VoiceAttendanceButton from './VoiceAttendanceButton';
-import VoiceInvoiceButton from '../VoiceInvoiceButton';
+import VoiceInvoiceButton from '../admin/VoiceInvoiceButton'
 
 import {
   addLocalTransaction,
