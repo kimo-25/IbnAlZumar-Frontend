@@ -20,20 +20,28 @@ export function setStoredAuth(authData) {
 
 export function clearStoredAuth() {
   try {
-    localStorage.removeItem(AUTH_KEY)
+    // Remove every auth representation used by previous app versions.
+    [AUTH_KEY, 'token', 'user', 'refreshToken'].forEach((key) => localStorage.removeItem(key))
   } catch (e) {
     console.error('Failed to clear auth', e)
   }
 }
 
 export function isAuthExpired(authData) {
-  if (!authData || !authData.token) return true
-  
-  // لو فيه تاريخ انتهاء بنتحقق منه، لو مفيش بنفترض التوكن سليم طالما موجود
-  if (authData.expiresAtUtc) {
-    return new Date(authData.expiresAtUtc).getTime() <= Date.now()
+  if (!authData?.token) return true
+  const expiresAt = authData.expiresAt ?? authData.expiresAtUtc
+  if (expiresAt) {
+    const timestamp = typeof expiresAt === 'number' ? expiresAt : Date.parse(expiresAt)
+    return Number.isFinite(timestamp) && timestamp <= Date.now()
   }
-  return false
+
+  // Decode exp when the API did not persist explicit expiry metadata.
+  try {
+    const payload = JSON.parse(atob(authData.token.split('.')[1]))
+    return Number.isFinite(payload?.exp) && payload.exp * 1000 <= Date.now()
+  } catch {
+    return false
+  }
 }
 
 // تحديد وجهة التوجيه بناءً على دور المستخدم بعد تسجيل الدخول أو التسجيل

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { pickPrimaryRole, normalizeRole } from "../utils/roles";
+import { getStoredAuth, clearStoredAuth, isAuthExpired } from "../utils/auth";
 import { secureAuthStorage } from "../utils/secureStorage";
 
 const AuthContext = createContext();
@@ -40,8 +41,15 @@ function processTokenData(jwtToken) {
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => {
-    const authData = secureAuthStorage.get();
-    return authData?.token || null;
+    const encrypted = secureAuthStorage.get();
+    const legacy = getStoredAuth();
+    const authData = encrypted || legacy;
+    if (!authData || isAuthExpired(authData)) {
+      secureAuthStorage.clear();
+      clearStoredAuth();
+      return null;
+    }
+    return authData.token;
   });
 
   const [user, setUser] = useState(() => processTokenData(token));
@@ -73,16 +81,23 @@ export function AuthProvider({ children }) {
 
   // حفظ التوكن وتحديث حالة الـ State فوراُ قبل التوجيه
   const login = (jwtToken) => {
-    secureAuthStorage.set({ token: jwtToken });
+    const payload = parseJwt(jwtToken);
+    const authData = {
+      token: jwtToken,
+      expiresAt: Number.isFinite(payload?.exp) ? payload.exp * 1000 : undefined,
+      expiresAtUtc: Number.isFinite(payload?.exp) ? new Date(payload.exp * 1000).toISOString() : undefined,
+    };
+    secureAuthStorage.set(authData);
+    setStoredAuth(authData);
     const userData = processTokenData(jwtToken);
     setUser(userData);
     setToken(jwtToken);
     return userData;
   };
 
-  // مسح البيانات المشفّرة
   const logout = () => {
     secureAuthStorage.clear();
+    clearStoredAuth();
     setToken(null);
     setUser(null);
   };

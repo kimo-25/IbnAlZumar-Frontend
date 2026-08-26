@@ -75,12 +75,12 @@ export const secureAuthStorage = {
 
       const data = decrypt(encrypted);
       
-      // Validate token expiration if exists
-      if (data && data.expiresAt) {
-        const now = Date.now();
-        if (now > data.expiresAt) {
+      // Validate both the legacy millisecond field and the API ISO timestamp.
+      if (data?.expiresAt || data?.expiresAtUtc) {
+        const expiry = data.expiresAt ?? Date.parse(data.expiresAtUtc);
+        if (Number.isFinite(expiry) && expiry <= Date.now()) {
           console.warn('[SecureStorage] Token expired');
-          secureAuthStorage.clear(); // Auto-clear expired token
+          secureAuthStorage.clear();
           return null;
         }
       }
@@ -96,8 +96,7 @@ export const secureAuthStorage = {
    * Clear all stored auth data
    */
   clear: () => {
-    localStorage.removeItem('ibn_zumar_auth_encrypted');
-    localStorage.removeItem('ibn_zumar_auth_exists');
+    ['ibn_zumar_auth_encrypted', 'ibn_zumar_auth_exists', 'ibn_zumar_auth', 'token', 'user', 'refreshToken'].forEach((key) => localStorage.removeItem(key));
   },
 
   /**
