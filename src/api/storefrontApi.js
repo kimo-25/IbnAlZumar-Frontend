@@ -32,6 +32,13 @@ export async function getCategories() {
  * @param {Object} orderData - بيانات الطلب والمنتجات وعنوان الشحن
  * @param {String} [token] - توكن المصادقة اختياري (JWT)
  */
+export async function createPaymentCheckout(orderData, token = null) {
+  const activeToken = token || localStorage.getItem('token')
+  const headers = activeToken ? { Authorization: `Bearer ${activeToken}` } : {}
+  const response = await axiosInstance.post('/payments/checkout', orderData, { headers })
+  return response.data
+}
+
 export async function createGuestOrder(orderData, token = null) {
   // استخدام التوكن المُمرر أو جلبه تلقائياً من الـ localStorage كاحتياطي إضافي
   const activeToken = token || localStorage.getItem('token')

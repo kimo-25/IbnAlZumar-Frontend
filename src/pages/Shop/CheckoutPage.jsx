@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, UserCheck, MapPinPlus, User, Lock, Eye, EyeOff } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
-import { createGuestOrder } from '../../api/storefrontApi'
+import { createPaymentCheckout } from '../../api/storefrontApi'
 import axiosInstance from '../../api/axiosInstance'
 import { useCart } from '../../context/CartContext'
 import { formatCurrency } from '../../utils/catalog'
@@ -47,6 +47,7 @@ export default function CheckoutPage() {
   const [shippingZones, setShippingZones] = useState([])
   const [selectedZone, setSelectedZone] = useState(null)
   const [selectedZonePrice, setSelectedZonePrice] = useState(0)
+  const [paymentMethod, setPaymentMethod] = useState('CashOnDelivery')
   const [submitting, setSubmitting] = useState(false)
   const [loadingProfile, setLoadingProfile] = useState(false)
   const [error, setError] = useState(null)
@@ -188,9 +189,16 @@ export default function CheckoutPage() {
           ? `[طلب منطقة جديدة]: ${formData.customGovernorate}`
           : `المحافظة: ${formData.deliveryGovernorate}`,
         items: formattedItems,
+        paymentMethod: paymentMethod === 'CreditCard' ? 3 : paymentMethod === 'InstaPay' ? 4 : paymentMethod === 'Wallet' ? 7 : 1,
+        orderSource: 1,
       }
 
-      const order = await createGuestOrder(orderPayload, token)
+      const order = await createPaymentCheckout(orderPayload, token)
+
+      if (order?.paymentUrl) {
+        window.location.assign(order.paymentUrl)
+        return
+      }
 
       if (token) {
         await syncProfileData(token, formData)
@@ -495,13 +503,22 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            <fieldset className="mt-5 space-y-3">
+              <legend className="mb-2 text-sm font-semibold text-ink">طريقة الدفع</legend>
+              {[['CashOnDelivery', 'الدفع عند الاستلام', 'ادفع عند استلام الشحنة'], ['CreditCard', 'فيزا / ماستركارد', 'دفع آمن عبر Paymob'], ['InstaPay', 'InstaPay', 'تحويل فوري عبر Paymob'], ['Wallet', 'المحافظ الإلكترونية', 'فودافون كاش وأمثالها عبر Paymob']].map(([value, label, description]) => (
+                <label key={value} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${paymentMethod === value ? 'border-emerald-500 bg-emerald-50' : 'border-border bg-surface'}`}>
+                  <input type="radio" name="paymentMethod" value={value} checked={paymentMethod === value} onChange={(event) => setPaymentMethod(event.target.value)} />
+                  <span><span className="block text-sm font-semibold text-ink">{label}</span><span className="block text-xs text-ink-soft">{description}</span></span>
+                </label>
+              ))}
+            </fieldset>
             <button
               type="submit"
               disabled={submitting}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber px-4 py-3 text-sm font-semibold text-graphite-900 transition hover:bg-amber-dark disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               {submitting && <Loader2 size={16} className="animate-spin" />}
-              {submitting ? 'جارٍ إرسال الطلب...' : 'إرسال الطلب'}
+              {submitting ? 'جارٍ تجهيز الدفع...' : paymentMethod === 'CashOnDelivery' ? 'تأكيد الطلب' : 'المتابعة إلى الدفع'}
             </button>
           </form>
         </Card>
@@ -526,7 +543,7 @@ export default function CheckoutPage() {
             </div>
             <div className="flex items-center justify-between text-sm text-ink-soft">
               <span>طريقة الدفع</span>
-              <span className="font-medium text-ink">الدفع عند الاستلام</span>
+              <span className="font-medium text-ink">{paymentMethod === 'CreditCard' ? 'فيزا / ماستركارد' : paymentMethod === 'InstaPay' ? 'InstaPay' : paymentMethod === 'Wallet' ? 'محفظة إلكترونية' : 'الدفع عند الاستلام'}</span>
             </div>
             <div className="rounded-xl border border-border bg-canvas p-4 text-sm leading-7 text-ink-soft">
               بعد إرسال الطلب سيظهر رقم مرجعي، وسيتم التأكيد هاتفيًا قبل الشحن.

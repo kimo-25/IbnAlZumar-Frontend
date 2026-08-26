@@ -24,6 +24,7 @@ import ShopPage from './pages/Shop/ShopPage'
 import ProductDetailsPage from './pages/Shop/ProductDetailsPage'
 import CartPage from './pages/Shop/CartPage'
 import CheckoutPage from './pages/Shop/CheckoutPage'
+import PaymentResultPage from './pages/Shop/PaymentResultPage'
 
 // Auth & Customer Pages
 import LoginPage from './pages/Login/LoginPage'
@@ -93,6 +94,8 @@ export default function App() {
           <Route path="/products/:productId" element={<ProductDetailsPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/payment/success" element={<PaymentResultPage success />} />
+          <Route path="/payment/failed" element={<PaymentResultPage success={false} />} />
           <Route path="/profile" element={<CustomerProfilePage />} />
           <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
         </Route>
