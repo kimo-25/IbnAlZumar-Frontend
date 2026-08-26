@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, Package, Search, Trash2, Edit3, FileSpreadsheet, FileUp, X, Check } from 'lucide-react'
+import { Loader2, Package, Search, Trash2, Edit3, FileSpreadsheet, FileUp, X, Check, Mic, Square } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import Pagination from '../../components/ui/Pagination'
 import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
-import { getProducts, updateProduct, deleteProduct, getCategories, convertInvoiceToExcel } from '../../api/adminApi'
+import { getProducts, updateProduct, deleteProduct, getCategories, convertInvoiceToExcel, sendVoiceCommand } from '../../api/adminApi'
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
@@ -25,6 +25,10 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false)
   const [invoiceFile, setInvoiceFile] = useState(null)
   const [convertingInvoice, setConvertingInvoice] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [voiceTranscript, setVoiceTranscript] = useState('')
+  const [voiceFeedback, setVoiceFeedback] = useState(null)
+  const recognitionRef = useRef(null)
   const invoiceInputRef = useRef(null)
 
   // 1. Debounce handle
@@ -132,6 +136,56 @@ export default function ProductsPage() {
     }
   }
 
+  const handleVoiceCommand = () => {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!Recognition) {
+      setVoiceFeedback({ type: 'error', text: 'التعرف الصوتي غير مدعوم في هذا المتصفح.' })
+      return
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop()
+      return
+    }
+
+    const recognition = new Recognition()
+    recognitionRef.current = recognition
+    recognition.lang = 'ar-EG'
+    recognition.continuous = false
+    recognition.interimResults = true
+    setVoiceTranscript('')
+    setVoiceFeedback(null)
+    setIsListening(true)
+
+    recognition.onresult = async (event) => {
+      let transcript = ''
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        transcript += event.results[i][0].transcript
+      }
+      setVoiceTranscript(transcript)
+      const finalResult = Array.from(event.results).some((result) => result.isFinal)
+      if (!finalResult || !transcript.trim()) return
+
+      try {
+        const result = await sendVoiceCommand(transcript.trim())
+        if (result?.success) {
+          await loadProducts()
+          setVoiceFeedback({ type: 'success', text: result.message || `تم تنفيذ الأمر: ${result.action || 'نجاح'}` })
+        } else {
+          setVoiceFeedback({ type: 'error', text: result?.message || 'تعذر تنفيذ الأمر الصوتي.' })
+        }
+      } catch (err) {
+        setVoiceFeedback({ type: 'error', text: err?.response?.data?.message || err?.message || 'تعذر الاتصال بالخادم.' })
+      }
+    }
+    recognition.onerror = () => {
+      setVoiceFeedback({ type: 'error', text: 'تعذر التقاط الأمر الصوتي، حاول مرة أخرى.' })
+      setIsListening(false)
+    }
+    recognition.onend = () => setIsListening(false)
+    recognition.start()
+  }
+
   const handleConvertInvoice = async (event) => {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -190,11 +244,23 @@ export default function ProductsPage() {
           </Link>
           </div>
           {invoiceFile && !convertingInvoice && <span className="text-[11px] text-ink-soft">آخر ملف: {invoiceFile.name}</span>}
+          <button type="button" onClick={handleVoiceCommand} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-xs transition ${isListening ? 'bg-rose-600 hover:bg-rose-700' : 'bg-sky-600 hover:bg-sky-700'}`}>
+            {isListening ? <Square size={15} /> : <Mic size={15} />}
+            <span>{isListening ? 'إيقاف الاستماع' : 'أمر صوتي'}</span>
+          </button>
           <div className="inline-flex w-fit rounded-full border border-amber/20 bg-amber/10 px-3 py-1 text-sm font-medium text-amber-dark">
             إجمالي المنتجات المتاحة: {totalCount} منتج
           </div>
         </div>
       </div>
+
+      {(isListening || voiceTranscript || voiceFeedback) && (
+        <div className={`rounded-xl border px-4 py-3 text-sm ${voiceFeedback?.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : voiceFeedback?.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-sky-200 bg-sky-50 text-sky-700'}`}>
+          {isListening && <p className="font-semibold">جاري الاستماع...</p>}
+          {voiceTranscript && <p dir="rtl">النص: {voiceTranscript}</p>}
+          {voiceFeedback?.text && <p className="mt-1 font-semibold">{voiceFeedback.text}</p>}
+        </div>
+      )}
 
       {/* Search Input */}
       <div className="flex items-center gap-3">
