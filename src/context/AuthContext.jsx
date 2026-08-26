@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { pickPrimaryRole, normalizeRole } from "../utils/roles";
-import { getStoredAuth, clearStoredAuth, isAuthExpired } from "../utils/auth";
+import { getStoredAuth, clearStoredAuth, isAuthExpired, setStoredAuth } from "../utils/auth";
 import { secureAuthStorage } from "../utils/secureStorage";
 
 const AuthContext = createContext();
@@ -79,7 +79,7 @@ export function AuthProvider({ children }) {
     return true;
   };
 
-  // حفظ التوكن وتحديث حالة الـ State فوراُ قبل التوجيه
+  // حفظ التوكن وتحديث حالة الـ State فوراً قبل التوجيه
   const login = (jwtToken) => {
     const payload = parseJwt(jwtToken);
     const authData = {
@@ -87,8 +87,12 @@ export function AuthProvider({ children }) {
       expiresAt: Number.isFinite(payload?.exp) ? payload.exp * 1000 : undefined,
       expiresAtUtc: Number.isFinite(payload?.exp) ? new Date(payload.exp * 1000).toISOString() : undefined,
     };
+    
     secureAuthStorage.set(authData);
-    setStoredAuth(authData);
+    if (typeof setStoredAuth === "function") {
+      setStoredAuth(authData);
+    }
+    
     const userData = processTokenData(jwtToken);
     setUser(userData);
     setToken(jwtToken);
