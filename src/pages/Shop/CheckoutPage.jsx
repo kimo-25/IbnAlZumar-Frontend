@@ -1,7 +1,7 @@
 // File: src/pages/Checkout/CheckoutPage.jsx
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, UserCheck, MapPinPlus } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, PackageCheck, X, Truck, UserCheck, MapPinPlus, User, Lock, Eye, EyeOff } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import { createGuestOrder } from '../../api/storefrontApi'
@@ -55,6 +55,12 @@ export default function CheckoutPage() {
 
   const [user, setUser] = useState(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
+
+  // بيانات نموذج تسجيل الدخول العادي داخل المودال
+  const [loginUsername, setLoginUsername] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [loginSubmitting, setLoginSubmitting] = useState(false)
 
   const fetchShippingZones = useCallback(async () => {
     try {
@@ -241,6 +247,49 @@ export default function CheckoutPage() {
       await executeOrderSubmission(data.token, updatedForm)
     } catch (err) {
       setError(extractErrorMessage(err))
+    }
+  }
+
+  async function handleStandardLoginSubmit(event) {
+    event.preventDefault()
+    setError(null)
+
+    if (!loginUsername.trim() || !loginPassword) {
+      setError('يرجى إدخال اسم المستخدم/البريد الإلكتروني وكلمة المرور.')
+      return
+    }
+
+    setLoginSubmitting(true)
+    try {
+      const response = await axiosInstance.post('/Auth/login', {
+        username: loginUsername.trim(),
+        password: loginPassword,
+      })
+      const data = response.data
+
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data))
+      setUser(data)
+
+      const updatedForm = {
+        ...form,
+        guestName: data.fullName || data.name || form.guestName,
+        guestPhone: data.phone || form.guestPhone,
+        shippingAddress: data.address || form.shippingAddress,
+        deliveryGovernorate: data.governorate || form.deliveryGovernorate,
+      }
+
+      setForm(updatedForm)
+      setShowLoginModal(false)
+      setLoginUsername('')
+      setLoginPassword('')
+
+      // إكمال عملية الشراء تلقائياً بعد نجاح تسجيل الدخول العادي
+      await executeOrderSubmission(data.token, updatedForm)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setLoginSubmitting(false)
     }
   }
 
@@ -517,11 +566,79 @@ export default function CheckoutPage() {
               </div>
               <h3 className="text-lg font-bold text-ink">تسجيل الدخول مطلوب لإتمام الطلب</h3>
               <p className="text-xs text-ink-soft leading-relaxed">
-                يرجى تسجيل الدخول باستخدام حساب جوجل الخاص بك ليتم إرسال الطلب باسمك ومتابعة الشحنة بسهولة.
+                يرجى تسجيل الدخول ليتم إرسال الطلب باسمك ومتابعة الشحنة بسهولة.
               </p>
             </div>
 
-            <div className="flex justify-center py-2">
+            {error && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-xs text-red-700 border border-red-200">
+                <AlertCircle size={16} className="shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleStandardLoginSubmit} className="space-y-3" noValidate>
+              <div>
+                <label htmlFor="modalLoginUsername" className="mb-1.5 block text-xs font-medium text-ink">
+                  البريد الإلكتروني / اسم المستخدم
+                </label>
+                <div className="relative">
+                  <User size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                  <input
+                    id="modalLoginUsername"
+                    type="text"
+                    autoComplete="username"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-surface py-2.5 pr-9 pl-3 text-sm text-ink outline-none transition focus:border-amber focus:ring-2 focus:ring-amber/20"
+                    placeholder="اسم المستخدم أو البريد الإلكتروني"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="modalLoginPassword" className="mb-1.5 block text-xs font-medium text-ink">
+                  كلمة المرور
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                  <input
+                    id="modalLoginPassword"
+                    type={showLoginPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-surface py-2.5 pr-9 pl-9 text-sm text-ink outline-none transition focus:border-amber focus:ring-2 focus:ring-amber/20"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword((v) => !v)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink cursor-pointer"
+                    aria-label={showLoginPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                  >
+                    {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loginSubmitting}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-graphite-900 py-2.5 text-sm font-medium text-white transition hover:bg-graphite-800 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              >
+                {loginSubmitting && <Loader2 size={16} className="animate-spin" />}
+                {loginSubmitting ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
+              </button>
+            </form>
+
+            <div className="relative flex items-center py-4">
+              <div className="flex-grow border-t border-border"></div>
+              <span className="flex-shrink mx-3 text-xs font-medium text-ink-soft">أو</span>
+              <div className="flex-grow border-t border-border"></div>
+            </div>
+
+            <div className="flex justify-center py-1">
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={() => setError('فشل تسجيل الدخول باستخدام جوجل. حاول مجدداً.')}
@@ -531,13 +648,6 @@ export default function CheckoutPage() {
                 locale="ar"
               />
             </div>
-
-            {error && (
-              <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-xs text-red-700 border border-red-200">
-                <AlertCircle size={16} className="shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
           </div>
         </div>
       )}

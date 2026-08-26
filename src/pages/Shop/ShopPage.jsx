@@ -1,5 +1,6 @@
 // File: src/pages/Shop/ShopPage.jsx
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Filter, Loader2, PackageSearch, Search, Wrench, X, Upload } from 'lucide-react'
 import ProductCard from '../../components/storefront/ProductCard'
 import ProductFiltersPanel from '../../components/storefront/ProductFiltersPanel'
@@ -11,6 +12,8 @@ import axiosInstance from '../../api/axiosInstance'
 
 export default function ShopPage() {
   const { searchInput, setSearchInput } = useStorefrontSearch()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [isUrlReady, setIsUrlReady] = useState(false)
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
@@ -29,6 +32,24 @@ export default function ShopPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  // Initialize the shared search/filter state from the URL once per page mount.
+  useEffect(() => {
+    const categoryId = searchParams.get('categoryId')
+    setSearchInput(searchParams.get('search') || '')
+    setFilters({
+      categoryId: categoryId ? Number(categoryId) : null,
+      brand: searchParams.get('brand') || '',
+      material: searchParams.get('material') || '',
+      finish: searchParams.get('finish') || '',
+      minPrice: searchParams.get('minPrice') || '',
+      maxPrice: searchParams.get('maxPrice') || '',
+    })
+    setCurrentPage(Math.max(1, Number(searchParams.get('page')) || 1))
+    setIsUrlReady(true)
+    // URL is the source only during initial hydration; subsequent changes come from React state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // حالات مودال الصيانة الجديد (دعم صور متعددة)
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false)
   const [maintenanceForm, setMaintenanceForm] = useState({ description: '', deliveryMethod: 1 })
@@ -36,7 +57,7 @@ export default function ShopPage() {
   const [submittingMaintenance, setSubmittingMaintenance] = useState(false)
 
   useEffect(() => {
-    const timeout = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350)
+    const timeout = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300)
     return () => clearTimeout(timeout)
   }, [searchInput])
 
@@ -51,6 +72,8 @@ export default function ShopPage() {
   }, [])
 
   useEffect(() => {
+    if (!isUrlReady) return undefined
+
     let isActive = true
     setIsLoading(true)
     setError(null)
@@ -89,7 +112,24 @@ export default function ShopPage() {
         if (isActive) setIsLoading(false)
       })
     return () => { isActive = false }
-  }, [currentPage, pageSize, debouncedSearch, filters])
+  }, [currentPage, pageSize, debouncedSearch, filters, isUrlReady])
+
+  // Keep header search, filter-panel search, and shareable URL parameters synchronized.
+  useEffect(() => {
+    if (!isUrlReady) return
+
+    const nextParams = new URLSearchParams()
+    if (debouncedSearch) nextParams.set('search', debouncedSearch)
+    if (filters.categoryId) nextParams.set('categoryId', String(filters.categoryId))
+    if (filters.brand.trim()) nextParams.set('brand', filters.brand.trim())
+    if (filters.material.trim()) nextParams.set('material', filters.material.trim())
+    if (filters.finish.trim()) nextParams.set('finish', filters.finish.trim())
+    if (filters.minPrice !== '') nextParams.set('minPrice', String(filters.minPrice))
+    if (filters.maxPrice !== '') nextParams.set('maxPrice', String(filters.maxPrice))
+    if (currentPage > 1) nextParams.set('page', String(currentPage))
+
+    setSearchParams(nextParams, { replace: true })
+  }, [currentPage, debouncedSearch, filters, isUrlReady, setSearchParams])
 
   const safeProducts = Array.isArray(products) ? products : []
   const safeCategories = Array.isArray(categories) ? categories : []

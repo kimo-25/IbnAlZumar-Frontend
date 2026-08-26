@@ -79,7 +79,7 @@ export const secureAuthStorage = {
       if (data?.expiresAt || data?.expiresAtUtc) {
         const expiry = data.expiresAt ?? Date.parse(data.expiresAtUtc);
         if (Number.isFinite(expiry) && expiry <= Date.now()) {
-          console.warn('[SecureStorage] Token expired');
+          // Expired sessions are expected; clean them silently so public API calls continue unauthenticated.
           secureAuthStorage.clear();
           return null;
         }
