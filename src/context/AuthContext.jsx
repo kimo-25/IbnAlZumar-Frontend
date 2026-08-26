@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { pickPrimaryRole, normalizeRole } from "../utils/roles";
-import { getStoredAuth, clearStoredAuth, isAuthExpired, setStoredAuth } from "../utils/auth";
+import { getStoredAuth, clearStoredAuth, isAuthExpired } from "../utils/auth";
 import { secureAuthStorage } from "../utils/secureStorage";
 
 const AuthContext = createContext();
@@ -89,9 +89,6 @@ export function AuthProvider({ children }) {
     };
     
     secureAuthStorage.set(authData);
-    if (typeof setStoredAuth === "function") {
-      setStoredAuth(authData);
-    }
     
     const userData = processTokenData(jwtToken);
     setUser(userData);
