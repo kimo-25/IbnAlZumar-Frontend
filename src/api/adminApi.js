@@ -138,6 +138,17 @@ export async function uploadProductsExcel(file) {
   return response.data
 }
 
+export async function convertInvoiceToExcel(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await axiosInstance.post('/Catalog/convert-invoice-to-excel', formData, {
+    responseType: 'blob',
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  const safeName = file.name.replace(/\.[^.]+$/, '') || 'invoice'
+  return { blob: response.data, fileName: `${safeName}_products.xlsx` }
+}
+
 // ==========================================
 // 2. إدارة الأقسام والعملاء
 // ==========================================

@@ -35,9 +35,9 @@ export default function AiChatModal() {
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }) }, [messages, isSending])
   useEffect(() => { if (textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 132)}px` } }, [input])
   useEffect(() => () => { abortRef.current?.abort(); recorderRef.current?.stream?.getTracks().forEach((track) => track.stop()); recognitionRef.current?.stop() }, [])
-  const isStaff = isAuthenticated && ['Admin', 'SuperAdmin', 'Moderator', 'Cashier', 'STORE_OWNER', 'Owner', 'ONLINE_MANAGER'].some(hasRole)
+  const isStaff = isAuthenticated && ['Admin', 'STORE_OWNER'].some(hasRole)
   if (!isStaff) return null
-  const showFinancialPrompt = hasRole('Admin') || hasRole('SuperAdmin') || hasRole('STORE_OWNER') || hasRole('Owner')
+  const showFinancialPrompt = hasRole('Admin') || hasRole('STORE_OWNER')
   const roleLabel = user?.role || user?.roles?.[0] || 'عضو فريق'
 
   function selectFiles(event) { setFiles((current) => [...current, ...Array.from(event.target.files || [])].slice(0, 5)); event.target.value = '' }

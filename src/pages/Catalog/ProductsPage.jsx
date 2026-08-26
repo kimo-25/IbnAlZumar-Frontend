@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, Package, Search, Trash2, Edit3, FileSpreadsheet, X, Check } from 'lucide-react'
+import { Loader2, Package, Search, Trash2, Edit3, FileSpreadsheet, FileUp, X, Check } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import Pagination from '../../components/ui/Pagination'
 import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
-import { getProducts, updateProduct, deleteProduct, getCategories } from '../../api/adminApi'
+import { getProducts, updateProduct, deleteProduct, getCategories, convertInvoiceToExcel } from '../../api/adminApi'
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
@@ -23,6 +23,9 @@ export default function ProductsPage() {
   const [editFormData, setEditFormData] = useState({})
   const [editImageFile, setEditImageFile] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [invoiceFile, setInvoiceFile] = useState(null)
+  const [convertingInvoice, setConvertingInvoice] = useState(false)
+  const invoiceInputRef = useRef(null)
 
   // 1. Debounce handle
   useEffect(() => {
@@ -129,6 +132,29 @@ export default function ProductsPage() {
     }
   }
 
+  const handleConvertInvoice = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setInvoiceFile(file)
+    setConvertingInvoice(true)
+    try {
+      const result = await convertInvoiceToExcel(file)
+      const url = URL.createObjectURL(result.blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = result.fileName
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      alert(err?.message || 'تعذر تحويل الفاتورة إلى ملف اكسل.')
+    } finally {
+      setConvertingInvoice(false)
+    }
+  }
+
   const handleDelete = async (id) => {
     if (window.confirm('هل أنت تأكد من حذف هذا المنتج؟')) {
       try {
@@ -149,6 +175,12 @@ export default function ProductsPage() {
           <p className="text-sm text-ink-soft">عرض، بحث، والتحكم بالمنتجات المتاحة في قاعدة البيانات.</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <input ref={invoiceInputRef} type="file" hidden accept=".pdf,.doc,.docx,image/*" onChange={handleConvertInvoice} />
+            <button type="button" onClick={() => invoiceInputRef.current?.click()} disabled={convertingInvoice} className="inline-flex items-center gap-2 rounded-xl border border-amber/40 bg-amber/10 px-4 py-2 text-xs font-bold text-amber-dark transition hover:bg-amber/20 disabled:opacity-60">
+              {convertingInvoice ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
+              <span>{convertingInvoice ? 'جاري التحليل...' : 'تحويل فاتورة إلى اكسل'}</span>
+            </button>
           <Link
             to="/admin/products/import"
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer"
@@ -156,6 +188,8 @@ export default function ProductsPage() {
             <FileSpreadsheet size={15} />
             <span>استيراد عبر اكسل</span>
           </Link>
+          </div>
+          {invoiceFile && !convertingInvoice && <span className="text-[11px] text-ink-soft">آخر ملف: {invoiceFile.name}</span>}
           <div className="inline-flex w-fit rounded-full border border-amber/20 bg-amber/10 px-3 py-1 text-sm font-medium text-amber-dark">
             إجمالي المنتجات المتاحة: {totalCount} منتج
           </div>
@@ -220,7 +254,7 @@ export default function ProductsPage() {
                   >
                     <Edit3 size={16} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(product.id)}
                     className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition"
                     title="حذف"
