@@ -191,10 +191,7 @@ export default function ShopPage() {
       formData.append('deliveryMethod', maintenanceForm.deliveryMethod)
       
       if (maintenanceImages.length > 0) {
-        maintenanceImages.forEach((img) => {
-          formData.append('images', img)
-        })
-        formData.append('image', maintenanceImages[0])
+        maintenanceImages.forEach((img) => formData.append('images', img, img.name))
       }
 
       const res = await axiosInstance.post('/Maintenance', formData, {
@@ -384,13 +381,9 @@ export default function ShopPage() {
                     onChange={handleImageChange}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
-                  <div className="flex items-center gap-2 text-xs text-ink-soft">
-                    <Upload size={16} />
-                    <span>
-                      {maintenanceImages.length > 0
-                        ? `تم تحديد ${maintenanceImages.length} صور`
-                        : 'اضغط لرفع صور الأعطال'}
-                    </span>
+                  <div className="flex w-full flex-col gap-3 text-xs text-ink-soft">
+                    <div className="flex items-center gap-2"><Upload size={16} /><span>{maintenanceImages.length > 0 ? `تم تحديد ${maintenanceImages.length} صور` : 'اضغط لرفع صور الأعطال'}</span></div>
+                    {maintenanceImages.length > 0 && <div className="grid grid-cols-4 gap-2">{maintenanceImages.map((file, index) => <div key={`${file.name}-${file.lastModified}-${index}`} className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-surface"><img src={URL.createObjectURL(file)} alt={file.name} className="h-full w-full object-cover" /><button type="button" onClick={(event) => { event.preventDefault(); setMaintenanceImages((current) => current.filter((_, imageIndex) => imageIndex !== index)) }} className="absolute right-1 top-1 rounded-full bg-graphite-900/80 p-1 text-white" aria-label={`حذف ${file.name}`}><X size={12} /></button></div>)}</div>}
                   </div>
                 </div>
               </div>

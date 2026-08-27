@@ -2,9 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
+import { useAuth } from "../../context/AuthContext";
 import Pagination from "../../components/ui/Pagination";
 import { getCustomers, createCustomer } from "../../api/adminApi";
-import { clearStoredAuth } from "../../utils/auth";
 import VoiceAttendanceButton from './VoiceAttendanceButton';
 import VoiceInvoiceButton from '../admin/VoiceInvoiceButton'
 
@@ -55,6 +55,7 @@ const PAYMENT_LABELS = {
 
 export default function PosCheckoutPage() {
   const isOnline = useOnlineStatus();
+  const { logout } = useAuth();
   const searchInputRef = useRef(null);
 
   const [products, setProducts] = useState([]);
@@ -63,7 +64,8 @@ export default function PosCheckoutPage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountType, setDiscountType] = useState("Fixed");
+  const [discountValue, setDiscountValue] = useState(0);
 
   // إدارة اختيار وإضافة العملاء للكاشير
   const [customers, setCustomers] = useState([]);
@@ -210,7 +212,9 @@ export default function PosCheckoutPage() {
     [cart]
   );
 
-  const safeDiscount = Math.min(Number(discountAmount) || 0, subtotal);
+  const normalizedDiscountValue = Math.max(Number(discountValue) || 0, 0);
+  const safeDiscount = Math.min(discountType === "Percentage" ? subtotal * Math.min(normalizedDiscountValue, 100) / 100 : normalizedDiscountValue, subtotal);
+  const discountPercentage = subtotal > 0 ? (safeDiscount / subtotal) * 100 : 0;
   const discountedSubtotal = Math.max(subtotal - safeDiscount, 0);
   const tax = discountedSubtotal * TAX_RATE;
   const total = discountedSubtotal + tax;
@@ -266,9 +270,8 @@ export default function PosCheckoutPage() {
 
   // --- تسجيل خروج ---
   function handleLogout() {
-    localStorage.removeItem("token");
-    clearStoredAuth();
-    window.location.assign(import.meta.env.BASE_URL + "admin/login");
+    logout();
+    window.location.assign(import.meta.env.BASE_URL + "login");
   }
 
   // بناء الـ payload بالظبط زي CreateOrderDto.cs ومنفذه فعلياً (أونلاين/أوفلاين)
@@ -285,6 +288,8 @@ export default function PosCheckoutPage() {
       customerId: selectedCustomer ? (selectedCustomer.id || selectedCustomer.Id) : null,
       paymentMethod,
       orderSource: ORDER_SOURCE_IN_STORE,
+      discountType,
+      discountValue: normalizedDiscountValue,
       discountAmount: safeDiscount,
       items: cart.map((item) => ({
         productId: item.id,
@@ -307,7 +312,8 @@ export default function PosCheckoutPage() {
       alert("تم إنشاء الفاتورة بنجاح");
       setCart([]);
       setSelectedCustomer(null);
-      setDiscountAmount(0);
+      setDiscountValue(0);
+      setDiscountType("Fixed");
       setShowCashModal(false);
       setCashReceived("");
     } catch (err) {
@@ -662,20 +668,13 @@ export default function PosCheckoutPage() {
             </div>
 
             {/* Discount Input */}
-            <div className="flex items-center justify-between gap-2 bg-canvas border border-border rounded-xl p-2.5">
-              <label htmlFor="discount" className="text-xs font-bold text-ink shrink-0">
-                خصم (ج.م)
-              </label>
-              <input
-                id="discount"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={discountAmount}
-                onChange={(e) => setDiscountAmount(e.target.value)}
-                className="w-24 text-left border border-border rounded-lg p-1.5 text-xs bg-surface outline-none font-mono focus:border-emerald-500"
-              />
+            <div className="space-y-2 rounded-xl border border-border bg-canvas p-2.5">
+              <p className="text-xs font-bold text-ink">الخصم</p>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-[11px] text-ink-soft">المبلغ (ج.م)<input type="number" min="0" step="0.01" value={discountType === "Fixed" ? discountValue : safeDiscount.toFixed(2)} onChange={(e) => { setDiscountType("Fixed"); setDiscountValue(e.target.value) }} className="mt-1 w-full rounded-lg border border-border bg-surface p-1.5 text-xs font-mono outline-none focus:border-emerald-500" /></label>
+                <label className="text-[11px] text-ink-soft">النسبة (%)<input type="number" min="0" max="100" step="0.01" value={discountType === "Percentage" ? discountValue : discountPercentage.toFixed(2)} onChange={(e) => { setDiscountType("Percentage"); setDiscountValue(e.target.value) }} className="mt-1 w-full rounded-lg border border-border bg-surface p-1.5 text-xs font-mono outline-none focus:border-emerald-500" /></label>
+              </div>
+              <p className="text-[10px] text-ink-soft">سيتم تطبيق خصم {safeDiscount.toFixed(2)} ج.م ({discountPercentage.toFixed(2)}%)</p>
             </div>
 
             <hr className="border-border" />

@@ -13,7 +13,8 @@ function buildChatFormData(prompt, history = [], files = []) {
 
 export async function sendAiChatMessage(prompt, history = [], files = []) {
   const response = await axiosInstance.post('/Ai/chat', buildChatFormData(prompt, history, files), {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    // Let the browser set the boundary; manually setting Content-Type can drop it.
+    headers: {},
   })
   return response.data
 }

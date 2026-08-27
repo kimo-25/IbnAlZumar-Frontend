@@ -9,7 +9,7 @@ const QUICK_PROMPTS = [
   { label: 'تنبيهات المخزون', prompt: 'ما هي المنتجات التي أوشك مخزونها على النفاد؟' },
   { label: 'ملخص المبيعات', prompt: 'أعطني ملخص المبيعات لآخر 7 أيام' },
 ]
-const ACCEPTED_FILES = '.pdf,.docx,.xlsx,.xls,image/jpeg,image/png,image/webp'
+const ACCEPTED_FILES = '.pdf,.txt,.docx,.xlsx,.xls,image/jpeg,image/png,image/webp'
 
 function AssistantAvatar({ small = false }) {
   return <div className={`relative grid shrink-0 place-items-center rounded-2xl bg-amber text-graphite-950 shadow-[0_0_0_4px_rgba(242,169,0,0.12)] ${small ? 'h-8 w-8 rounded-xl' : 'h-10 w-10'}`}><Bot size={small ? 16 : 19} strokeWidth={2.4} /><span className="absolute -bottom-0.5 -end-0.5 h-2.5 w-2.5 rounded-full border-2 border-graphite-900 bg-emerald-400" /></div>
@@ -35,8 +35,7 @@ export default function AiChatModal() {
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }) }, [messages, isSending])
   useEffect(() => { if (textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 132)}px` } }, [input])
   useEffect(() => () => { abortRef.current?.abort(); recorderRef.current?.stream?.getTracks().forEach((track) => track.stop()); recognitionRef.current?.stop() }, [])
-  const isStaff = isAuthenticated && ['Admin', 'STORE_OWNER'].some(hasRole)
-  if (!isStaff) return null
+  if (!isAuthenticated) return null
   const showFinancialPrompt = hasRole('Admin') || hasRole('STORE_OWNER')
   const roleLabel = user?.role || user?.roles?.[0] || 'عضو فريق'
 

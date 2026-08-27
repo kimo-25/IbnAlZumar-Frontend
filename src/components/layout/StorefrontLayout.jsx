@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import StorefrontAnnouncementBar from '../storefront/StorefrontAnnouncementBar'
 import StorefrontHeader from '../storefront/StorefrontHeader'
 import CartDrawer from '../storefront/CartDrawer'
+import AiChatModal from '../ai/AiChatModal'
 import { useLanguage } from '../../context/LanguageContext'
 
 export default function StorefrontLayout() {
@@ -22,6 +23,7 @@ export default function StorefrontLayout() {
       </div>
 
       <CartDrawer />
+      <AiChatModal />
 
       <footer className="border-t border-border py-8 text-center text-xs text-ink-soft">
         © {new Date().getFullYear()} ابن الزمر — الأدوات، الخامات، والتشطيبات
