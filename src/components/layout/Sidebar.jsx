@@ -181,9 +181,10 @@ export default function Sidebar({ isOpen, onClose }) {
                       to={to}
                       onClick={(e) => {
                         onClose()
-                        if (onClickHandler) {
+                        // 👈 يمنع إضافة #ai-chat للرابط ويطلق الحدث
+                        if (to === '#ai-chat' || onClickHandler) {
                           e.preventDefault()
-                          onClickHandler()
+                          if (onClickHandler) onClickHandler()
                         }
                       }}
                       className={({ isActive }) =>

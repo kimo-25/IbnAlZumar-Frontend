@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Navbar from './Navbar'
+import AiChatModal from '../ai/AiChatModal' // 👈 التعديل هنا: تصحيح اسم المسار والملف (Modal)
 
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -18,6 +19,8 @@ export default function DashboardLayout() {
         </main>
       </div>
 
+      {/* 👈 استدعاء مكون المساعد الذكي المفعل بالحدث customEvent */}
+      <AiChatModal />
     </div>
   )
 }

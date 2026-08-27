@@ -43,7 +43,7 @@ import ForbiddenPage from './pages/Forbidden/ForbiddenPage'
 import DashboardHome from './pages/Dashboard/DashboardHome'
 import CategoriesPage from './pages/Catalog/CategoriesPage'
 import ProductsPage from './pages/Catalog/ProductsPage'
-import AddProduct from './pages/Products/AddProduct' // 👈 استيراد صفحة إضافة المنتجات بالإكسيل
+import AddProduct from './pages/Products/AddProduct'
 import AdminRemindersPage from './pages/Catalog/AdminRemindersPage'
 import InventoryAdjustPage from './pages/Inventory/InventoryAdjustPage'
 import InventoryTransferPage from './pages/Inventory/InventoryTransferPage'
@@ -132,7 +132,7 @@ export default function App() {
           <Route path="dashboard" element={<ModeratorHubPage />} />
           <Route path="operations" element={<OperationsHubPage />} />
           <Route path="products" element={<ModeratorProductsPage />} />
-          <Route path="products/import" element={<AddProduct />} /> {/* 👈 مسار الاستيراد للمودريتور */}
+          <Route path="products/import" element={<AddProduct />} />
           <Route path="categories" element={<ModeratorCategoriesPage />} />
           <Route path="reminders" element={<ModeratorRemindersPage />} />
           <Route path="catalog" element={<ModeratorCatalogPage />} />
@@ -176,8 +176,8 @@ export default function App() {
 
           <Route path="catalog/categories" element={<CategoriesPage />} />
           <Route path="catalog/products" element={<ProductsPage />} />
-          <Route path="catalog/products/import" element={<AddProduct />} /> {/* 👈 مسار الاستيراد للأدمن */}
-          <Route path="products/import" element={<AddProduct />} /> {/* مسار إضافي مختصر */}
+          <Route path="catalog/products/import" element={<AddProduct />} />
+          <Route path="products/import" element={<AddProduct />} />
 
           <Route 
             path="reminders" 

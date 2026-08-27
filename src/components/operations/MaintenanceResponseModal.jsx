@@ -1,7 +1,7 @@
 // File: src/components/operations/MaintenanceResponseModal.jsx
 import { useEffect, useState } from 'react'
-import { X, Loader2, Save, AlertCircle, ImageOff, User, Mail, Phone } from 'lucide-react'
-import { resolveMaintenanceImageUrl } from '../../utils/mediaUrl'
+import { X, Loader2, Save, AlertCircle, ImageOff, User, Mail, Phone, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react'
+import { resolveMaintenanceImageUrls } from '../../utils/mediaUrl'
 import { MAINTENANCE_STATUS_OPTIONS, getDeliveryMethodLabel } from '../../constants/maintenance'
 
 // Converts an ISO/server date string to the yyyy-MM-dd shape <input type="date"> needs.
@@ -10,6 +10,98 @@ function toDateInputValue(value) {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return ''
   return d.toISOString().slice(0, 10)
+}
+
+// معرض صور + Lightbox لتكبير أي صورة من صور طلب الصيانة والتنقل بينها
+function MaintenanceImageGallery({ imageUrls }) {
+  const [lightboxIndex, setLightboxIndex] = useState(null)
+
+  if (!imageUrls || imageUrls.length === 0) {
+    return (
+      <div className="w-24 h-24 rounded-xl bg-surface border border-border flex items-center justify-center text-ink-soft">
+        <ImageOff size={20} />
+      </div>
+    )
+  }
+
+  const openAt = (idx) => setLightboxIndex(idx)
+  const close = () => setLightboxIndex(null)
+  const showPrev = (e) => {
+    e.stopPropagation()
+    setLightboxIndex((i) => (i - 1 + imageUrls.length) % imageUrls.length)
+  }
+  const showNext = (e) => {
+    e.stopPropagation()
+    setLightboxIndex((i) => (i + 1) % imageUrls.length)
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        {imageUrls.map((url, idx) => (
+          <button
+            key={url + idx}
+            type="button"
+            onClick={() => openAt(idx)}
+            className="group relative w-24 h-24 rounded-xl overflow-hidden border border-border hover:opacity-90 transition cursor-pointer"
+          >
+            <img src={url} alt={`صورة العطل ${idx + 1}`} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition">
+              <ZoomIn size={18} className="text-white opacity-0 group-hover:opacity-100 transition" />
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4"
+          onClick={close}
+        >
+          <button
+            type="button"
+            onClick={close}
+            className="absolute top-4 left-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition"
+          >
+            <X size={20} />
+          </button>
+
+          {imageUrls.length > 1 && (
+            <span className="absolute top-4 right-4 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white">
+              {lightboxIndex + 1} / {imageUrls.length}
+            </span>
+          )}
+
+          {imageUrls.length > 1 && (
+            <button
+              type="button"
+              onClick={showPrev}
+              className="absolute right-3 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition"
+            >
+              <ChevronRight size={22} />
+            </button>
+          )}
+
+          <img
+            src={imageUrls[lightboxIndex]}
+            alt={`صورة العطل ${lightboxIndex + 1}`}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85vh] max-w-[90vw] rounded-xl object-contain"
+          />
+
+          {imageUrls.length > 1 && (
+            <button
+              type="button"
+              onClick={showNext}
+              className="absolute left-3 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition"
+            >
+              <ChevronLeft size={22} />
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  )
 }
 
 export default function MaintenanceResponseModal({ request, onClose, onSave, saving, error }) {
@@ -31,9 +123,9 @@ export default function MaintenanceResponseModal({ request, onClose, onSave, sav
 
   if (!request) return null
 
-  // رابط موحّد ومقاوم لاختلاف تسمية الحقل بين الـ endpoints، ويُعاد بناؤه
-  // دائماً فوق الـ API Origin الحالي حتى لو كان مخزّناً برابط مطلق قديم.
-  const imageUrl = resolveMaintenanceImageUrl(request)
+  // مصفوفة موحّدة ومقاومة لاختلاف تسمية الحقل بين الـ endpoints (imageUrls أو
+  // imageUrl القديم)، ويُعاد بناء كل رابط دائماً فوق الـ API Origin الحالي.
+  const imageUrls = resolveMaintenanceImageUrls(request)
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -81,15 +173,7 @@ export default function MaintenanceResponseModal({ request, onClose, onSave, sav
             {request.problemDescription}
           </div>
 
-          {imageUrl ? (
-            <a href={imageUrl} target="_blank" rel="noreferrer">
-              <img src={imageUrl} alt="صورة العطل" className="w-24 h-24 rounded-xl object-cover border border-border" />
-            </a>
-          ) : (
-            <div className="w-24 h-24 rounded-xl bg-surface border border-border flex items-center justify-center text-ink-soft">
-              <ImageOff size={20} />
-            </div>
-          )}
+          <MaintenanceImageGallery imageUrls={imageUrls} />
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">

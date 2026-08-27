@@ -52,7 +52,8 @@ export function toAbsoluteMediaUrl(url) {
 }
 
 /**
- * يقرأ رابط صورة طلب صيانة من الكائن القادم من الـ API
+ * يقرأ رابط صورة واحدة (أول صورة) من الكائن القادم من الـ API.
+ * محتفظ بيها لأي استخدام قديم/مكان لسه محتاج صورة واحدة فقط.
  */
 export function resolveMaintenanceImageUrl(request) {
   if (!request) return null
@@ -65,4 +66,32 @@ export function resolveMaintenanceImageUrl(request) {
     request.ImagePath ??
     null
   return toAbsoluteMediaUrl(raw)
+}
+
+/**
+ * يقرأ كل صور طلب الصيانة (مصفوفة imageUrls القادمة من الـ API) ويحولها لروابط
+ * مطلقة صحيحة. لو الـ API القديم أرجع صورة واحدة فقط (imageUrl) بيرجعها كمصفوفة
+ * من عنصر واحد كـ fallback، عشان مفيش استجابة تفضل من غير صور.
+ */
+export function resolveMaintenanceImageUrls(request) {
+  if (!request) return []
+
+  const rawList = request.imageUrls ?? request.ImageUrls ?? null
+
+  let list = []
+  if (Array.isArray(rawList) && rawList.length > 0) {
+    list = rawList
+  } else {
+    const single =
+      request.imageUrl ??
+      request.ImageUrl ??
+      request.image ??
+      request.Image ??
+      request.imagePath ??
+      request.ImagePath ??
+      null
+    list = single ? [single] : []
+  }
+
+  return list.map((u) => toAbsoluteMediaUrl(u)).filter(Boolean)
 }
