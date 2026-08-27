@@ -54,7 +54,20 @@ export default function ShopPage() {
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false)
   const [maintenanceForm, setMaintenanceForm] = useState({ description: '', deliveryMethod: 1 })
   const [maintenanceImages, setMaintenanceImages] = useState([])
+  const [maintenancePreviews, setMaintenancePreviews] = useState([])
   const [submittingMaintenance, setSubmittingMaintenance] = useState(false)
+
+  // توليد روابط المعاينة (Object URLs) كلما تغيّرت قائمة الملفات المختارة،
+  // مع تنظيف الروابط القديمة تلقائياً (revokeObjectURL) لتفادي تسريب الذاكرة —
+  // سواء عند إضافة/حذف صور، إغلاق المودال، أو مغادرة الصفحة.
+  useEffect(() => {
+    const urls = maintenanceImages.map((file) => URL.createObjectURL(file))
+    setMaintenancePreviews(urls)
+
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [maintenanceImages])
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300)
@@ -170,10 +183,34 @@ export default function ShopPage() {
     setCurrentPage(1)
   }
 
+  // يضيف الملفات الجديدة إلى القائمة الحالية بدلاً من استبدالها، ويمنع تكرار
+  // نفس الملف (بمقارنة الاسم والحجم معاً) لو المستخدم فتح نافذة الاختيار أكتر
+  // من مرة واختار نفس الصورة تاني.
   function handleImageChange(e) {
-    if (e.target.files) {
-      setMaintenanceImages(Array.from(e.target.files))
-    }
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setMaintenanceImages((prev) => {
+      const existingKeys = new Set(prev.map((f) => `${f.name}_${f.size}`))
+      const uniqueNewFiles = Array.from(files).filter((f) => !existingKeys.has(`${f.name}_${f.size}`))
+      return [...prev, ...uniqueNewFiles]
+    })
+
+    // تفريغ قيمة الـ input عشان يقدر يسجّل نفس الحدث لو المستخدم اختار نفس
+    // الملف تاني بعد ما حذفه من القائمة
+    e.target.value = ''
+  }
+
+  // إزالة صورة واحدة من القائمة (والمعاينة المرتبطة بيها بتتحدث تلقائياً
+  // عبر الـ useEffect بتاع maintenanceImages)
+  function handleRemoveImage(index) {
+    setMaintenanceImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function closeMaintenanceModal() {
+    setIsMaintenanceModalOpen(false)
+    setMaintenanceForm({ description: '', deliveryMethod: 1 })
+    setMaintenanceImages([])
   }
 
   // دالة إرسال نموذج الصيانة المربوط بالباك إند مع الصور المتعددة
@@ -189,7 +226,7 @@ export default function ShopPage() {
       const formData = new FormData()
       formData.append('description', maintenanceForm.description)
       formData.append('deliveryMethod', maintenanceForm.deliveryMethod)
-      
+
       if (maintenanceImages.length > 0) {
         maintenanceImages.forEach((img) => formData.append('images', img, img.name))
       }
@@ -199,9 +236,7 @@ export default function ShopPage() {
       })
 
       alert(res.data?.message || 'تم إرسال طلب الصيانة بنجاح!')
-      setIsMaintenanceModalOpen(false)
-      setMaintenanceForm({ description: '', deliveryMethod: 1 })
-      setMaintenanceImages([])
+      closeMaintenanceModal()
     } catch (err) {
       alert(err?.response?.data?.message || 'تعذر إرسال طلب الصيانة. يرجى التأكد من تسجيل الدخول أولاً.')
     } finally {
@@ -338,9 +373,9 @@ export default function ShopPage() {
 
       {/* Modal طلب الصيانة والورش */}
       {isMaintenanceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" dir="rtl" onClick={() => setIsMaintenanceModalOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative">
-            <button onClick={() => setIsMaintenanceModalOpen(false)} className="absolute top-4 left-4 text-ink-soft hover:text-ink cursor-pointer">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" dir="rtl" onClick={closeMaintenanceModal}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border relative max-h-[90vh] overflow-y-auto">
+            <button onClick={closeMaintenanceModal} className="absolute top-4 left-4 text-ink-soft hover:text-ink cursor-pointer">
               <X size={20} />
             </button>
             <h3 className="text-lg font-bold text-ink mb-1">طلب صيانة / استفسار ورشة</h3>
@@ -373,6 +408,7 @@ export default function ShopPage() {
 
               <div>
                 <label className="text-xs font-semibold text-ink mb-1 block">صور المعدة / العطل (اختياري - يمكنك اختيار عدة صور)</label>
+
                 <div className="relative flex items-center justify-center border-2 border-dashed border-border rounded-xl p-4 bg-canvas hover:border-amber transition cursor-pointer">
                   <input
                     type="file"
@@ -381,11 +417,42 @@ export default function ShopPage() {
                     onChange={handleImageChange}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
-                  <div className="flex w-full flex-col gap-3 text-xs text-ink-soft">
-                    <div className="flex items-center gap-2"><Upload size={16} /><span>{maintenanceImages.length > 0 ? `تم تحديد ${maintenanceImages.length} صور` : 'اضغط لرفع صور الأعطال'}</span></div>
-                    {maintenanceImages.length > 0 && <div className="grid grid-cols-4 gap-2">{maintenanceImages.map((file, index) => <div key={`${file.name}-${file.lastModified}-${index}`} className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-surface"><img src={URL.createObjectURL(file)} alt={file.name} className="h-full w-full object-cover" /><button type="button" onClick={(event) => { event.preventDefault(); setMaintenanceImages((current) => current.filter((_, imageIndex) => imageIndex !== index)) }} className="absolute right-1 top-1 rounded-full bg-graphite-900/80 p-1 text-white" aria-label={`حذف ${file.name}`}><X size={12} /></button></div>)}</div>}
+                  <div className="flex items-center gap-2 text-xs text-ink-soft">
+                    <Upload size={16} />
+                    <span>
+                      {maintenanceImages.length > 0
+                        ? `تم تحديد ${maintenanceImages.length} صور - اضغط لإضافة المزيد`
+                        : 'اضغط لرفع صور الأعطال'}
+                    </span>
                   </div>
                 </div>
+
+                {maintenanceImages.length > 0 && (
+                  <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {maintenanceImages.map((file, index) => (
+                      <div
+                        key={`${file.name}-${file.size}-${index}`}
+                        className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-surface"
+                      >
+                        {maintenancePreviews[index] && (
+                          <img
+                            src={maintenancePreviews[index]}
+                            alt={file.name}
+                            className="h-full w-full object-cover"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          className="absolute right-1 top-1 rounded-full bg-graphite-900/80 p-1 text-white hover:bg-graphite-900 transition cursor-pointer"
+                          aria-label={`حذف ${file.name}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button
