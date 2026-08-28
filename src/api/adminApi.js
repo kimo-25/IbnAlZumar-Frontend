@@ -308,9 +308,10 @@ export async function approveOrderCancellation(orderId) {
  * تسجيل بصمة صوت الموظف الحالي لأول مرة.
  * audioBlob: Blob قادم من MediaRecorder API.
  */
-export async function enrollVoice(audioBlob, fileName = 'enroll.webm') {
+export async function enrollVoice(audioBlob, fileName = 'enroll.webm', userId = null) {
   const formData = new FormData()
   formData.append('audio', audioBlob, fileName)
+  if (userId !== null && userId !== undefined) formData.append('userId', String(userId))
 
   const response = await axiosInstance.post('/attendance/enroll-voice', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -341,6 +342,16 @@ export async function processVoiceAttendance(audioBlob, notes = '', fileName = '
  */
 export async function getAttendanceLogs(params = {}) {
   return safeGet('/attendance/logs', params, [])
+}
+
+export async function getEmployeeProfileSummary(userId, params = {}) {
+  const response = await axiosInstance.get(`/Users/${userId}/profile-summary`, { params })
+  return response.data
+}
+
+export async function updateEmployeeHourlyRate(userId, hourlyRate) {
+  const response = await axiosInstance.patch(`/Users/${userId}/hourly-rate`, { hourlyRate: Number(hourlyRate) })
+  return response.data
 }
 
 // ==========================================
