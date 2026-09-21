@@ -7,6 +7,9 @@ export default defineConfig(({ mode }) => {
   // تحميل متغيرات البيئة من ملفات .env لضمان قرائتها في الـ Build
   const env = loadEnv(mode, process.cwd(), '')
 
+  // الرابط الجديد للـ API على Azure
+  const API_URL = env.VITE_API_URL || 'https://ibnalzumar-api.azurewebsites.net'
+
   return {
     plugins: [
       react(),
@@ -44,12 +47,12 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api': {
-          target: 'https://ibnalzumar-api-bub8fyaceheggxec.southafricanorth-01.azurewebsites.net',
+          target: API_URL,
           changeOrigin: true,
           secure: true,
         },
         '/uploads': {
-          target: 'https://ibnalzumar-api-bub8fyaceheggxec.southafricanorth-01.azurewebsites.net',
+          target: API_URL,
           changeOrigin: true,
           secure: true,
         },
