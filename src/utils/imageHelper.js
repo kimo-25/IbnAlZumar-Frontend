@@ -4,7 +4,7 @@
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600&auto=format&fit=crop';
 
 // رابط سيرفر Azure الأساسي للإنتاج في حال عدم قراءة متغيرات البيئة
-const DEFAULT_PROD_API_URL = 'https://ibnalzumar-api-bub8fyaceheggxec.southafricanorth-01.azurewebsites.net/api';
+const DEFAULT_PROD_API_URL = 'https://ibnal-ibnalzumar-api-ddf9h3cdafc6bxat.francecentral-01.azurewebsites.net/api';
 const DEFAULT_DEV_API_URL = 'https://localhost:7223/api';
 
 /**

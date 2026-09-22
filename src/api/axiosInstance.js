@@ -44,8 +44,6 @@ axiosInstance.interceptors.response.use(
       traceId: apiError?.traceId ?? null,
     }
 
-    // A 401 means the server rejected the credential, including revoked tokens.
-    // Do not rely only on a client-side expiry timestamp.
     if (normalized.statusCode === 401) clearSessionAndRedirect()
     return Promise.reject(normalized)
   },
