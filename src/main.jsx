@@ -5,9 +5,13 @@ import App from './App.jsx'
 import { LanguageProvider } from './context/LanguageContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { GoogleOAuthProvider } from '@react-oauth/google'
+import { refreshServiceWorkerAndApiCaches } from './utils/serviceWorker.js'
 import './index.css'
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+
+// تحديث Service Worker وحذف أي كاش API قديم بشكل غير حاجب لتشغيل التطبيق.
+void refreshServiceWorkerAndApiCaches()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -20,5 +24,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </HashRouter>
       </LanguageProvider>
     </GoogleOAuthProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 )
