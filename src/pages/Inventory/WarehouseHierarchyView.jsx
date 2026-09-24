@@ -10,7 +10,7 @@ import {
   CircleOff,
   CheckCircle2,
 } from 'lucide-react'
-import { getWarehouseHierarchy } from '../../../api/inventoryApi'
+import { getWarehouseHierarchy } from '../../api/inventoryApi'
 
 const TIER_META = {
   MainCentral: {

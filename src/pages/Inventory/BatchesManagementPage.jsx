@@ -21,7 +21,7 @@ import {
   getExpiringBatches,
   receiveBatch,
   consumeBatchFefo,
-} from '../../../api/inventoryApi'
+} from '../../api/inventoryApi'
 import { useAuth } from '../../../context/AuthContext'
 
 const OPENING_BALANCE_SUPPLIER_ID = 999999
