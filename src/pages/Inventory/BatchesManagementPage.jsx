@@ -22,8 +22,7 @@ import {
   receiveBatch,
   consumeBatchFefo,
 } from '../../api/inventoryApi'
-import { useAuth } from '../../../context/AuthContext'
-
+import { useAuth } from '../../context/AuthContext'
 const OPENING_BALANCE_SUPPLIER_ID = 999999
 
 // ⚠ See the note at the top of this response — adjust this to match how your real AuthContext
