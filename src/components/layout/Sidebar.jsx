@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   BookOpen,
   Wallet,
-  Bot
+  Bot,
+  Network,
+  Layers
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -94,6 +96,8 @@ export default function Sidebar({ isOpen, onClose }) {
         {
           label: 'إدارة المخزون والخدمات',
           items: [
+            { to: '/admin/inventory/hierarchy', label: 'شجرة المستودعات', icon: Network, permission: 'Inventory.View' },
+            { to: '/admin/inventory/batches', label: 'إدارة الدفعات والصلاحية', icon: Layers, permission: 'Inventory.ManageBatches' },
             { to: '/admin/inventory/adjust', label: 'تسوية المخزون', icon: SlidersHorizontal, permission: 'Inventory.Adjust' },
             { to: '/admin/inventory/transfer', label: 'نقل المخزون', icon: ArrowLeftRight, permission: 'Inventory.Transfer' },
             { to: '/admin/operations?tab=inquiries', label: 'طلبات استفسارات الصيانة', icon: Wrench, allowRoles: ['STORE_OWNER', 'Admin', 'SuperAdmin', 'admin'] },
@@ -181,7 +185,6 @@ export default function Sidebar({ isOpen, onClose }) {
                       to={to}
                       onClick={(e) => {
                         onClose()
-                        // 👈 يمنع إضافة #ai-chat للرابط ويطلق الحدث
                         if (to === '#ai-chat' || onClickHandler) {
                           e.preventDefault()
                           if (onClickHandler) onClickHandler()
