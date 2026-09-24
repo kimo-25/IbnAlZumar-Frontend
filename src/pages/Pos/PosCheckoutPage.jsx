@@ -37,7 +37,15 @@ import {
   ShoppingCart,
 } from "lucide-react";
 
-const TAX_RATE = 0.15;
+// H-08: this is a CLIENT-SIDE ESTIMATE ONLY, used before checkout for the
+// live running total and the cash-change calculator (the cashier needs a
+// number instantly, before the order exists on the server). It is kept in
+// sync with the server's authoritative rate (OrderService.EgyptVatRate,
+// 14%) — it was previously hardcoded to 15%, which didn't match anything
+// the backend actually charged. Once an order is created online, the
+// printed invoice uses the server's real TaxAmount/TotalAmount instead of
+// this estimate — see handlePrint().
+const ESTIMATED_TAX_RATE = 0.14;
 
 // --- Backend enum values (kept in sync with Domain/Enums.cs) ---
 const PAYMENT_METHOD = {
@@ -216,7 +224,8 @@ export default function PosCheckoutPage() {
   const safeDiscount = Math.min(discountType === "Percentage" ? subtotal * Math.min(normalizedDiscountValue, 100) / 100 : normalizedDiscountValue, subtotal);
   const discountPercentage = subtotal > 0 ? (safeDiscount / subtotal) * 100 : 0;
   const discountedSubtotal = Math.max(subtotal - safeDiscount, 0);
-  const tax = discountedSubtotal * TAX_RATE;
+  // H-08: estimate only — see ESTIMATED_TAX_RATE comment above.
+  const tax = discountedSubtotal * ESTIMATED_TAX_RATE;
   const total = discountedSubtotal + tax;
 
   const cashReceivedNumber = Number(cashReceived) || 0;
@@ -261,8 +270,16 @@ export default function PosCheckoutPage() {
       setShowExpenseModal(false);
       alert("تم تسجيل المصروف بنجاح");
     } catch (err) {
-      console.error(err);
-      alert("تعذر تسجيل المصروف، حاول مرة أخرى.");
+      // H-09: the backend now honestly returns 501 while Expense persistence
+      // isn't wired up yet, instead of a fake 200 OK. Tell the cashier the
+      // truth instead of pretending it was saved — and don't clear their
+      // input, since nothing was actually recorded.
+      if (err?.response?.status === 501) {
+        alert("ميزة تسجيل المصاريف غير مفعّلة على السيرفر بعد. لم يتم حفظ هذا المصروف.");
+      } else {
+        console.error(err);
+        alert("تعذر تسجيل المصروف، حاول مرة أخرى.");
+      }
     } finally {
       setExpenseSubmitting(false);
     }
@@ -300,15 +317,25 @@ export default function PosCheckoutPage() {
 
     setIsCheckingOut(true);
     try {
+      // H-08: when online, the server is the source of truth for tax/total
+      // (OrderService.CreateAsync computes TaxAmount/TotalAmount server-side —
+      // the client's estimated `tax`/`total` above are never sent or trusted).
+      // We capture the real response and use it for the printed invoice.
+      let serverOrder = null;
+
       if (isOnline) {
-        await axiosInstance.post("/Orders", invoice);
+        const response = await axiosInstance.post("/Orders", invoice);
+        serverOrder = response.data;
       } else {
+        // Offline: no server figures exist yet — the order is settled for
+        // real during the next sync. The printed receipt below falls back
+        // to the local estimate in this case only.
         await addLocalTransaction(invoice);
         const pending = await getPendingTransactions();
         setPendingCount(pending.length);
       }
 
-      handlePrint(paymentMethod);
+      handlePrint(paymentMethod, serverOrder);
       alert("تم إنشاء الفاتورة بنجاح");
       setCart([]);
       setSelectedCustomer(null);
@@ -335,16 +362,25 @@ export default function PosCheckoutPage() {
     submitOrder(paymentMethod);
   }
 
-  const handlePrint = (paymentMethod) => {
+  // H-08: prefers the server's authoritative figures (serverOrder) whenever
+  // we have them — i.e. whenever the order was created online. Only falls
+  // back to the local estimate for offline-queued orders, where no server
+  // response exists yet.
+  const handlePrint = (paymentMethod, serverOrder) => {
+    const printSubtotal = serverOrder?.subTotal ?? subtotal;
+    const printDiscount = serverOrder?.discountAmount ?? safeDiscount;
+    const printTax = serverOrder?.taxAmount ?? tax;
+    const printTotal = serverOrder?.totalAmount ?? total;
+
     printInvoice(
       {
-        orderNumber: `POS-${Date.now()}`,
-        createdAt: new Date().toISOString(),
+        orderNumber: serverOrder?.orderNumber || `POS-${Date.now()}`,
+        createdAt: serverOrder?.createdAt || new Date().toISOString(),
         paymentMethod: PAYMENT_LABELS[paymentMethod] || "CASH",
-        subtotal,
-        discount: safeDiscount,
-        tax,
-        total,
+        subtotal: printSubtotal,
+        discount: printDiscount,
+        tax: printTax,
+        total: printTotal,
         shippingCost: 0,
         items: cart.map((item) => ({
           productId: item.id,
@@ -692,7 +728,7 @@ export default function PosCheckoutPage() {
                 </div>
               )}
               <div className="flex justify-between text-ink-soft">
-                <span>القيمة المضافة (15%):</span>
+                <span>القيمة المضافة ({(ESTIMATED_TAX_RATE * 100).toFixed(0)}% تقديري):</span>
                 <span className="font-mono">{tax.toFixed(2)} ج.م</span>
               </div>
               <div className="flex justify-between font-bold text-sm text-ink pt-1 border-t border-border">

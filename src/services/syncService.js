@@ -1,14 +1,17 @@
 // src/services/syncService.js
-import axios from 'axios';
-import { db, getPendingTransactions, markAsSynced, markAsFailed } from '../db/db';
-
-// Use the same '/api' base your vite.config.js proxies to backend
-const api = axios.create({ baseURL: '/api' });
+import axiosInstance from '../api/axiosInstance';
+import {
+  db,
+  getPendingTransactions,
+  markAsSyncing,
+  markAsSynced,
+  markAsFailed,
+} from '../db/db';
 
 let isSyncing = false; // simple lock to avoid overlapping sync runs
 
 /**
- * Pushes pending offline orders to the .NET API in a single batch (/api/orders/sync).
+ * Pushes pending offline orders to the .NET API in a single batch (/orders/sync).
  * Processes responses and updates Dexie DB status accordingly.
  */
 export async function syncPendingTransactions() {
@@ -16,12 +19,13 @@ export async function syncPendingTransactions() {
   isSyncing = true;
 
   try {
+    // C-10: includes both 'pending' and stale 'syncing' rows — see db.js.
     const pending = await getPendingTransactions();
     if (!pending || pending.length === 0) return;
 
     // 1. تحديث حالة الفواتير في Dexie إلى 'syncing'
     for (const tx of pending) {
-      await db.transactions.update(tx.id, { syncStatus: 'syncing' });
+      await markAsSyncing(tx.id);
     }
 
     // 2. تجهيز البيانات بالشكل الصحيح الذي يتوقعه الـ Backend (SyncBatchRequestDto)
@@ -50,7 +54,11 @@ export async function syncPendingTransactions() {
     };
 
     // 3. إرسال الطلب دفعة واحدة للباك إند
-    const response = await api.post('/orders/sync', batchPayload);
+    // C-09: uses the shared axiosInstance — JWT Authorization header is
+    // attached automatically, and the baseURL comes from the same
+    // apiConfig.js every other api/* module uses (no more hardcoded '/api',
+    // which only ever worked behind the local Vite dev proxy).
+    const response = await axiosInstance.post('/orders/sync', batchPayload);
 
     // 4. معالجة النتيجة لكل فاتورة بشكل منفصل
     if (response.data && response.data.results) {
@@ -69,12 +77,12 @@ export async function syncPendingTransactions() {
   } catch (err) {
     console.error('Batch sync request failed:', err);
 
-    // في حالة انقطاع الاتصال أو خطأ بالشبكة، إرجاع الفواتير التي كانت قيد المزامنة لتتم إعادتها لاحقاً
-    const pending = await getPendingTransactions();
-    for (const tx of pending) {
-      if (tx.syncStatus === 'syncing') {
-        await markAsFailed(tx.id);
-      }
+    // C-10: on a network/server-level failure (not a per-order rejection),
+    // revert EVERYTHING currently marked 'syncing' back to 'pending' with a
+    // bumped retryCount, instead of stranding it in 'syncing' forever.
+    const stuck = await db.transactions.where('syncStatus').equals('syncing').toArray();
+    for (const tx of stuck) {
+      await markAsFailed(tx.id);
     }
   } finally {
     isSyncing = false;

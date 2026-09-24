@@ -47,6 +47,8 @@ import AddProduct from './pages/Products/AddProduct'
 import AdminRemindersPage from './pages/Catalog/AdminRemindersPage'
 import InventoryAdjustPage from './pages/Inventory/InventoryAdjustPage'
 import InventoryTransferPage from './pages/Inventory/InventoryTransferPage'
+import WarehouseHierarchyView from './pages/admin/Inventory/WarehouseHierarchyView'
+import BatchesManagementPage from './pages/admin/Inventory/BatchesManagementPage'
 import CustomersPage from './pages/Customers/CustomersPage'
 import PurchasingPage from './pages/Purchasing/PurchasingPage'
 import PosCheckoutPage from './pages/Pos/PosCheckoutPage'
@@ -190,6 +192,8 @@ export default function App() {
 
           <Route path="inventory/adjust" element={<InventoryAdjustPage />} />
           <Route path="inventory/transfer" element={<InventoryTransferPage />} />
+          <Route path="inventory/hierarchy" element={<WarehouseHierarchyView />} />
+          <Route path="inventory/batches" element={<BatchesManagementPage />} />
 
           <Route path="customers" element={<CustomersPage />} />
           <Route path="customers/:id" element={<CustomerDetailsPage />} />
