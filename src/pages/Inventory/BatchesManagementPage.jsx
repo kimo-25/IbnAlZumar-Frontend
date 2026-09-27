@@ -1,4 +1,4 @@
-// File: src/pages/admin/Inventory/BatchesManagementPage.jsx
+// File: src/pages/Inventory/BatchesManagementPage.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   PackagePlus,
@@ -16,18 +16,16 @@ import {
 } from 'lucide-react'
 import {
   getWarehouses,
-  getStockLevels,
   getBatches,
   getExpiringBatches,
   receiveBatch,
   consumeBatchFefo,
 } from '../../api/inventoryApi'
+import axiosInstance from '../../api/axiosInstance'
 import { useAuth } from '../../context/AuthContext'
+
 const OPENING_BALANCE_SUPPLIER_ID = 999999
 
-// ⚠ See the note at the top of this response — adjust this to match how your real AuthContext
-// exposes granted permission codes (it defaults to "allowed" if it can't tell, so it fails open
-// rather than silently hiding every action).
 function useHasPermission(code) {
   const auth = useAuth() || {}
   if (typeof auth.hasPermission === 'function') return auth.hasPermission(code)
@@ -62,15 +60,13 @@ function formatDate(value) {
 }
 
 // ------------------------------------------------------------------
-// Shared product autocomplete (reuses the existing stock-levels search endpoint —
-// no new backend endpoint needed just to pick a product).
+// Enhanced Product Autocomplete: Fetches directly from Catalog Products
 // ------------------------------------------------------------------
 function ProductAutocomplete({ value, onChange, disabled }) {
-  const [query, setQuery] = useState(value?.productName || value?.sku || '')
-  const [results, setResults] = useState([])
+  const [query, setQuery] = useState(value?.productName || value?.name || value?.sku || '')
+  const [allProducts, setAllProducts] = useState([])
   const [open, setOpen] = useState(false)
-  const [searching, setSearching] = useState(false)
-  const debounceRef = useRef(null)
+  const [loading, setLoading] = useState(false)
   const boxRef = useRef(null)
 
   useEffect(() => {
@@ -81,28 +77,45 @@ function ProductAutocomplete({ value, onChange, disabled }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    let isMounted = true
+    async function fetchProducts() {
+      setLoading(true)
+      try {
+        const res = await axiosInstance.get('/Products')
+        const data = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.data || [])
+        if (isMounted) setAllProducts(data)
+      } catch (err) {
+        console.warn('Failed to load catalog products:', err)
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+    fetchProducts()
+    return () => { isMounted = false }
+  }, [])
+
+  const filteredResults = useMemo(() => {
+    if (!query.trim()) return allProducts.slice(0, 10)
+    const term = query.trim().toLowerCase()
+    return allProducts.filter(
+      (p) =>
+        (p.name || p.productName || '').toLowerCase().includes(term) ||
+        (p.sku || '').toLowerCase().includes(term)
+    ).slice(0, 15)
+  }, [allProducts, query])
+
   function handleQueryChange(text) {
     setQuery(text)
     onChange(null)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-
-    if (!text.trim()) {
-      setResults([])
-      return
-    }
-
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true)
-      const rows = await getStockLevels({ search: text.trim() })
-      setResults(rows)
-      setSearching(false)
-      setOpen(true)
-    }, 350)
+    setOpen(true)
   }
 
   function pick(product) {
-    onChange(product)
-    setQuery(`${product.productName}${product.sku ? ` — ${product.sku}` : ''}`)
+    const prodId = product.id || product.productId
+    const prodName = product.name || product.productName
+    onChange({ ...product, productId: prodId, productName: prodName })
+    setQuery(`${prodName}${product.sku ? ` — ${product.sku}` : ''}`)
     setOpen(false)
   }
 
@@ -114,26 +127,36 @@ function ProductAutocomplete({ value, onChange, disabled }) {
           value={query}
           disabled={disabled}
           onChange={(e) => handleQueryChange(e.target.value)}
-          onFocus={() => query.trim() && setOpen(true)}
-          placeholder="ابحث بالاسم أو رقم الصنف (SKU)..."
+          onFocus={() => setOpen(true)}
+          placeholder="ابحث بالاسم أو اختر من القائمة..."
           className="w-full rounded-xl border border-border bg-surface py-2.5 pr-9 pl-3 text-xs font-semibold text-ink outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-60"
         />
-        {searching && <Loader2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 animate-spin text-ink-soft" />}
+        {loading && <Loader2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 animate-spin text-ink-soft" />}
       </div>
 
-      {open && results.length > 0 && (
+      {open && (
         <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-surface shadow-lg">
-          {results.map((p) => (
-            <button
-              type="button"
-              key={p.productId}
-              onClick={() => pick(p)}
-              className="flex w-full items-center justify-between gap-2 border-b border-border/60 px-3 py-2 text-right text-xs last:border-0 hover:bg-canvas"
-            >
-              <span className="font-bold text-ink">{p.productName}</span>
-              <span className="font-mono text-[10px] text-ink-soft">{p.sku}</span>
-            </button>
-          ))}
+          {filteredResults.length === 0 ? (
+            <div className="p-3 text-center text-xs text-ink-soft">
+              {loading ? 'جاري التحميل...' : 'لا توجد منتجات مسجلة في الكتالوج'}
+            </div>
+          ) : (
+            filteredResults.map((p) => {
+              const id = p.id || p.productId
+              const name = p.name || p.productName
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  onClick={() => pick(p)}
+                  className="flex w-full items-center justify-between gap-2 border-b border-border/60 px-3 py-2 text-right text-xs last:border-0 hover:bg-canvas"
+                >
+                  <span className="font-bold text-ink">{name}</span>
+                  <span className="font-mono text-[10px] text-ink-soft">{p.sku || `#${id}`}</span>
+                </button>
+              )
+            })
+          )}
         </div>
       )}
     </div>
@@ -158,9 +181,6 @@ function WarehouseSelect({ warehouses, value, onChange, disabled, placeholder = 
   )
 }
 
-// ================================================================
-// Near-expiry alert widget
-// ================================================================
 function ExpiringBatchesWidget({ onViewAll }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -235,9 +255,6 @@ function ExpiringBatchesWidget({ onViewAll }) {
   )
 }
 
-// ================================================================
-// Tab 1: Receive / Register Incoming Batch
-// ================================================================
 function ReceiveBatchTab({ warehouses, canManageBatches, onReceived }) {
   const emptyForm = {
     product: null,
@@ -463,9 +480,6 @@ function ReceiveBatchTab({ warehouses, canManageBatches, onReceived }) {
   )
 }
 
-// ================================================================
-// Tab 2: View Stock Batches (FEFO order)
-// ================================================================
 function ViewBatchesTab({ warehouses }) {
   const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(true)
@@ -475,7 +489,6 @@ function ViewBatchesTab({ warehouses }) {
 
   useEffect(() => {
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [warehouseId, includeDepleted])
 
   async function load() {
@@ -582,9 +595,6 @@ function ViewBatchesTab({ warehouses }) {
   )
 }
 
-// ================================================================
-// Quick FEFO consume panel (exercises consumeBatchFefo)
-// ================================================================
 function FefoConsumePanel({ warehouses, onClose, onConsumed }) {
   const [product, setProduct] = useState(null)
   const [warehouseId, setWarehouseId] = useState('')
@@ -738,11 +748,8 @@ function FefoConsumePanel({ warehouses, onClose, onConsumed }) {
   )
 }
 
-// ================================================================
-// Page
-// ================================================================
 export default function BatchesManagementPage() {
-  const [tab, setTab] = useState('receive') // 'receive' | 'view'
+  const [tab, setTab] = useState('receive')
   const [warehouses, setWarehouses] = useState([])
   const [showFefoPanel, setShowFefoPanel] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)

@@ -3,10 +3,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { useAuth } from "../../context/AuthContext";
-import Pagination from "../../components/ui/Pagination";
 import { getCustomers, createCustomer } from "../../api/adminApi";
+import { searchPosProducts, PRICING_TIER, PRICING_TIER_LABELS } from "../../api/posApi";
 import VoiceAttendanceButton from './VoiceAttendanceButton';
 import VoiceInvoiceButton from '../admin/VoiceInvoiceButton'
+import ProductLightbox from "../../components/pos/ProductLightbox";
+import VariantUnitPickerModal from "../../components/pos/VariantUnitPickerModal";
+import { findBaseUnit } from "../../utils/pos/unitPricing";
 
 import {
   addLocalTransaction,
@@ -15,7 +18,7 @@ import {
   getLocalProducts,
 } from "../../db/db";
 
-import { printInvoice } from "../../utils/printInvoice";
+import { printInvoice, PRINT_FORMAT, PRINT_FORMAT_LABELS } from "../../utils/print";
 import {
   User,
   UserPlus,
@@ -35,6 +38,9 @@ import {
   Wifi,
   WifiOff,
   ShoppingCart,
+  ZoomIn,
+  Printer,
+  Layers,
 } from "lucide-react";
 
 // H-08: this is a CLIENT-SIDE ESTIMATE ONLY, used before checkout for the
@@ -61,6 +67,8 @@ const PAYMENT_LABELS = {
   [PAYMENT_METHOD.INSTAPAY]: "محفظة إلكترونية",
 };
 
+const PRINT_FORMAT_OPTIONS = [PRINT_FORMAT.THERMAL_80, PRINT_FORMAT.THERMAL_58, PRINT_FORMAT.A4, PRINT_FORMAT.A5];
+
 export default function PosCheckoutPage() {
   const isOnline = useOnlineStatus();
   const { logout } = useAuth();
@@ -72,8 +80,19 @@ export default function PosCheckoutPage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [discountType, setDiscountType] = useState("Fixed");
   const [discountValue, setDiscountValue] = useState(0);
+
+  // Phase 1: pricing tier (Retail/FirstWholesale/Wholesale) selected for this sale, and
+  // the print format the cashier wants for the next receipt (thermal80/58, A4, A5).
+  const [pricingTier, setPricingTier] = useState(PRICING_TIER.RETAIL);
+  const [printFormat, setPrintFormat] = useState(PRINT_FORMAT.THERMAL_80);
+
+  // Phase 1: full-screen image preview + the variant/unit picker for products that have
+  // more than one variant and/or more than one sell unit.
+  const [lightboxProduct, setLightboxProduct] = useState(null);
+  const [pickerProduct, setPickerProduct] = useState(null);
 
   // إدارة اختيار وإضافة العملاء للكاشير
   const [customers, setCustomers] = useState([]);
@@ -95,8 +114,9 @@ export default function PosCheckoutPage() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   useEffect(() => {
-    loadProducts(currentPage);
-  }, [currentPage]);
+    loadProducts(currentPage, search, pricingTier);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, pricingTier]);
 
   useEffect(() => {
     loadPending();
@@ -119,33 +139,36 @@ export default function PosCheckoutPage() {
     setPendingCount(items.length);
   }
 
-  async function loadProducts(page = 1) {
+  // Phase 1: switched from the raw /Products list to the POS-optimized /Pos/products
+  // endpoint, which returns each product's variants, unit conversions, and configured
+  // pricing-tier price breaks in the same round trip (see PosCatalogService).
+  async function loadProducts(page = 1, query = "", tier = pricingTier) {
+    setLoadingProducts(true);
     try {
-      const response = await axiosInstance.get("/Products", {
-        params: {
-          pageNumber: page,
-          pageSize: 30,
-        },
-      });
-
-      const data = response.data.items || [];
-      setProducts(data);
-      setTotalPages(response.data.totalPages || 1);
-      await cacheProducts(data);
+      const data = await searchPosProducts({ query, tier, pageNumber: page, pageSize: 30 });
+      const items = data.items || [];
+      setProducts(items);
+      setTotalPages(data.totalPages || 1);
+      await cacheProducts(items);
     } catch (err) {
       const localProducts = await getLocalProducts();
       setProducts(localProducts);
       setTotalPages(1);
+    } finally {
+      setLoadingProducts(false);
     }
   }
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name?.toLowerCase().includes(search.toLowerCase()) ||
-      p.nameAr?.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku?.toLowerCase().includes(search.toLowerCase()) ||
-      p.barcode?.toLowerCase().includes(search.toLowerCase())
-  );
+  // بحث السيرفر عند الكتابة (debounced) — السكانر ما زال يعتمد على handleSearchKeyDown
+  // للإضافة الفورية عند تطابق الباركود/الـ SKU بالكامل.
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setCurrentPage(1);
+      loadProducts(1, search, pricingTier);
+    }, 300);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   const filteredCustomers = customers.filter(
     (c) =>
@@ -153,46 +176,96 @@ export default function PosCheckoutPage() {
       (c.phoneNumber || c.phone || "").includes(customerSearch)
   );
 
-  const addToCart = (product) => {
-    const exists = cart.find((x) => x.id === product.id);
+  // منتج بدون متغيّرات وبوحدة بيع واحدة (أو بدون تعريف وحدات) بيتضاف للسلة فوراً؛
+  // غير كده بتتفتح نافذة اختيار المتغيّر/الوحدة/الكمية.
+  function needsPicker(product) {
+    const hasVariants = (product.variants || []).length > 0;
+    const hasMultipleUnits = (product.units || []).length > 1;
+    return hasVariants || hasMultipleUnits;
+  }
 
-    if (exists) {
-      setCart(
-        cart.map((x) =>
-          x.id === product.id
-            ? { ...x, quantity: x.quantity + 1 }
+  function addSimpleProductToCart(product) {
+    const baseUnit = findBaseUnit(product.units);
+    addResolvedLineToCart(product, {
+      variant: null,
+      unit: baseUnit || { fromUnit: "قطعة", toUnit: "قطعة", factor: 1, isBaseUnit: true },
+      quantity: 1,
+      quantityInBaseUnit: 1,
+      unitPrice: product.sellingPrice,
+      lineTotal: product.sellingPrice,
+    });
+  }
+
+  function handleTileClick(product) {
+    if (needsPicker(product)) {
+      setPickerProduct(product);
+      return;
+    }
+    addSimpleProductToCart(product);
+  }
+
+  // يضيف سطر سلة محلول بالكامل (سعر + وحدة + متغيّر) — نفس الشكل سواء جه من الإضافة
+  // المباشرة أو من نافذة الاختيار.
+  function addResolvedLineToCart(product, resolved) {
+    const cartLineId = `${product.id}-${resolved.variant?.id || "base"}-${resolved.unit?.id || resolved.unit?.fromUnit}`;
+
+    setCart((prev) => {
+      const existing = prev.find((x) => x.cartLineId === cartLineId);
+      if (existing) {
+        const newQuantity = existing.quantity + resolved.quantity;
+        return prev.map((x) =>
+          x.cartLineId === cartLineId
+            ? {
+                ...x,
+                quantity: newQuantity,
+                quantityInBaseUnit: newQuantity * (existing.unit?.factor || 1),
+              }
             : x
-        )
-      );
-      return;
-    }
+        );
+      }
 
-    setCart([
-      ...cart,
-      {
-        ...product,
-        quantity: 1,
-      },
-    ]);
-  };
+      return [
+        ...prev,
+        {
+          cartLineId,
+          id: product.id,
+          productId: product.id,
+          name: product.name,
+          nameAr: product.nameAr,
+          sku: resolved.variant?.sku || product.sku,
+          imageUrl: product.imageUrl,
+          variant: resolved.variant,
+          unit: resolved.unit,
+          quantity: resolved.quantity,
+          quantityInBaseUnit: resolved.quantityInBaseUnit,
+          unitPrice: resolved.unitPrice,
+        },
+      ];
+    });
+  }
 
-  const updateQty = (productId, qty) => {
+  function handlePickerConfirm(resolved) {
+    addResolvedLineToCart(pickerProduct, resolved);
+    setPickerProduct(null);
+  }
+
+  const updateQty = (cartLineId, qty) => {
     if (qty <= 0) {
-      setCart(cart.filter((x) => x.id !== productId));
+      setCart((prev) => prev.filter((x) => x.cartLineId !== cartLineId));
       return;
     }
 
-    setCart(
-      cart.map((x) =>
-        x.id === productId
-          ? { ...x, quantity: qty }
+    setCart((prev) =>
+      prev.map((x) =>
+        x.cartLineId === cartLineId
+          ? { ...x, quantity: qty, quantityInBaseUnit: qty * (x.unit?.factor || 1) }
           : x
       )
     );
   };
 
-  const removeFromCart = (productId) => {
-    setCart(cart.filter((x) => x.id !== productId));
+  const removeFromCart = (cartLineId) => {
+    setCart((prev) => prev.filter((x) => x.cartLineId !== cartLineId));
   };
 
   // بحث السكانر: لو المستخدم ضرب Enter وفي منتج واحد مطابق تماماً للباركود/الـ SKU، ضيفه فوراً
@@ -206,17 +279,13 @@ export default function PosCheckoutPage() {
     );
 
     if (exactMatch) {
-      addToCart(exactMatch);
+      handleTileClick(exactMatch);
       setSearch("");
     }
   };
 
   const subtotal = useMemo(
-    () =>
-      cart.reduce(
-        (sum, item) => sum + (item.sellingPrice || 0) * item.quantity,
-        0
-      ),
+    () => cart.reduce((sum, item) => sum + (item.unitPrice || 0) * item.quantityInBaseUnit, 0),
     [cart]
   );
 
@@ -291,7 +360,11 @@ export default function PosCheckoutPage() {
     window.location.assign(import.meta.env.BASE_URL + "login");
   }
 
-  // بناء الـ payload بالظبط زي CreateOrderDto.cs ومنفذه فعلياً (أونلاين/أوفلاين)
+  // بناء الـ payload بالظبط زي CreateOrderDto.cs ومنفذه فعلياً (أونلاين/أوفلاين).
+  // Phase 1: كل سطر بيُرسل بكمية الوحدة الأساسية (quantityInBaseUnit) لأن المخزون بالكامل
+  // مخزّن بالوحدة الأساسية فقط (UnitConversion) — التحويل يحصل هنا عند حد الـ DTO فقط.
+  // pricingTier مُرسلة كحقل إضافي؛ الباك إند الحالي يتجاهله لحد ما يتم دمج Order.PricingTier
+  // (راجع BACKEND_CHANGES.md → "OrderService integration").
   async function submitOrder(paymentMethod) {
     if (!cart.length) return;
 
@@ -305,13 +378,15 @@ export default function PosCheckoutPage() {
       customerId: selectedCustomer ? (selectedCustomer.id || selectedCustomer.Id) : null,
       paymentMethod,
       orderSource: ORDER_SOURCE_IN_STORE,
+      pricingTier,
       discountType,
       discountValue: normalizedDiscountValue,
       discountAmount: safeDiscount,
       items: cart.map((item) => ({
-        productId: item.id,
-        quantity: item.quantity,
-        unitPrice: item.sellingPrice,
+        productId: item.productId,
+        productVariantId: item.variant?.id || null,
+        quantity: item.quantityInBaseUnit,
+        unitPrice: item.unitPrice,
       })),
     };
 
@@ -383,12 +458,14 @@ export default function PosCheckoutPage() {
         total: printTotal,
         shippingCost: 0,
         items: cart.map((item) => ({
-          productId: item.id,
+          productId: item.productId,
           productName: item.nameAr || item.name,
-          name: item.nameAr || item.name,
+          name: [item.nameAr || item.name, item.variant ? `(${[item.variant.color, item.variant.size].filter(Boolean).join(" / ")})` : null]
+            .filter(Boolean)
+            .join(" "),
           sku: item.sku,
           quantity: item.quantity,
-          unitPrice: item.sellingPrice,
+          unitPrice: item.unitPrice,
         })),
       },
       {
@@ -396,7 +473,7 @@ export default function PosCheckoutPage() {
         phone: selectedCustomer ? (selectedCustomer.phoneNumber || selectedCustomer.phone) : "-",
         email: "",
       },
-      true
+      { format: printFormat }
     );
   };
 
@@ -458,9 +535,9 @@ export default function PosCheckoutPage() {
 
       {/* ===== Main Layout ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 p-4 md:p-6">
-        {/* ---------- Left: Product Grid (≈70%) ---------- */}
+        {/* ---------- Left: Product Grid (≈70%) — Horizontal Grid View ---------- */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="sticky top-[68px] z-20 bg-canvas pb-1">
+          <div className="sticky top-[68px] z-20 bg-canvas pb-1 space-y-2">
             <div className="relative">
               <input
                 ref={searchInputRef}
@@ -468,71 +545,132 @@ export default function PosCheckoutPage() {
                 placeholder="امسح الباركود أو ابحث بالاسم / SKU..."
                 className="w-full border border-border rounded-2xl p-3.5 pr-11 text-sm bg-surface shadow-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setCurrentPage(1);
-                }}
+                onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 autoFocus
               />
               <Search size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
             </div>
+
+            {/* Phase 1: pricing-tier selector — changes which price breaks the grid/cart resolve against */}
+            <div className="flex items-center gap-2">
+              <Layers size={13} className="text-ink-soft shrink-0" />
+              <div className="flex flex-wrap gap-1.5">
+                {[PRICING_TIER.RETAIL, PRICING_TIER.FIRST_WHOLESALE, PRICING_TIER.WHOLESALE, PRICING_TIER.DISTRIBUTOR].map((tierValue) => (
+                  <button
+                    key={tierValue}
+                    type="button"
+                    onClick={() => setPricingTier(tierValue)}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold border transition cursor-pointer ${
+                      pricingTier === tierValue
+                        ? "bg-emerald-600 border-emerald-600 text-white"
+                        : "bg-surface border-border text-ink-soft hover:border-emerald-300"
+                    }`}
+                  >
+                    {PRICING_TIER_LABELS[tierValue]}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-            {filteredProducts.map((product) => (
-              <button
-                type="button"
+          {/* Horizontal Grid View: scrolls sideways instead of wrapping into vertical rows,
+              so the cashier can flick through a wide, fixed-height strip of product tiles. */}
+          <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory scroll-smooth">
+            {products.map((product) => (
+              <div
                 key={product.id}
-                onClick={() => addToCart(product)}
-                className="group relative bg-surface border border-emerald-100 rounded-2xl overflow-hidden text-right transition hover:border-emerald-400 hover:shadow-md active:scale-[0.97] cursor-pointer"
+                className="group relative w-40 shrink-0 snap-start rounded-2xl border border-emerald-100 bg-surface overflow-hidden text-right transition hover:border-emerald-400 hover:shadow-md"
               >
-                <div className="aspect-square bg-emerald-50 flex items-center justify-center overflow-hidden">
-                  {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.nameAr || product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <ImageOff size={26} className="text-emerald-300" />
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTileClick(product)}
+                  className="block w-full text-right cursor-pointer active:scale-[0.97] transition"
+                >
+                  <div className="relative aspect-square bg-emerald-50 flex items-center justify-center overflow-hidden">
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.nameAr || product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <ImageOff size={26} className="text-emerald-300" />
+                    )}
 
-                <div className="p-2.5 space-y-0.5">
-                  <h3 className="font-bold text-xs text-ink truncate">
-                    {product.nameAr || product.name}
-                  </h3>
-                  <p className="text-[10px] text-ink-soft font-mono truncate">
-                    {product.sku || "—"}
-                  </p>
-                  <p className="text-emerald-700 font-black text-sm font-mono pt-0.5">
-                    {product.sellingPrice} ج.م
-                  </p>
-                </div>
+                    {product.quantityOnHand <= 0 && product.trackInventory && (
+                      <span className="absolute top-1.5 right-1.5 rounded-full bg-rose-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                        نفذ
+                      </span>
+                    )}
+                  </div>
 
-                <span className="absolute top-2 left-2 w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                  <div className="p-2.5 space-y-0.5">
+                    <h3 className="font-bold text-xs text-ink truncate">
+                      {product.nameAr || product.name}
+                    </h3>
+                    <p className="text-[10px] text-ink-soft font-mono truncate">
+                      {product.sku || "—"}
+                    </p>
+                    <p className="text-emerald-700 font-black text-sm font-mono pt-0.5">
+                      {product.sellingPrice} ج.م
+                    </p>
+                    {(product.variants?.length > 0 || product.units?.length > 1) && (
+                      <span className="inline-block rounded-full bg-amber/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-dark">
+                        اختر التفاصيل
+                      </span>
+                    )}
+                  </div>
+                </button>
+
+                {product.imageUrl && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxProduct(product);
+                    }}
+                    className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-black/60 cursor-pointer"
+                    aria-label="تكبير الصورة"
+                  >
+                    <ZoomIn size={14} />
+                  </button>
+                )}
+
+                <span className="absolute bottom-[74px] left-2 w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition pointer-events-none">
                   <Plus size={14} />
                 </span>
-              </button>
+              </div>
             ))}
 
-            {filteredProducts.length === 0 && (
-              <div className="col-span-full text-center py-16 text-ink-soft text-sm">
+            {!loadingProducts && products.length === 0 && (
+              <div className="w-full text-center py-16 text-ink-soft text-sm">
                 لا توجد منتجات مطابقة للبحث
               </div>
             )}
           </div>
 
-          <div className="mt-4">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-            />
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-40 hover:bg-canvas transition cursor-pointer"
+            >
+              السابق
+            </button>
+            <span className="text-xs font-bold text-ink-soft">صفحة {currentPage} من {totalPages}</span>
+            <button
+              type="button"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-40 hover:bg-canvas transition cursor-pointer"
+            >
+              التالي
+            </button>
           </div>
         </div>
 
@@ -668,16 +806,23 @@ export default function PosCheckoutPage() {
                 </div>
               ) : (
                 cart.map((item) => (
-                  <div key={item.id} className="pt-2 flex justify-between items-center text-xs gap-2">
+                  <div key={item.cartLineId} className="pt-2 flex justify-between items-center text-xs gap-2">
                     <div className="min-w-0">
                       <div className="font-bold text-ink truncate">{item.nameAr || item.name}</div>
-                      <div className="text-ink-soft text-[10px] font-mono">{item.sellingPrice} ج.م</div>
+                      {item.variant && (
+                        <div className="text-[10px] text-emerald-700 truncate">
+                          {[item.variant.color, item.variant.size, item.variant.material].filter(Boolean).join(" / ")}
+                        </div>
+                      )}
+                      <div className="text-ink-soft text-[10px] font-mono">
+                        {item.unitPrice.toFixed(2)} ج.م / {item.unit?.fromUnit || "قطعة"}
+                      </div>
                     </div>
 
                     <div className="flex gap-1 items-center shrink-0">
                       <button
                         type="button"
-                        onClick={() => updateQty(item.id, item.quantity - 1)}
+                        onClick={() => updateQty(item.cartLineId, item.quantity - 1)}
                         className="w-6 h-6 bg-canvas border border-border rounded-lg flex items-center justify-center hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition cursor-pointer"
                       >
                         <Minus size={11} />
@@ -685,14 +830,14 @@ export default function PosCheckoutPage() {
                       <span className="font-mono font-bold text-xs w-5 text-center">{item.quantity}</span>
                       <button
                         type="button"
-                        onClick={() => updateQty(item.id, item.quantity + 1)}
+                        onClick={() => updateQty(item.cartLineId, item.quantity + 1)}
                         className="w-6 h-6 bg-canvas border border-border rounded-lg flex items-center justify-center hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition cursor-pointer"
                       >
                         <Plus size={11} />
                       </button>
                       <button
                         type="button"
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => removeFromCart(item.cartLineId)}
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-ink-soft hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
                       >
                         <Trash2 size={12} />
@@ -711,6 +856,30 @@ export default function PosCheckoutPage() {
                 <label className="text-[11px] text-ink-soft">النسبة (%)<input type="number" min="0" max="100" step="0.01" value={discountType === "Percentage" ? discountValue : discountPercentage.toFixed(2)} onChange={(e) => { setDiscountType("Percentage"); setDiscountValue(e.target.value) }} className="mt-1 w-full rounded-lg border border-border bg-surface p-1.5 text-xs font-mono outline-none focus:border-emerald-500" /></label>
               </div>
               <p className="text-[10px] text-ink-soft">سيتم تطبيق خصم {safeDiscount.toFixed(2)} ج.م ({discountPercentage.toFixed(2)}%)</p>
+            </div>
+
+            {/* Phase 1: print-format selector */}
+            <div className="space-y-2 rounded-xl border border-border bg-canvas p-2.5">
+              <p className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                <Printer size={13} className="text-ink-soft" />
+                صيغة الطباعة
+              </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {PRINT_FORMAT_OPTIONS.map((format) => (
+                  <button
+                    key={format}
+                    type="button"
+                    onClick={() => setPrintFormat(format)}
+                    className={`rounded-lg py-1.5 text-[10px] font-bold border transition cursor-pointer ${
+                      printFormat === format
+                        ? "bg-emerald-600 border-emerald-600 text-white"
+                        : "bg-surface border-border text-ink-soft hover:border-emerald-300"
+                    }`}
+                  >
+                    {PRINT_FORMAT_LABELS[format]}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <hr className="border-border" />
@@ -881,6 +1050,25 @@ export default function PosCheckoutPage() {
             </button>
           </div>
         </ModalShell>
+      )}
+
+      {/* ===== Phase 1: نافذة اختيار المتغيّر/الوحدة/الكمية ===== */}
+      {pickerProduct && (
+        <VariantUnitPickerModal
+          product={pickerProduct}
+          tier={pricingTier}
+          onConfirm={handlePickerConfirm}
+          onClose={() => setPickerProduct(null)}
+        />
+      )}
+
+      {/* ===== Phase 1: تكبير صورة المنتج ===== */}
+      {lightboxProduct && (
+        <ProductLightbox
+          imageUrl={lightboxProduct.imageUrl}
+          title={lightboxProduct.nameAr || lightboxProduct.name}
+          onClose={() => setLightboxProduct(null)}
+        />
       )}
     </div>
   );
