@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const API_URL = env.VITE_API_URL || env.VITE_API_BASE_URL || DEFAULT_API_ORIGIN
 
+  // تجهيز الـ Origin لإنشاء RegEx آمن داخل Workbox
+  const apiOriginEscaped = API_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
   return {
     plugins: [
       react(),
@@ -20,8 +23,8 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
           runtimeCaching: [
             {
-              // يشمل Azure API حتى لو كان المسار لا يبدأ بـ /api على نفس origin.
-              urlPattern: ({ url }) => url.origin === new URL(API_URL).origin && url.pathname.includes('/api'),
+              // استخدام RegEx بدلاً من Function لتجنب مشاكل المتغيرات المفقودة في SW
+              urlPattern: new RegExp(`^${apiOriginEscaped}.*\\/api`),
               handler: 'NetworkOnly',
               options: {
                 cacheName: 'api-network-only',
