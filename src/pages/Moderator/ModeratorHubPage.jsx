@@ -11,6 +11,7 @@ import {
   getModeratorProducts,
   updateModeratorProduct,
 } from '../../api/moderatorApi'
+import { translateText } from '../../api/translationApi'
 
 function normalizeArray(value) {
   if (Array.isArray(value)) return value
@@ -101,6 +102,22 @@ export default function ModeratorHubPage() {
       alert('حدث خطأ أثناء حفظ المنتج: ' + (err?.message || 'تأكد من البيانات'))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleAutoTranslate = async (text, sourceLanguage, targetLanguage, targetField) => {
+    if (!text || !text.trim()) return
+
+    try {
+      const data = await translateText(text.trim(), sourceLanguage, targetLanguage)
+      if (data?.success && data.translatedText) {
+        setProductForm((current) => ({
+          ...current,
+          [targetField]: data.translatedText,
+        }))
+      }
+    } catch (err) {
+      console.error('Auto-translation error:', err)
     }
   }
 
@@ -203,6 +220,7 @@ export default function ModeratorHubPage() {
               <input
                 value={productForm.name}
                 onChange={(e) => setProductForm((c) => ({ ...c, name: e.target.value }))}
+                onBlur={() => handleAutoTranslate(productForm.name, 'en', 'ar', 'nameAr')}
                 placeholder="Product Name English"
                 required
                 className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none"
@@ -214,6 +232,7 @@ export default function ModeratorHubPage() {
               <input
                 value={productForm.nameAr}
                 onChange={(e) => setProductForm((c) => ({ ...c, nameAr: e.target.value }))}
+                onBlur={() => handleAutoTranslate(productForm.nameAr, 'ar', 'en', 'name')}
                 placeholder="الاسم باللغة العربية"
                 className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none"
               />

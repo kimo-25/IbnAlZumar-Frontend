@@ -2,12 +2,34 @@
 import axiosInstance from './axiosInstance'
 
 export async function translateText(text, sourceLanguage, targetLanguage) {
-  const response = await axiosInstance.post('/v1/translation/translate', {
-    text,
-    sourceLanguage,
-    targetLanguage,
-  })
-  return response.data
+  try {
+    const response = await axiosInstance.post('/v1/translation/translate', {
+      text,
+      sourceLanguage,
+      targetLanguage,
+    })
+
+    if (response.data?.success && response.data.translatedText != null) {
+      return response.data
+    }
+  } catch (error) {
+    console.warn('Backend translation failed, using MyMemory fallback:', error)
+  }
+
+  const fallbackResponse = await fetch(
+    `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLanguage}|${targetLanguage}`,
+  )
+  if (!fallbackResponse.ok) {
+    throw new Error(`Translation fallback failed with status ${fallbackResponse.status}`)
+  }
+
+  const fallbackData = await fallbackResponse.json()
+  const translatedText = fallbackData?.responseData?.translatedText
+  if (translatedText == null) {
+    throw new Error('Translation fallback returned no translated text')
+  }
+
+  return { translatedText, success: true }
 }
 
 /**

@@ -6,6 +6,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import { formatCurrency } from '../../utils/catalog'
 import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
 import { getModeratorProducts, updateModeratorProduct, deleteModeratorProduct, getCategories } from '../../api/moderatorApi'
+import { translateText } from '../../api/translationApi'
 
 export default function ModeratorCatalogPage() {
   const [products, setProducts] = useState([])
@@ -82,6 +83,22 @@ export default function ModeratorCatalogPage() {
       alert('حدث خطأ أثناء حفظ التعديلات.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleAutoTranslate = async (text, sourceLanguage, targetLanguage, targetField) => {
+    if (!text || !text.trim()) return
+
+    try {
+      const data = await translateText(text.trim(), sourceLanguage, targetLanguage)
+      if (data?.success && data.translatedText) {
+        setEditFormData((current) => ({
+          ...current,
+          [targetField]: data.translatedText,
+        }))
+      }
+    } catch (err) {
+      console.error('Auto-translation error:', err)
     }
   }
 
@@ -197,6 +214,7 @@ export default function ModeratorCatalogPage() {
                     required
                     value={editFormData.name}
                     onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    onBlur={() => handleAutoTranslate(editFormData.name, 'en', 'ar', 'nameAr')}
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>
@@ -206,6 +224,7 @@ export default function ModeratorCatalogPage() {
                     type="text"
                     value={editFormData.nameAr || ''}
                     onChange={(e) => setEditFormData({ ...editFormData, nameAr: e.target.value })}
+                    onBlur={() => handleAutoTranslate(editFormData.nameAr, 'ar', 'en', 'name')}
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>
