@@ -4,7 +4,6 @@ import { Loader2, Package, Search, Trash2, Edit3, FileSpreadsheet, FileUp, X, Ch
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import Pagination from '../../components/ui/Pagination'
-import AutoTranslatedBadge from '../../components/catalog/AutoTranslatedBadge'
 import ProductPricingManager from '../../components/catalog/ProductPricingManager'
 import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
 import { getProducts, updateProduct, deleteProduct, getCategories, convertInvoiceToExcel, sendVoiceCommand } from '../../api/adminApi'
@@ -138,6 +137,24 @@ export default function ProductsPage() {
       setSaving(false)
     }
   }
+
+  // دالة الترجمة التلقائية الفورية الصامتة
+  const handleAutoTranslate = async (text, fromLang, toLang, targetField) => {
+    if (!text || !text.trim()) return;
+    try {
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=${fromLang}|${toLang}`);
+      const data = await res.json();
+      if (data?.responseData?.translatedText) {
+        setEditFormData(prev => ({
+          ...prev,
+          [targetField]: data.responseData.translatedText,
+          isAutoTranslated: true
+        }));
+      }
+    } catch (err) {
+      console.error("Auto-translation error:", err);
+    }
+  };
 
   const handleVoiceCommand = () => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -351,23 +368,7 @@ export default function ProductsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-2xl rounded-2xl bg-surface border border-border p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" dir="rtl">
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-3">
-                <h2 className="text-lg font-bold text-ink">تعديل بيانات المنتج</h2>
-                {/* شارة الترجمة التلقائية */}
-                <AutoTranslatedBadge
-                  entityType="product"
-                  entityId={editingProduct.id}
-                  isAutoTranslated={editFormData.isAutoTranslated}
-                  onTranslated={(result) => {
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      name: result.name || prev.name,
-                      nameAr: result.nameAr || prev.nameAr,
-                      isAutoTranslated: result.isAutoTranslated
-                    }))
-                  }}
-                />
-              </div>
+              <h2 className="text-lg font-bold text-ink">تعديل بيانات المنتج</h2>
               <button
                 type="button"
                 onClick={() => setEditingProduct(null)}
@@ -397,6 +398,11 @@ export default function ProductsPage() {
                     required
                     value={editFormData.name}
                     onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    onBlur={() => {
+                      if (editFormData.name && !editFormData.nameAr) {
+                        handleAutoTranslate(editFormData.name, 'en', 'ar', 'nameAr');
+                      }
+                    }}
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>
@@ -406,6 +412,11 @@ export default function ProductsPage() {
                     type="text"
                     value={editFormData.nameAr}
                     onChange={(e) => setEditFormData({ ...editFormData, nameAr: e.target.value })}
+                    onBlur={() => {
+                      if (editFormData.nameAr && !editFormData.name) {
+                        handleAutoTranslate(editFormData.nameAr, 'ar', 'en', 'name');
+                      }
+                    }}
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>

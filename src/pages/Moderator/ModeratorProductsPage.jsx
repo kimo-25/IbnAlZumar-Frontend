@@ -1,10 +1,10 @@
-// File: src/pages/Moderator/ModeratorProductsPage.jsx
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Loader2, Package, Search, Trash2, Edit3, FileSpreadsheet, X, Check } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import Pagination from '../../components/ui/Pagination'
+import ProductPricingManager from '../../components/catalog/ProductPricingManager'
 import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
 import { getModeratorProducts, deleteModeratorProduct, updateModeratorProduct, getCategories } from '../../api/moderatorApi'
 
@@ -87,7 +87,8 @@ export default function ModeratorProductsPage() {
       categoryId: product.categoryId || (categories[0]?.id ?? 1),
       isActive: product.isActive ?? true,
       trackInventory: product.trackInventory ?? true,
-      imageUrl: product.imageUrl || ''
+      imageUrl: product.imageUrl || '',
+      isAutoTranslated: product.isAutoTranslated ?? false
     })
     setEditImageFile(null)
   }
@@ -119,6 +120,24 @@ export default function ModeratorProductsPage() {
       }
     }
   }
+
+  // دالة الترجمة التلقائية الصامتة بدون أزرار
+  const handleAutoTranslate = async (text, fromLang, toLang, targetField) => {
+    if (!text.trim()) return;
+    try {
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${fromLang}|${toLang}`);
+      const data = await res.json();
+      if (data?.responseData?.translatedText) {
+        setEditFormData(prev => ({
+          ...prev,
+          [targetField]: data.responseData.translatedText,
+          isAutoTranslated: true
+        }));
+      }
+    } catch (err) {
+      console.error("Auto-translation error:", err);
+    }
+  };
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -209,7 +228,7 @@ export default function ModeratorProductsPage() {
       {/* Modal تعديل المنتج للمشرف */}
       {editingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl bg-surface border border-border p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" dir="rtl">
+          <div className="w-full max-w-2xl rounded-2xl bg-surface border border-border p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" dir="rtl">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h2 className="text-lg font-bold text-ink">تعديل بيانات المنتج</h2>
               <button type="button" onClick={() => setEditingProduct(null)} className="p-1 text-ink-soft hover:text-rose-600 rounded-lg transition">
@@ -237,6 +256,12 @@ export default function ModeratorProductsPage() {
                     required
                     value={editFormData.name}
                     onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    onBlur={() => {
+                      // لو الإنجليزي مكتوب والعربي فاضي، ترجم للعربي
+                      if (editFormData.name && !editFormData.nameAr) {
+                        handleAutoTranslate(editFormData.name, 'en', 'ar', 'nameAr');
+                      }
+                    }}
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>
@@ -246,6 +271,12 @@ export default function ModeratorProductsPage() {
                     type="text"
                     value={editFormData.nameAr}
                     onChange={(e) => setEditFormData({ ...editFormData, nameAr: e.target.value })}
+                    onBlur={() => {
+                      // لو العربي مكتوب والإنجليزي فاضي، ترجم للإنجليزي
+                      if (editFormData.nameAr && !editFormData.name) {
+                        handleAutoTranslate(editFormData.nameAr, 'ar', 'en', 'name');
+                      }
+                    }}
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>
@@ -253,7 +284,7 @@ export default function ModeratorProductsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-ink">سعر البيع (ج.م)</label>
+                  <label className="block font-semibold mb-1 text-ink">سعر البيع الأساسي (ج.م)</label>
                   <input
                     type="number"
                     required
@@ -273,6 +304,13 @@ export default function ModeratorProductsPage() {
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <ProductPricingManager
+                  productId={editingProduct.id}
+                  variants={editingProduct.variants || []}
+                />
               </div>
 
               <div>
