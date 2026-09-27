@@ -124,7 +124,7 @@ export default function ProductPricingManager({ productId, variants = [] }) {
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 text-sm font-bold text-ink">
           <Tag size={15} className="text-emerald-600" />
-          شرائح الأسعار (تجزئة / نص جملة / جملة)
+          شرائح الأسعار (تجزئة /  جملة 1 / جملة)
         </h3>
         <button
           type="button"

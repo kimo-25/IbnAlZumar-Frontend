@@ -4,6 +4,8 @@ import { Loader2, Package, Search, Trash2, Edit3, FileSpreadsheet, FileUp, X, Ch
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import Pagination from '../../components/ui/Pagination'
+import AutoTranslatedBadge from '../../components/catalog/AutoTranslatedBadge'
+import ProductPricingManager from '../../components/catalog/ProductPricingManager'
 import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
 import { getProducts, updateProduct, deleteProduct, getCategories, convertInvoiceToExcel, sendVoiceCommand } from '../../api/adminApi'
 
@@ -113,7 +115,8 @@ export default function ProductsPage() {
       categoryId: product.categoryId || (categories[0]?.id ?? 1),
       isActive: product.isActive ?? true,
       trackInventory: product.trackInventory ?? true,
-      imageUrl: product.imageUrl || ''
+      imageUrl: product.imageUrl || '',
+      isAutoTranslated: product.isAutoTranslated ?? false
     })
     setEditImageFile(null)
   }
@@ -346,9 +349,25 @@ export default function ProductsPage() {
       {/* ========================================== */}
       {editingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl bg-surface border border-border p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" dir="rtl">
+          <div className="w-full max-w-2xl rounded-2xl bg-surface border border-border p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" dir="rtl">
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-lg font-bold text-ink">تعديل بيانات المنتج</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-ink">تعديل بيانات المنتج</h2>
+                {/* شارة الترجمة التلقائية */}
+                <AutoTranslatedBadge
+                  entityType="product"
+                  entityId={editingProduct.id}
+                  isAutoTranslated={editFormData.isAutoTranslated}
+                  onTranslated={(result) => {
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      name: result.name || prev.name,
+                      nameAr: result.nameAr || prev.nameAr,
+                      isAutoTranslated: result.isAutoTranslated
+                    }))
+                  }}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => setEditingProduct(null)}
@@ -394,7 +413,7 @@ export default function ProductsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-ink">سعر البيع (ج.م)</label>
+                  <label className="block font-semibold mb-1 text-ink">سعر البيع الأساسي (ج.م)</label>
                   <input
                     type="number"
                     required
@@ -414,6 +433,14 @@ export default function ProductsPage() {
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>
+              </div>
+
+              {/* إدارة شرائح الأسعار المتطورة (تجزئة، نص جملة، جملة، موزع) */}
+              <div className="pt-2 border-t border-border">
+                <ProductPricingManager
+                  productId={editingProduct.id}
+                  variants={editingProduct.variants || []}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
