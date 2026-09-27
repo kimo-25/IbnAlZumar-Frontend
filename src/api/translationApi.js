@@ -1,6 +1,15 @@
 // File: src/api/translationApi.js
 import axiosInstance from './axiosInstance'
 
+export async function translateText(text, sourceLanguage, targetLanguage) {
+  const response = await axiosInstance.post('/v1/translation/translate', {
+    text,
+    sourceLanguage,
+    targetLanguage,
+  })
+  return response.data
+}
+
 /**
  * Manual "translate now" trigger for the product/category edit forms.
  * overwrite=false (default): fills only whichever of Name/NameAr is currently empty.

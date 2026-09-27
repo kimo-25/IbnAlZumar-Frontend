@@ -7,6 +7,7 @@ import Pagination from '../../components/ui/Pagination'
 import ProductPricingManager from '../../components/catalog/ProductPricingManager'
 import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
 import { getModeratorProducts, deleteModeratorProduct, updateModeratorProduct, getCategories } from '../../api/moderatorApi'
+import { translateText } from '../../api/translationApi'
 
 export default function ModeratorProductsPage() {
   const [products, setProducts] = useState([])
@@ -123,14 +124,13 @@ export default function ModeratorProductsPage() {
 
   // دالة الترجمة التلقائية الصامتة بدون أزرار
   const handleAutoTranslate = async (text, fromLang, toLang, targetField) => {
-    if (!text.trim()) return;
+    if (!text || !text.trim()) return;
     try {
-      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${fromLang}|${toLang}`);
-      const data = await res.json();
-      if (data?.responseData?.translatedText) {
+      const data = await translateText(text.trim(), fromLang, toLang)
+      if (data?.success && data.translatedText) {
         setEditFormData(prev => ({
           ...prev,
-          [targetField]: data.responseData.translatedText,
+          [targetField]: data.translatedText,
           isAutoTranslated: true
         }));
       }
@@ -256,12 +256,7 @@ export default function ModeratorProductsPage() {
                     required
                     value={editFormData.name}
                     onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                    onBlur={() => {
-                      // لو الإنجليزي مكتوب والعربي فاضي، ترجم للعربي
-                      if (editFormData.name && !editFormData.nameAr) {
-                        handleAutoTranslate(editFormData.name, 'en', 'ar', 'nameAr');
-                      }
-                    }}
+                    onBlur={() => handleAutoTranslate(editFormData.name, 'en', 'ar', 'nameAr')}
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>
@@ -271,12 +266,7 @@ export default function ModeratorProductsPage() {
                     type="text"
                     value={editFormData.nameAr}
                     onChange={(e) => setEditFormData({ ...editFormData, nameAr: e.target.value })}
-                    onBlur={() => {
-                      // لو العربي مكتوب والإنجليزي فاضي، ترجم للإنجليزي
-                      if (editFormData.nameAr && !editFormData.name) {
-                        handleAutoTranslate(editFormData.nameAr, 'ar', 'en', 'name');
-                      }
-                    }}
+                    onBlur={() => handleAutoTranslate(editFormData.nameAr, 'ar', 'en', 'name')}
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
                 </div>
