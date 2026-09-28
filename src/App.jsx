@@ -56,6 +56,9 @@ import ReportsPage from './pages/Reports/ReportsPage'
 import OperationsHubPage from './pages/Operations/OperationsHubPage'
 import PayrollPage from './pages/admin/PayrollPage'
 
+// Phase 2 Maintenance Workflow
+import MaintenanceWorkflowPage from './pages/Maintenance/MaintenanceWorkflowPage'
+
 // Owner Pages
 import OwnerHubPage from './pages/Owner/OwnerHubPage'
 
@@ -133,6 +136,14 @@ export default function App() {
           <Route index element={<ModeratorHubPage />} />
           <Route path="dashboard" element={<ModeratorHubPage />} />
           <Route path="operations" element={<OperationsHubPage />} />
+          <Route 
+            path="maintenance-workflow" 
+            element={
+              <ProtectedRoute allowRoles={['ONLINE_MANAGER', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager', 'MODERATOR', 'CASHIER']}>
+                <MaintenanceWorkflowPage />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="products" element={<ModeratorProductsPage />} />
           <Route path="products/import" element={<AddProduct />} />
           <Route path="categories" element={<ModeratorCategoriesPage />} />
@@ -163,6 +174,15 @@ export default function App() {
             element={
               <ProtectedRoute allowRoles={['ONLINE_MANAGER', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager']}>
                 <OperationsHubPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="maintenance-workflow" 
+            element={
+              <ProtectedRoute allowRoles={['ONLINE_MANAGER', 'STORE_OWNER', 'Admin', 'Super Admin', 'SuperAdmin', 'Manager', 'MODERATOR']}>
+                <MaintenanceWorkflowPage />
               </ProtectedRoute>
             } 
           />
