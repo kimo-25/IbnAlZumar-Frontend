@@ -1,7 +1,8 @@
 // File: src/pages/Maintenance/MaintenanceWorkflowPage.jsx
 import { useEffect, useMemo, useState } from 'react'
-import { LayoutGrid, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Wrench } from 'lucide-react'
+import { LayoutGrid, Table as TableIcon, Loader2, AlertCircle, RefreshCw, Wrench, Plus } from 'lucide-react'
 import { getMaintenanceTickets, getTechnicians } from '../../api/maintenanceWorkflowApi'
+import { getCustomers } from '../../api/adminApi'
 import {
   KANBAN_COLUMNS,
   ALL_STATUSES,
@@ -9,6 +10,7 @@ import {
   MAINTENANCE_STATUS_COLORS,
 } from '../../utils/maintenance/statusMachine'
 import MaintenanceTicketDrawer from '../../components/operations/MaintenanceTicketDrawer'
+import CreateMaintenanceTicketModal from '../../components/operations/CreateMaintenanceTicketModal'
 
 function TicketCard({ ticket, onOpen }) {
   const color = MAINTENANCE_STATUS_COLORS[ticket.status]
@@ -52,10 +54,13 @@ export default function MaintenanceWorkflowPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedTicket, setSelectedTicket] = useState(null)
+  const [customers, setCustomers] = useState([])
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
     loadTickets()
     getTechnicians().then(setTechnicians).catch(() => {})
+    getCustomers().then((data) => setCustomers(Array.isArray(data) ? data : (data.items || data.data || []))).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, technicianFilter])
 
@@ -116,6 +121,14 @@ export default function MaintenanceWorkflowPage() {
         </h1>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 cursor-pointer"
+          >
+            <Plus size={14} />
+            تذكرة صيانة جديدة
+          </button>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -274,6 +287,13 @@ export default function MaintenanceWorkflowPage() {
           onUpdated={handleTicketUpdated}
         />
       )}
+
+      <CreateMaintenanceTicketModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        customers={customers}
+        onCreated={loadTickets}
+      />
     </div>
   )
 }

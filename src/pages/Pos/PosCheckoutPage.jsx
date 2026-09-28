@@ -9,6 +9,7 @@ import VoiceAttendanceButton from './VoiceAttendanceButton';
 import VoiceInvoiceButton from '../admin/VoiceInvoiceButton'
 import ProductLightbox from "../../components/pos/ProductLightbox";
 import VariantUnitPickerModal from "../../components/pos/VariantUnitPickerModal";
+import CreateMaintenanceTicketModal from "../../components/operations/CreateMaintenanceTicketModal";
 import { findBaseUnit } from "../../utils/pos/unitPricing";
 
 import {
@@ -41,6 +42,7 @@ import {
   ZoomIn,
   Printer,
   Layers,
+  Wrench,
 } from "lucide-react";
 
 // H-08: this is a CLIENT-SIDE ESTIMATE ONLY, used before checkout for the
@@ -107,6 +109,7 @@ export default function PosCheckoutPage() {
   const [expenseNotes, setExpenseNotes] = useState("");
   const [expenseSubmitting, setExpenseSubmitting] = useState(false);
   const [showModifyModal, setShowModifyModal] = useState(false);
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
 
   // نافذة حاسبة الكاش
   const [showCashModal, setShowCashModal] = useState(false);
@@ -503,6 +506,15 @@ export default function PosCheckoutPage() {
         <div className="flex items-center gap-2">
           <VoiceInvoiceButton />
           <VoiceAttendanceButton />
+
+          <button
+            type="button"
+            onClick={() => setShowMaintenanceModal(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 cursor-pointer"
+          >
+            <Wrench size={14} />
+            <span className="hidden sm:inline">تذكرة صيانة جديدة</span>
+          </button>
 
           <button
             type="button"
@@ -1070,6 +1082,13 @@ export default function PosCheckoutPage() {
           onClose={() => setLightboxProduct(null)}
         />
       )}
+
+      <CreateMaintenanceTicketModal
+        isOpen={showMaintenanceModal}
+        onClose={() => setShowMaintenanceModal(false)}
+        customers={customers}
+        onCreated={() => {}}
+      />
     </div>
   );
 }

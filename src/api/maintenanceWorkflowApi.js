@@ -8,6 +8,11 @@ export async function getMaintenanceTickets({ status, technicianId, pageNumber =
   return response.data
 }
 
+export async function createMaintenanceTicket(payload) {
+  const response = await axiosInstance.post('/maintenance-workflow', payload)
+  return response.data
+}
+
 export async function getMaintenanceTicket(id) {
   const response = await axiosInstance.get(`/maintenance-workflow/${id}`)
   return response.data
