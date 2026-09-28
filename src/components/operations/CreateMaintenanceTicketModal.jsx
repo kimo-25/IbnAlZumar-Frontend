@@ -75,24 +75,23 @@ export default function CreateMaintenanceTicketModal({ isOpen, onClose, customer
     setSubmitting(true)
     try {
       const created = await createMaintenanceTicket({
-        customerId: form.customerId || null,
-        customerName: selectedCustomer ? (selectedCustomer.fullName || selectedCustomer.name) : form.guestName.trim(),
-        customerPhone: selectedCustomer ? (selectedCustomer.phoneNumber || selectedCustomer.phone || '') : form.guestPhone.trim(),
-        problemDescription: form.problemDescription.trim(),
-        description: form.problemDescription.trim(),
-        deliveryMethod: Number(form.deliveryMethod),
-        estimatedPrice: form.estimatedPrice === '' ? null : Number(form.estimatedPrice),
-        notes: form.notes.trim() || null,
+        ProblemDescription: form.problemDescription.trim(),
+        DeliveryMethod: Number(form.deliveryMethod),
+        CustomerId: form.customerId ? Number(form.customerId) : null,
+        GuestName: form.customerId ? null : form.guestName.trim(),
+        GuestPhone: form.customerId ? null : form.guestPhone.trim(),
+        EstimatedPrice: form.estimatedPrice === '' ? null : Number(form.estimatedPrice),
+        AdminNotes: form.notes.trim() || null,
       })
 
       const ticket = created?.data || created
+      await onCreated?.(ticket)
       if (form.printReceipt) {
         const ticketId = ticket?.id ?? ticket?.Id
         const receipt = ticketId ? await getMaintenanceReceipt(ticketId) : ticket
         openPrintWindow(renderMaintenanceReceipt(receipt))
       }
 
-      onCreated(ticket)
       onClose()
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'تعذر إنشاء تذكرة الصيانة.')
