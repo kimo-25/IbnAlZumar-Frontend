@@ -10,8 +10,7 @@ const EMPTY_FORM = {
   guestPhone: '',
   deliveryMethod: '1',
   problemDescription: '',
-  estimatedPrice: '',
-  notes: '',
+  images: [],
   printReceipt: false,
 }
 
@@ -75,16 +74,14 @@ export default function CreateMaintenanceTicketModal({ isOpen, onClose, customer
     setSubmitting(true)
     try {
       const created = await createMaintenanceTicket({
-        ProblemDescription: form.problemDescription.trim(),
+        Description: form.problemDescription.trim(),
         DeliveryMethod: Number(form.deliveryMethod),
-        CustomerId: form.customerId ? Number(form.customerId) : null,
-        GuestName: form.customerId ? null : form.guestName.trim(),
-        GuestPhone: form.customerId ? null : form.guestPhone.trim(),
-        EstimatedPrice: form.estimatedPrice === '' ? null : Number(form.estimatedPrice),
-        AdminNotes: form.notes.trim() || null,
+        Image: form.images.length === 1 ? form.images[0] : null,
+        Images: form.images.length > 1 ? form.images : [],
       })
 
       const ticket = created?.data || created
+      if (created?.message) alert(created.message)
       await onCreated?.(ticket)
       if (form.printReceipt) {
         const ticketId = ticket?.id ?? ticket?.Id
@@ -154,10 +151,7 @@ export default function CreateMaintenanceTicketModal({ isOpen, onClose, customer
 
           <label className="block text-xs font-bold text-ink">طريقة التسليم<select value={form.deliveryMethod} onChange={(event) => updateField('deliveryMethod', event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-surface p-2.5 text-xs outline-none focus:border-emerald-500"><option value="1">CustomerDropOff - العميل يحضر الجهاز</option><option value="2">CompanyPickup - استلام عبر الشركة</option></select></label>
           <label className="block text-xs font-bold text-ink">وصف المشكلة <span className="text-rose-600">*</span><textarea required value={form.problemDescription} onChange={(event) => updateField('problemDescription', event.target.value)} rows={4} className="mt-1 w-full resize-y rounded-lg border border-border bg-surface p-2.5 text-xs outline-none focus:border-emerald-500" /></label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-[11px] font-bold text-ink-soft">السعر التقديري<input type="number" min="0" step="0.01" value={form.estimatedPrice} onChange={(event) => updateField('estimatedPrice', event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-surface p-2 text-xs font-mono outline-none focus:border-emerald-500" /></label>
-            <label className="text-[11px] font-bold text-ink-soft">ملاحظات<input value={form.notes} onChange={(event) => updateField('notes', event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-surface p-2 text-xs outline-none focus:border-emerald-500" /></label>
-          </div>
+          <label className="block text-[11px] font-bold text-ink-soft">صور المشكلة (اختياري)<input type="file" accept="image/*" multiple onChange={(event) => updateField('images', Array.from(event.target.files || []))} className="mt-1 block w-full rounded-lg border border-border bg-surface p-2 text-xs file:mr-2 file:rounded-md file:border-0 file:bg-emerald-100 file:px-2 file:py-1 file:text-xs file:font-bold file:text-emerald-700" /></label>
           <label className="flex items-center gap-2 rounded-lg border border-border bg-canvas p-2.5 text-xs font-bold text-ink cursor-pointer"><input type="checkbox" checked={form.printReceipt} onChange={(event) => updateField('printReceipt', event.target.checked)} className="accent-emerald-600" /><Printer size={14} className="text-ink-soft" />طباعة إيصال A5 بعد الإنشاء</label>
           <button type="submit" disabled={submitting} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60 cursor-pointer">{submitting && <Loader2 size={14} className="animate-spin" />}إنشاء التذكرة</button>
         </form>

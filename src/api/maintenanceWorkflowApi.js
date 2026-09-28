@@ -11,16 +11,15 @@ export async function getMaintenanceTickets({ status, technicianId, pageNumber =
 export async function createMaintenanceTicket(payload) {
   const formData = new FormData()
 
-  formData.append('ProblemDescription', payload.ProblemDescription)
-  formData.append('DeliveryMethod', String(payload.DeliveryMethod))
+  formData.append('Description', payload.Description)
+  formData.append('DeliveryMethod', Number(payload.DeliveryMethod))
 
-  if (payload.CustomerId != null) formData.append('CustomerId', String(payload.CustomerId))
-  if (payload.EstimatedPrice != null) formData.append('EstimatedPrice', String(payload.EstimatedPrice))
-  if (payload.AdminNotes) formData.append('AdminNotes', payload.AdminNotes)
-  if (payload.GuestName) formData.append('GuestName', payload.GuestName)
-  if (payload.GuestPhone) formData.append('GuestPhone', payload.GuestPhone)
+  if (payload.Image) formData.append('Image', payload.Image)
+  if (payload.Images?.length > 1) {
+    payload.Images.forEach((file) => formData.append('Images', file))
+  }
 
-  const response = await axiosInstance.post('/maintenance', formData, {
+  const response = await axiosInstance.post('/Maintenance', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return response.data
