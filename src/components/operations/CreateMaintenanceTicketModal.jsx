@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Loader2, Printer, User, X } from 'lucide-react'
 import { createMaintenanceTicket, getMaintenanceReceipt } from '../../api/maintenanceWorkflowApi'
 import { openPrintWindow } from '../../utils/print/shared'
-import { renderMaintenanceReceipt } from '../../utils/print/renderMaintenanceReceipt'
+import { renderMaintenanceDeviceLabel, renderMaintenanceReceipt } from '../../utils/print/renderMaintenanceReceipt'
 
 const EMPTY_FORM = {
   customerId: '',
@@ -12,13 +12,14 @@ const EMPTY_FORM = {
   problemDescription: '',
   images: [],
   printReceipt: false,
+  printLabel: false,
 }
 
 function getCustomerId(customer) {
   return customer?.id ?? customer?.Id
 }
 
-export default function CreateMaintenanceTicketModal({ isOpen, onClose, customers = [], onCreated }) {
+export default function CreateMaintenanceTicketModal({ isOpen, onClose, customers = [], onCreated, defaultPrintLabel = false }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [customerSearch, setCustomerSearch] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -26,7 +27,7 @@ export default function CreateMaintenanceTicketModal({ isOpen, onClose, customer
 
   useEffect(() => {
     if (!isOpen) return
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, printLabel: defaultPrintLabel })
     setCustomerSearch('')
     setError(null)
   }, [isOpen])
@@ -83,10 +84,11 @@ export default function CreateMaintenanceTicketModal({ isOpen, onClose, customer
       const ticket = created?.data || created
       if (created?.message) alert(created.message)
       await onCreated?.(ticket)
-      if (form.printReceipt) {
+      if (form.printReceipt || form.printLabel) {
         const ticketId = ticket?.id ?? ticket?.Id
         const receipt = ticketId ? await getMaintenanceReceipt(ticketId) : ticket
-        openPrintWindow(renderMaintenanceReceipt(receipt))
+        if (form.printReceipt) openPrintWindow(renderMaintenanceReceipt(receipt))
+        if (form.printLabel) openPrintWindow(renderMaintenanceDeviceLabel({ ...ticket, ...receipt }))
       }
 
       onClose()
@@ -153,6 +155,7 @@ export default function CreateMaintenanceTicketModal({ isOpen, onClose, customer
           <label className="block text-xs font-bold text-ink">وصف المشكلة <span className="text-rose-600">*</span><textarea required value={form.problemDescription} onChange={(event) => updateField('problemDescription', event.target.value)} rows={4} className="mt-1 w-full resize-y rounded-lg border border-border bg-surface p-2.5 text-xs outline-none focus:border-emerald-500" /></label>
           <label className="block text-[11px] font-bold text-ink-soft">صور المشكلة (اختياري)<input type="file" accept="image/*" multiple onChange={(event) => updateField('images', Array.from(event.target.files || []))} className="mt-1 block w-full rounded-lg border border-border bg-surface p-2 text-xs file:mr-2 file:rounded-md file:border-0 file:bg-emerald-100 file:px-2 file:py-1 file:text-xs file:font-bold file:text-emerald-700" /></label>
           <label className="flex items-center gap-2 rounded-lg border border-border bg-canvas p-2.5 text-xs font-bold text-ink cursor-pointer"><input type="checkbox" checked={form.printReceipt} onChange={(event) => updateField('printReceipt', event.target.checked)} className="accent-emerald-600" /><Printer size={14} className="text-ink-soft" />طباعة إيصال A5 بعد الإنشاء</label>
+          <label className="flex items-center gap-2 rounded-lg border border-border bg-canvas p-2.5 text-xs font-bold text-ink cursor-pointer"><input type="checkbox" checked={form.printLabel} onChange={(event) => updateField('printLabel', event.target.checked)} className="accent-emerald-600" /><Printer size={14} className="text-emerald-600" />طبع باركود الجهاز بعد الإنشاء</label>
           <button type="submit" disabled={submitting} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60 cursor-pointer">{submitting && <Loader2 size={14} className="animate-spin" />}إنشاء التذكرة</button>
         </form>
       </div>

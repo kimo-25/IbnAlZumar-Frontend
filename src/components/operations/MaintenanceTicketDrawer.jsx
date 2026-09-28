@@ -9,7 +9,7 @@ import {
 } from '../../api/maintenanceWorkflowApi'
 import { MAINTENANCE_STATUS_LABELS, MAINTENANCE_STATUS_COLORS, getAllowedNextStatuses } from '../../utils/maintenance/statusMachine'
 import { openPrintWindow } from '../../utils/print/shared'
-import { renderMaintenanceReceipt } from '../../utils/print/renderMaintenanceReceipt'
+import { renderMaintenanceDeviceLabel, renderMaintenanceReceipt } from '../../utils/print/renderMaintenanceReceipt'
 import TechnicianAssignModal from './TechnicianAssignModal'
 import PartUsageModal from './PartUsageModal'
 
@@ -77,6 +77,15 @@ export default function MaintenanceTicketDrawer({ ticket, onClose, onUpdated }) 
       setError(err?.message || 'تعذر إنشاء الإيصال.')
     } finally {
       setPrinting(false)
+    }
+  }
+
+  function handlePrintDeviceLabel() {
+    setError(null)
+    try {
+      openPrintWindow(renderMaintenanceDeviceLabel(ticket))
+    } catch (err) {
+      setError(err?.message || 'تعذر إنشاء باركود الجهاز.')
     }
   }
 
@@ -203,6 +212,14 @@ export default function MaintenanceTicketDrawer({ ticket, onClose, onUpdated }) 
         >
           {printing ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
           طباعة إيصال الصيانة
+        </button>
+        <button
+          type="button"
+          onClick={handlePrintDeviceLabel}
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-canvas py-2.5 text-xs font-bold text-ink transition hover:border-emerald-300 cursor-pointer"
+        >
+          <Printer size={14} className="text-emerald-600" />
+          طبع باركود الجهاز
         </button>
 
         {/* Notes log */}

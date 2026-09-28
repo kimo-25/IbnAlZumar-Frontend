@@ -41,6 +41,7 @@ import {
   ShoppingCart,
   ZoomIn,
   Printer,
+  Barcode,
   Layers,
   Wrench,
 } from "lucide-react";
@@ -110,6 +111,7 @@ export default function PosCheckoutPage() {
   const [expenseSubmitting, setExpenseSubmitting] = useState(false);
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [printMaintenanceLabel, setPrintMaintenanceLabel] = useState(false);
 
   // نافذة حاسبة الكاش
   const [showCashModal, setShowCashModal] = useState(false);
@@ -514,6 +516,18 @@ export default function PosCheckoutPage() {
           >
             <Wrench size={14} />
             <span className="hidden sm:inline">تذكرة صيانة جديدة</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPrintMaintenanceLabel(true);
+              setShowMaintenanceModal(true);
+            }}
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer"
+          >
+            <Barcode size={14} />
+            <span className="hidden sm:inline">طبع باركود الجهاز</span>
           </button>
 
           <button
@@ -1085,9 +1099,13 @@ export default function PosCheckoutPage() {
 
       <CreateMaintenanceTicketModal
         isOpen={showMaintenanceModal}
-        onClose={() => setShowMaintenanceModal(false)}
+        onClose={() => {
+          setShowMaintenanceModal(false);
+          setPrintMaintenanceLabel(false);
+        }}
         customers={customers}
         onCreated={() => {}}
+        defaultPrintLabel={printMaintenanceLabel}
       />
     </div>
   );
