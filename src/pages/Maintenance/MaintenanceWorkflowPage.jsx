@@ -8,7 +8,7 @@ import {
   MAINTENANCE_STATUS_LABELS,
   MAINTENANCE_STATUS_COLORS,
 } from '../../utils/maintenance/statusMachine'
-import MaintenanceTicketDrawer from '../../components/maintenance/MaintenanceTicketDrawer'
+import MaintenanceTicketDrawer from '../../components/operations/MaintenanceTicketDrawer'
 
 function TicketCard({ ticket, onOpen }) {
   const color = MAINTENANCE_STATUS_COLORS[ticket.status]
