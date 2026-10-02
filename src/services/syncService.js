@@ -46,7 +46,8 @@ export async function syncPendingTransactions() {
         notes: tx.notes || null,
         items: (tx.items || []).map(item => ({
           productId: item.productId,
-          quantity: item.quantity,
+          productVariantId: item.productVariantId || item.variantId || null,
+          quantity: item.quantityInBaseUnit || item.quantity,
           unitPrice: item.unitPrice,
           discountType: item.discountType ?? 0,
           discountValue: item.discountValue ?? 0,
