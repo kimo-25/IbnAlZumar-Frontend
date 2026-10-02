@@ -1,10 +1,18 @@
 // File: src/pages/Pos/PosCheckoutPage.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { useAuth } from "../../context/AuthContext";
 import { getCustomers, createCustomer } from "../../api/adminApi";
-import { searchPosProducts, PRICING_TIER, PRICING_TIER_LABELS } from "../../api/posApi";
+import {
+  searchPosProducts,
+  getResolvedUnitPrice,
+  PRICING_TIER,
+  PRICING_TIER_LABELS,
+} from "../../api/posApi";
+import usePosKeyboardShortcuts from "../../hooks/usePosKeyboardShortcuts";
+import { playScanSuccess, playScanError } from "../../utils/pos/feedback";
+import PosShortcutBar from "../../components/pos/PosShortcutBar";
 import VoiceAttendanceButton from './VoiceAttendanceButton';
 import VoiceInvoiceButton from '../admin/VoiceInvoiceButton'
 import ProductLightbox from "../../components/pos/ProductLightbox";
@@ -44,19 +52,13 @@ import {
   Barcode,
   Layers,
   Wrench,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 
-// H-08: this is a CLIENT-SIDE ESTIMATE ONLY, used before checkout for the
-// live running total and the cash-change calculator (the cashier needs a
-// number instantly, before the order exists on the server). It is kept in
-// sync with the server's authoritative rate (OrderService.EgyptVatRate,
-// 14%) — it was previously hardcoded to 15%, which didn't match anything
-// the backend actually charged. Once an order is created online, the
-// printed invoice uses the server's real TaxAmount/TotalAmount instead of
-// this estimate — see handlePrint().
+// H-08: this is a CLIENT-SIDE ESTIMATE ONLY ...
 const ESTIMATED_TAX_RATE = 0.14;
 
-// --- Backend enum values (kept in sync with Domain/Enums.cs) ---
 const PAYMENT_METHOD = {
   CASH: 2,
   CREDIT_CARD: 3,
@@ -70,13 +72,44 @@ const PAYMENT_LABELS = {
   [PAYMENT_METHOD.INSTAPAY]: "محفظة إلكترونية",
 };
 
-const PRINT_FORMAT_OPTIONS = [PRINT_FORMAT.THERMAL_80, PRINT_FORMAT.THERMAL_58, PRINT_FORMAT.A4, PRINT_FORMAT.A5];
+const PRINT_FORMAT_OPTIONS = [
+  PRINT_FORMAT.THERMAL_80,
+  PRINT_FORMAT.THERMAL_58,
+  PRINT_FORMAT.A4,
+  PRINT_FORMAT.A5,
+];
+
+const HELD_ORDERS_KEY = "pos:heldOrders";
+
+function readHeldOrders() {
+  try {
+    const raw = localStorage.getItem(HELD_ORDERS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHeldOrders(list) {
+  try {
+    localStorage.setItem(HELD_ORDERS_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore quota / privacy errors */
+  }
+}
 
 export default function PosCheckoutPage() {
   const isOnline = useOnlineStatus();
   const { logout } = useAuth();
-  const searchInputRef = useRef(null);
 
+  // ---- Refs للفوكس والاختصارات ----
+  const searchInputRef = useRef(null);
+  const customerSearchInputRef = useRef(null);
+  const discountInputRef = useRef(null);
+  const voiceInvoiceWrapRef = useRef(null);
+
+  // ---- State ----
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState([]);
@@ -87,24 +120,18 @@ export default function PosCheckoutPage() {
   const [discountType, setDiscountType] = useState("Fixed");
   const [discountValue, setDiscountValue] = useState(0);
 
-  // Phase 1: pricing tier (Retail/FirstWholesale/Wholesale) selected for this sale, and
-  // the print format the cashier wants for the next receipt (thermal80/58, A4, A5).
   const [pricingTier, setPricingTier] = useState(PRICING_TIER.RETAIL);
   const [printFormat, setPrintFormat] = useState(PRINT_FORMAT.THERMAL_80);
 
-  // Phase 1: full-screen image preview + the variant/unit picker for products that have
-  // more than one variant and/or more than one sell unit.
   const [lightboxProduct, setLightboxProduct] = useState(null);
   const [pickerProduct, setPickerProduct] = useState(null);
 
-  // إدارة اختيار وإضافة العملاء للكاشير
   const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null); // null = عميل نقدي
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isAddingNewCustomer, setIsAddingNewCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ fullName: "", phoneNumber: "" });
   const [customerSearch, setCustomerSearch] = useState("");
 
-  // نوافذ الهيدر
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseNotes, setExpenseNotes] = useState("");
@@ -113,11 +140,43 @@ export default function PosCheckoutPage() {
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [printMaintenanceLabel, setPrintMaintenanceLabel] = useState(false);
 
-  // نافذة حاسبة الكاش
   const [showCashModal, setShowCashModal] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+  // ---- جديد: تحديد سطر السلة بالكيبورد + فلاش السكانر + الطلبات المعلّقة ----
+  const [selectedCartLineId, setSelectedCartLineId] = useState(null);
+  const [scanFlash, setScanFlash] = useState(null); // 'ok' | 'error' | null
+  const [heldOrders, setHeldOrders] = useState(readHeldOrders);
+  const scanFlashTimerRef = useRef(null);
+
+  // ---- Auto-focus على البحث + رجوع الفوكس بعد كل عملية ----
+  const refocusSearch = useCallback(() => {
+    // استنى دورة الرندر لحد ما المودال يقفل / السلة تتحدث
+    requestAnimationFrame(() => {
+      try {
+        searchInputRef.current?.focus();
+      } catch {
+        /* noop */
+      }
+    });
+  }, []);
+
+  // ---- Flash قصير عند السكانر ----
+  const flashScan = useCallback((kind) => {
+    setScanFlash(kind);
+    if (scanFlashTimerRef.current) clearTimeout(scanFlashTimerRef.current);
+    scanFlashTimerRef.current = setTimeout(() => setScanFlash(null), 420);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (scanFlashTimerRef.current) clearTimeout(scanFlashTimerRef.current);
+    },
+    []
+  );
+
+  // ---- Mount: focus + load data ----
   useEffect(() => {
     loadProducts(currentPage, search, pricingTier);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,13 +185,14 @@ export default function PosCheckoutPage() {
   useEffect(() => {
     loadPending();
     loadCustomersList();
-    searchInputRef.current?.focus();
+    refocusSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadCustomersList() {
     try {
       const data = await getCustomers();
-      const list = Array.isArray(data) ? data : (data.items || data.data || []);
+      const list = Array.isArray(data) ? data : data.items || data.data || [];
       setCustomers(list);
     } catch (err) {
       console.warn("تعذر جلب قائمة العملاء في الكاشير", err);
@@ -144,9 +204,6 @@ export default function PosCheckoutPage() {
     setPendingCount(items.length);
   }
 
-  // Phase 1: switched from the raw /Products list to the POS-optimized /Pos/products
-  // endpoint, which returns each product's variants, unit conversions, and configured
-  // pricing-tier price breaks in the same round trip (see PosCatalogService).
   async function loadProducts(page = 1, query = "", tier = pricingTier) {
     setLoadingProducts(true);
     try {
@@ -164,8 +221,7 @@ export default function PosCheckoutPage() {
     }
   }
 
-  // بحث السيرفر عند الكتابة (debounced) — السكانر ما زال يعتمد على handleSearchKeyDown
-  // للإضافة الفورية عند تطابق الباركود/الـ SKU بالكامل.
+  // بحث السيرفر debounced — السكانر بيعتمد على Enter في handleSearchKeyDown
   useEffect(() => {
     const timeout = setTimeout(() => {
       setCurrentPage(1);
@@ -181,8 +237,6 @@ export default function PosCheckoutPage() {
       (c.phoneNumber || c.phone || "").includes(customerSearch)
   );
 
-  // منتج بدون متغيّرات وبوحدة بيع واحدة (أو بدون تعريف وحدات) بيتضاف للسلة فوراً؛
-  // غير كده بتتفتح نافذة اختيار المتغيّر/الوحدة/الكمية.
   function needsPicker(product) {
     const hasVariants = (product.variants || []).length > 0;
     const hasMultipleUnits = (product.units || []).length > 1;
@@ -209,8 +263,7 @@ export default function PosCheckoutPage() {
     addSimpleProductToCart(product);
   }
 
-  // يضيف سطر سلة محلول بالكامل (سعر + وحدة + متغيّر) — نفس الشكل سواء جه من الإضافة
-  // المباشرة أو من نافذة الاختيار.
+  // يضيف سطر سلة محلول بالكامل — وبيشغّل feedback السكانر
   function addResolvedLineToCart(product, resolved) {
     const cartLineId = `${product.id}-${resolved.variant?.id || "base"}-${resolved.unit?.id || resolved.unit?.fromUnit}`;
 
@@ -247,16 +300,90 @@ export default function PosCheckoutPage() {
         },
       ];
     });
+
+    // تحديد السطر الجديد عشان +/- يشتغلوا عليه
+    setSelectedCartLineId(cartLineId);
+
+    // feedback
+    playScanSuccess();
+    flashScan("ok");
   }
 
   function handlePickerConfirm(resolved) {
     addResolvedLineToCart(pickerProduct, resolved);
     setPickerProduct(null);
+    refocusSearch();
   }
 
-  const updateQty = (cartLineId, qty) => {
+  // ---- Dynamic pricing: إعادة حساب سعر سطر واحد من السيرفر ----
+  const recalcLinePrice = useCallback(
+    async (line, qtyOverride) => {
+      try {
+        const res = await getResolvedUnitPrice({
+          productId: line.productId,
+          productVariantId: line.variant?.id || null,
+          tier: pricingTier,
+          quantity: qtyOverride ?? line.quantity,
+        });
+        const unitPrice = res?.unitPrice ?? res?.UnitPrice;
+        if (typeof unitPrice === "number" && unitPrice > 0) {
+          setCart((prev) =>
+            prev.map((x) => (x.cartLineId === line.cartLineId ? { ...x, unitPrice } : x))
+          );
+        }
+      } catch {
+        // fallback: نسيبه على السعر الحالي (محلي مؤقت) لحد ما يتحل من السيرفر عند الدفع
+      }
+    },
+    [pricingTier]
+  );
+
+  // ---- Dynamic pricing: لما الـ tier يتغيّر، أعد حساب كل السطور ----
+  const lastTierRef = useRef(pricingTier);
+  useEffect(() => {
+    if (lastTierRef.current === pricingTier) return undefined;
+    lastTierRef.current = pricingTier;
+    if (!cart.length) return undefined;
+
+    let cancelled = false;
+    (async () => {
+      const updates = await Promise.all(
+        cart.map(async (line) => {
+          try {
+            const res = await getResolvedUnitPrice({
+              productId: line.productId,
+              productVariantId: line.variant?.id || null,
+              tier: pricingTier,
+              quantity: line.quantity,
+            });
+            const unitPrice = res?.unitPrice ?? res?.UnitPrice;
+            return {
+              cartLineId: line.cartLineId,
+              unitPrice:
+                typeof unitPrice === "number" && unitPrice > 0 ? unitPrice : line.unitPrice,
+            };
+          } catch {
+            return { cartLineId: line.cartLineId, unitPrice: line.unitPrice };
+          }
+        })
+      );
+      if (cancelled) return;
+      const map = new Map(updates.map((u) => [u.cartLineId, u.unitPrice]));
+      setCart((prev) =>
+        prev.map((x) => (map.has(x.cartLineId) ? { ...x, unitPrice: map.get(x.cartLineId) } : x))
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricingTier]);
+
+  const updateQty = async (cartLineId, qty) => {
     if (qty <= 0) {
       setCart((prev) => prev.filter((x) => x.cartLineId !== cartLineId));
+      if (selectedCartLineId === cartLineId) setSelectedCartLineId(null);
       return;
     }
 
@@ -267,44 +394,85 @@ export default function PosCheckoutPage() {
           : x
       )
     );
+
+    // إعادة تسعير السطر بعد تغيّر الكمية (dynamic tier pricing)
+    const line = cart.find((x) => x.cartLineId === cartLineId);
+    if (line) recalcLinePrice(line, qty);
   };
 
   const removeFromCart = (cartLineId) => {
     setCart((prev) => prev.filter((x) => x.cartLineId !== cartLineId));
+    if (selectedCartLineId === cartLineId) setSelectedCartLineId(null);
   };
 
-  // بحث السكانر: لو المستخدم ضرب Enter وفي منتج واحد مطابق تماماً للباركود/الـ SKU، ضيفه فوراً
+  // بحث السكانر: Enter + تطابق SKU/Barcode/اسم = إضافة فورية
   const handleSearchKeyDown = (e) => {
     if (e.key !== "Enter") return;
+    e.preventDefault();
     const term = search.trim().toLowerCase();
     if (!term) return;
 
     const exactMatch = products.find(
-      (p) => p.sku?.toLowerCase() === term || p.barcode?.toLowerCase() === term
+      (p) =>
+        String(p.sku ?? "").toLowerCase() === term ||
+        String(p.barcode ?? "").toLowerCase() === term ||
+        (p.nameAr || "").trim().toLowerCase() === term
     );
 
     if (exactMatch) {
       handleTileClick(exactMatch);
       setSearch("");
+      refocusSearch();
+      return;
     }
+
+    // مفيش تطابق محلي — نجرّب أول نتيجة من السيرفر
+    (async () => {
+      try {
+        const data = await searchPosProducts({
+          query: term,
+          tier: pricingTier,
+          pageNumber: 1,
+          pageSize: 1,
+        });
+        const first = (data.items || [])[0];
+        if (first) {
+          handleTileClick(first);
+          setSearch("");
+          refocusSearch();
+        } else {
+          playScanError();
+          flashScan("error");
+        }
+      } catch {
+        playScanError();
+        flashScan("error");
+      }
+    })();
   };
 
+  // ---- Totals ----
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + (item.unitPrice || 0) * item.quantityInBaseUnit, 0),
     [cart]
   );
 
   const normalizedDiscountValue = Math.max(Number(discountValue) || 0, 0);
-  const safeDiscount = Math.min(discountType === "Percentage" ? subtotal * Math.min(normalizedDiscountValue, 100) / 100 : normalizedDiscountValue, subtotal);
+  const safeDiscount = Math.min(
+    discountType === "Percentage"
+      ? (subtotal * Math.min(normalizedDiscountValue, 100)) / 100
+      : normalizedDiscountValue,
+    subtotal
+  );
   const discountPercentage = subtotal > 0 ? (safeDiscount / subtotal) * 100 : 0;
   const discountedSubtotal = Math.max(subtotal - safeDiscount, 0);
-  // H-08: estimate only — see ESTIMATED_TAX_RATE comment above.
   const tax = discountedSubtotal * ESTIMATED_TAX_RATE;
   const total = discountedSubtotal + tax;
 
   const cashReceivedNumber = Number(cashReceived) || 0;
   const changeDue = cashReceivedNumber - total;
 
+  // ---- Quick add customer ----
   async function handleQuickAddCustomer(e) {
     e.preventDefault();
     if (!newCustomer.fullName.trim()) return;
@@ -323,11 +491,11 @@ export default function PosCheckoutPage() {
       setIsAddingNewCustomer(false);
       await loadCustomersList();
     } catch (err) {
-      alert("حدث خطأ أثناء إضافة العميل الجدد.");
+      alert("حدث خطأ أثناء إضافة العميل الجديد.");
     }
   }
 
-  // --- تسجيل مصروف ---
+  // ---- Expense ----
   async function handleSubmitExpense(e) {
     e.preventDefault();
     const amount = Number(expenseAmount);
@@ -335,19 +503,12 @@ export default function PosCheckoutPage() {
 
     setExpenseSubmitting(true);
     try {
-      await axiosInstance.post("/Expenses", {
-        amount,
-        notes: expenseNotes.trim(),
-      });
+      await axiosInstance.post("/Expenses", { amount, notes: expenseNotes.trim() });
       setExpenseAmount("");
       setExpenseNotes("");
       setShowExpenseModal(false);
       alert("تم تسجيل المصروف بنجاح");
     } catch (err) {
-      // H-09: the backend now honestly returns 501 while Expense persistence
-      // isn't wired up yet, instead of a fake 200 OK. Tell the cashier the
-      // truth instead of pretending it was saved — and don't clear their
-      // input, since nothing was actually recorded.
       if (err?.response?.status === 501) {
         alert("ميزة تسجيل المصاريف غير مفعّلة على السيرفر بعد. لم يتم حفظ هذا المصروف.");
       } else {
@@ -359,28 +520,23 @@ export default function PosCheckoutPage() {
     }
   }
 
-  // --- تسجيل خروج ---
   function handleLogout() {
     logout();
     window.location.assign(import.meta.env.BASE_URL + "login");
   }
 
-  // بناء الـ payload بالظبط زي CreateOrderDto.cs ومنفذه فعلياً (أونلاين/أوفلاين).
-  // Phase 1: كل سطر بيُرسل بكمية الوحدة الأساسية (quantityInBaseUnit) لأن المخزون بالكامل
-  // مخزّن بالوحدة الأساسية فقط (UnitConversion) — التحويل يحصل هنا عند حد الـ DTO فقط.
-  // pricingTier مُرسلة كحقل إضافي؛ الباك إند الحالي يتجاهله لحد ما يتم دمج Order.PricingTier
-  // (راجع BACKEND_CHANGES.md → "OrderService integration").
+  // ---- Submit order ----
   async function submitOrder(paymentMethod) {
     if (!cart.length) return;
 
     const invoice = {
       customerName: selectedCustomer
-        ? (selectedCustomer.fullName || selectedCustomer.name || "عميل نقدي")
+        ? selectedCustomer.fullName || selectedCustomer.name || "عميل نقدي"
         : "عميل نقدي",
       customerPhone: selectedCustomer
-        ? (selectedCustomer.phoneNumber || selectedCustomer.phone || "")
+        ? selectedCustomer.phoneNumber || selectedCustomer.phone || ""
         : "",
-      customerId: selectedCustomer ? (selectedCustomer.id || selectedCustomer.Id) : null,
+      customerId: selectedCustomer ? selectedCustomer.id || selectedCustomer.Id : null,
       paymentMethod,
       orderSource: ORDER_SOURCE_IN_STORE,
       pricingTier,
@@ -397,19 +553,12 @@ export default function PosCheckoutPage() {
 
     setIsCheckingOut(true);
     try {
-      // H-08: when online, the server is the source of truth for tax/total
-      // (OrderService.CreateAsync computes TaxAmount/TotalAmount server-side —
-      // the client's estimated `tax`/`total` above are never sent or trusted).
-      // We capture the real response and use it for the printed invoice.
       let serverOrder = null;
 
       if (isOnline) {
         const response = await axiosInstance.post("/Orders", invoice);
         serverOrder = response.data;
       } else {
-        // Offline: no server figures exist yet — the order is settled for
-        // real during the next sync. The printed receipt below falls back
-        // to the local estimate in this case only.
         await addLocalTransaction(invoice);
         const pending = await getPendingTransactions();
         setPendingCount(pending.length);
@@ -417,21 +566,27 @@ export default function PosCheckoutPage() {
 
       handlePrint(paymentMethod, serverOrder);
       alert("تم إنشاء الفاتورة بنجاح");
+
+      // تفريغ الحالة
       setCart([]);
       setSelectedCustomer(null);
       setDiscountValue(0);
       setDiscountType("Fixed");
       setShowCashModal(false);
       setCashReceived("");
+      setSelectedCartLineId(null);
+
+      // ✅ رجّع الفوكس على السكانر بعد البيع
+      refocusSearch();
     } catch (err) {
       console.error(err);
       alert("تعذر حفظ الفاتورة، يرجى المحاولة مرة أخرى.");
+      refocusSearch();
     } finally {
       setIsCheckingOut(false);
     }
   }
 
-  // كاش بيفتح نافذة الحاسبة الأول، بطاقة/محفظة بتتنفذ على طول
   function handlePaymentSelect(paymentMethod) {
     if (!cart.length) return;
     if (paymentMethod === PAYMENT_METHOD.CASH) {
@@ -442,10 +597,6 @@ export default function PosCheckoutPage() {
     submitOrder(paymentMethod);
   }
 
-  // H-08: prefers the server's authoritative figures (serverOrder) whenever
-  // we have them — i.e. whenever the order was created online. Only falls
-  // back to the local estimate for offline-queued orders, where no server
-  // response exists yet.
   const handlePrint = (paymentMethod, serverOrder) => {
     const printSubtotal = serverOrder?.subTotal ?? subtotal;
     const printDiscount = serverOrder?.discountAmount ?? safeDiscount;
@@ -465,7 +616,12 @@ export default function PosCheckoutPage() {
         items: cart.map((item) => ({
           productId: item.productId,
           productName: item.nameAr || item.name,
-          name: [item.nameAr || item.name, item.variant ? `(${[item.variant.color, item.variant.size].filter(Boolean).join(" / ")})` : null]
+          name: [
+            item.nameAr || item.name,
+            item.variant
+              ? `(${[item.variant.color, item.variant.size].filter(Boolean).join(" / ")})`
+              : null,
+          ]
             .filter(Boolean)
             .join(" "),
           sku: item.sku,
@@ -474,16 +630,136 @@ export default function PosCheckoutPage() {
         })),
       },
       {
-        fullName: selectedCustomer ? (selectedCustomer.fullName || selectedCustomer.name) : "عميل نقدي",
-        phone: selectedCustomer ? (selectedCustomer.phoneNumber || selectedCustomer.phone) : "-",
+        fullName: selectedCustomer
+          ? selectedCustomer.fullName || selectedCustomer.name
+          : "عميل نقدي",
+        phone: selectedCustomer
+          ? selectedCustomer.phoneNumber || selectedCustomer.phone
+          : "-",
         email: "",
       },
       { format: printFormat }
     );
   };
 
+  // ---- Hold / Restore (F8) ----
+  const holdOrder = useCallback(() => {
+    if (!cart.length) return;
+    const snapshot = {
+      id: `hold_${Date.now().toString(36)}`,
+      createdAt: new Date().toISOString(),
+      cart,
+      selectedCustomer,
+      discountType,
+      discountValue,
+      pricingTier,
+    };
+    const next = [...readHeldOrders(), snapshot];
+    writeHeldOrders(next);
+    setHeldOrders(next);
+
+    setCart([]);
+    setSelectedCustomer(null);
+    setDiscountValue(0);
+    setDiscountType("Fixed");
+    setSelectedCartLineId(null);
+    refocusSearch();
+  }, [cart, selectedCustomer, discountType, discountValue, pricingTier, refocusSearch]);
+
+  const restoreHeldOrder = useCallback(
+    (id) => {
+      const list = readHeldOrders();
+      const found = list.find((h) => h.id === id);
+      if (!found) return;
+      setCart(found.cart || []);
+      setSelectedCustomer(found.selectedCustomer || found.customer || null);
+      setDiscountType(found.discountType || "Fixed");
+      setDiscountValue(found.discountValue || 0);
+      setPricingTier(found.pricingTier || PRICING_TIER.RETAIL);
+      const remaining = list.filter((h) => h.id !== id);
+      writeHeldOrders(remaining);
+      setHeldOrders(remaining);
+      refocusSearch();
+    },
+    [refocusSearch]
+  );
+
+  // ---- F9: تشغيل زر الفاتورة الصوتية الموجود ----
+  const triggerVoiceInvoice = useCallback(() => {
+    const btn = voiceInvoiceWrapRef.current?.querySelector("button");
+    if (btn) btn.click();
+  }, []);
+
+  // ---- Keyboard shortcut handlers ----
+  const moveSelection = useCallback(
+    (delta) => {
+      if (cart.length === 0) return;
+      const idx = cart.findIndex((x) => x.cartLineId === selectedCartLineId);
+      const start = idx === -1 ? (delta > 0 ? -1 : 0) : idx;
+      const next = Math.max(0, Math.min(cart.length - 1, start + delta));
+      setSelectedCartLineId(cart[next].cartLineId);
+    },
+    [cart, selectedCartLineId]
+  );
+
+  const changeSelectedQty = useCallback(
+    (delta) => {
+      if (!selectedCartLineId) return;
+      const line = cart.find((x) => x.cartLineId === selectedCartLineId);
+      if (!line) return;
+      updateQty(selectedCartLineId, line.quantity + delta);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cart, selectedCartLineId]
+  );
+
+  const removeSelected = useCallback(() => {
+    if (selectedCartLineId) removeFromCart(selectedCartLineId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCartLineId]);
+
+  const anyModalOpen =
+    showCashModal ||
+    showExpenseModal ||
+    showModifyModal ||
+    showMaintenanceModal ||
+    !!pickerProduct ||
+    !!lightboxProduct;
+
+  usePosKeyboardShortcuts({
+    enabled: !anyModalOpen,
+    onFocusSearch: refocusSearch,
+    onCashCheckout: () => {
+      if (cart.length) {
+        setCashReceived("");
+        setShowCashModal(true);
+      }
+    },
+    onSelectCustomer: () => {
+      requestAnimationFrame(() => customerSearchInputRef.current?.focus());
+    },
+    onFocusDiscount: () => {
+      requestAnimationFrame(() => discountInputRef.current?.focus());
+    },
+    onHoldOrder: holdOrder,
+    onVoiceOrder: triggerVoiceInvoice,
+    onCartNavigate: moveSelection,
+    onQuantityDelta: changeSelectedQty,
+    onRemoveSelected: removeSelected,
+  });
+
   return (
-    <div className="min-h-screen bg-canvas" dir="rtl">
+    <div className="min-h-screen bg-canvas pb-10" dir="rtl">
+      {/* فلاش السكانر */}
+      {scanFlash && (
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none fixed inset-0 z-[60] ${
+            scanFlash === "ok" ? "bg-emerald-400/15" : "bg-rose-500/15"
+          }`}
+        />
+      )}
+
       {/* ===== Header ===== */}
       <header className="sticky top-0 z-30 bg-surface border-b border-border px-4 md:px-6 py-3 flex items-center justify-between gap-4 shadow-xs">
         <div className="flex items-center gap-3">
@@ -494,20 +770,43 @@ export default function PosCheckoutPage() {
             <h1 className="font-black text-ink text-sm leading-none">Store POS</h1>
             <span
               className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                isOnline
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-rose-100 text-rose-700"
+                isOnline ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
               }`}
             >
               {isOnline ? <Wifi size={11} /> : <WifiOff size={11} />}
               {isOnline ? "متصل" : `أوفلاين • ${pendingCount} معلقة`}
             </span>
+
+            {heldOrders.length > 0 && (
+              <button
+                type="button"
+                onClick={() => restoreHeldOrder(heldOrders[heldOrders.length - 1].id)}
+                className="ms-2 mt-1 inline-flex items-center gap-1 rounded-full bg-amber/15 px-2 py-0.5 text-[10px] font-bold text-amber-dark hover:bg-amber/25 cursor-pointer"
+                title="استعادة آخر طلب معلّق (F8)"
+              >
+                <PlayCircle size={11} />
+                معلقة ({heldOrders.length})
+              </button>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <VoiceInvoiceButton />
+          <span ref={voiceInvoiceWrapRef} className="contents">
+            <VoiceInvoiceButton />
+          </span>
           <VoiceAttendanceButton />
+
+          <button
+            type="button"
+            onClick={holdOrder}
+            disabled={!cart.length}
+            className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-100 disabled:opacity-40 cursor-pointer"
+            title="تعليق الطلب (F8)"
+          >
+            <PauseCircle size={14} />
+            <span className="hidden sm:inline">تعليق</span>
+          </button>
 
           <button
             type="button"
@@ -561,28 +860,33 @@ export default function PosCheckoutPage() {
 
       {/* ===== Main Layout ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 p-4 md:p-6">
-        {/* ---------- Left: Product Grid (≈70%) — Horizontal Grid View ---------- */}
+        {/* Left: Products */}
         <div className="lg:col-span-7 space-y-4">
           <div className="sticky top-[68px] z-20 bg-canvas pb-1 space-y-2">
             <div className="relative">
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="امسح الباركود أو ابحث بالاسم / SKU..."
+                placeholder="امسح الباركود أو ابحث بالاسم / SKU... (F1)"
                 className="w-full border border-border rounded-2xl p-3.5 pr-11 text-sm bg-surface shadow-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
-                autoFocus
+                autoComplete="off"
+                spellCheck={false}
               />
               <Search size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
             </div>
 
-            {/* Phase 1: pricing-tier selector — changes which price breaks the grid/cart resolve against */}
             <div className="flex items-center gap-2">
               <Layers size={13} className="text-ink-soft shrink-0" />
               <div className="flex flex-wrap gap-1.5">
-                {[PRICING_TIER.RETAIL, PRICING_TIER.FIRST_WHOLESALE, PRICING_TIER.WHOLESALE, PRICING_TIER.DISTRIBUTOR].map((tierValue) => (
+                {[
+                  PRICING_TIER.RETAIL,
+                  PRICING_TIER.FIRST_WHOLESALE,
+                  PRICING_TIER.WHOLESALE,
+                  PRICING_TIER.DISTRIBUTOR,
+                ].map((tierValue) => (
                   <button
                     key={tierValue}
                     type="button"
@@ -600,8 +904,6 @@ export default function PosCheckoutPage() {
             </div>
           </div>
 
-          {/* Horizontal Grid View: scrolls sideways instead of wrapping into vertical rows,
-              so the cashier can flick through a wide, fixed-height strip of product tiles. */}
           <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory scroll-smooth">
             {products.map((product) => (
               <div
@@ -688,7 +990,9 @@ export default function PosCheckoutPage() {
             >
               السابق
             </button>
-            <span className="text-xs font-bold text-ink-soft">صفحة {currentPage} من {totalPages}</span>
+            <span className="text-xs font-bold text-ink-soft">
+              صفحة {currentPage} من {totalPages}
+            </span>
             <button
               type="button"
               disabled={currentPage >= totalPages}
@@ -700,7 +1004,7 @@ export default function PosCheckoutPage() {
           </div>
         </div>
 
-        {/* ---------- Right: Cart & Checkout (≈30%) ---------- */}
+        {/* Right: Cart */}
         <div className="lg:col-span-3">
           <div className="lg:sticky lg:top-[68px] bg-surface border border-border rounded-2xl p-4 shadow-xs space-y-4">
             <h2 className="font-bold text-sm text-ink border-b border-border pb-2 flex items-center gap-1.5">
@@ -708,7 +1012,7 @@ export default function PosCheckoutPage() {
               تفاصيل الطلب والعميل
             </h2>
 
-            {/* Customer Selection Section */}
+            {/* Customer */}
             <div className="bg-canvas border border-border rounded-xl p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-ink flex items-center gap-1.5">
@@ -767,8 +1071,9 @@ export default function PosCheckoutPage() {
 
                   <div className="relative">
                     <input
+                      ref={customerSearchInputRef}
                       type="text"
-                      placeholder="ابحث عن عميل مسجل..."
+                      placeholder="ابحث عن عميل مسجل... (F3)"
                       value={customerSearch}
                       onChange={(e) => setCustomerSearch(e.target.value)}
                       className="w-full border border-border rounded-lg p-1.5 pr-7 text-xs bg-surface outline-none"
@@ -779,7 +1084,9 @@ export default function PosCheckoutPage() {
                   {customerSearch && (
                     <div className="max-h-32 overflow-y-auto border border-border rounded-lg bg-surface divide-y divide-border">
                       {filteredCustomers.length === 0 ? (
-                        <div className="p-2 text-[11px] text-ink-soft text-center">لا يوجد عملاء مطابقين</div>
+                        <div className="p-2 text-[11px] text-ink-soft text-center">
+                          لا يوجد عملاء مطابقين
+                        </div>
                       ) : (
                         filteredCustomers.map((c) => (
                           <button
@@ -793,9 +1100,12 @@ export default function PosCheckoutPage() {
                           >
                             <div>
                               <div className="font-bold text-ink">{c.fullName || c.name}</div>
-                              <div className="text-[10px] text-ink-soft">{c.phoneNumber || c.phone || "بدون رقم"}</div>
+                              <div className="text-[10px] text-ink-soft">
+                                {c.phoneNumber || c.phone || "بدون رقم"}
+                              </div>
                             </div>
-                            {(selectedCustomer?.id === c.id || selectedCustomer?.Id === c.Id) && (
+                            {(selectedCustomer?.id === c.id ||
+                              selectedCustomer?.Id === c.Id) && (
                               <Check size={14} className="text-emerald-600" />
                             )}
                           </button>
@@ -807,8 +1117,12 @@ export default function PosCheckoutPage() {
                   {selectedCustomer && (
                     <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs flex justify-between items-center">
                       <div>
-                        <span className="font-bold text-emerald-900">{selectedCustomer.fullName || selectedCustomer.name}</span>
-                        <span className="block text-[10px] text-emerald-700">{selectedCustomer.phoneNumber || selectedCustomer.phone}</span>
+                        <span className="font-bold text-emerald-900">
+                          {selectedCustomer.fullName || selectedCustomer.name}
+                        </span>
+                        <span className="block text-[10px] text-emerald-700">
+                          {selectedCustomer.phoneNumber || selectedCustomer.phone}
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -823,68 +1137,126 @@ export default function PosCheckoutPage() {
               )}
             </div>
 
-            {/* Cart Items List */}
-            <div className="max-h-60 overflow-y-auto space-y-2 divide-y divide-border pl-1">
+            {/* Cart items */}
+            <div className="max-h-72 overflow-y-auto space-y-1 divide-y divide-border pl-1">
               {cart.length === 0 ? (
                 <div className="text-center py-6 text-xs text-ink-soft flex flex-col items-center gap-1.5">
                   <ShoppingCart size={22} className="text-border" />
                   السلة فارغة حالياً
                 </div>
               ) : (
-                cart.map((item) => (
-                  <div key={item.cartLineId} className="pt-2 flex justify-between items-center text-xs gap-2">
-                    <div className="min-w-0">
-                      <div className="font-bold text-ink truncate">{item.nameAr || item.name}</div>
-                      {item.variant && (
-                        <div className="text-[10px] text-emerald-700 truncate">
-                          {[item.variant.color, item.variant.size, item.variant.material].filter(Boolean).join(" / ")}
+                cart.map((item) => {
+                  const isSelected = item.cartLineId === selectedCartLineId;
+                  return (
+                    <div
+                      key={item.cartLineId}
+                      onClick={() => setSelectedCartLineId(item.cartLineId)}
+                      className={`pt-2 pb-1 flex justify-between items-center text-xs gap-2 rounded-lg px-1.5 -mx-1 cursor-pointer transition ${
+                        isSelected
+                          ? "bg-emerald-50 ring-1 ring-emerald-300"
+                          : "hover:bg-canvas"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="font-bold text-ink truncate">
+                          {item.nameAr || item.name}
                         </div>
-                      )}
-                      <div className="text-ink-soft text-[10px] font-mono">
-                        {item.unitPrice.toFixed(2)} ج.م / {item.unit?.fromUnit || "قطعة"}
+                        {item.variant && (
+                          <div className="text-[10px] text-emerald-700 truncate">
+                            {[item.variant.color, item.variant.size, item.variant.material]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </div>
+                        )}
+                        <div className="text-ink-soft text-[10px] font-mono">
+                          {item.unitPrice.toFixed(2)} ج.م / {item.unit?.fromUnit || "قطعة"}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-1 items-center shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateQty(item.cartLineId, item.quantity - 1);
+                          }}
+                          className="w-6 h-6 bg-canvas border border-border rounded-lg flex items-center justify-center hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition cursor-pointer"
+                        >
+                          <Minus size={11} />
+                        </button>
+                        <span className="font-mono font-bold text-xs w-5 text-center">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateQty(item.cartLineId, item.quantity + 1);
+                          }}
+                          className="w-6 h-6 bg-canvas border border-border rounded-lg flex items-center justify-center hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition cursor-pointer"
+                        >
+                          <Plus size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFromCart(item.cartLineId);
+                          }}
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-ink-soft hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </div>
-
-                    <div className="flex gap-1 items-center shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.cartLineId, item.quantity - 1)}
-                        className="w-6 h-6 bg-canvas border border-border rounded-lg flex items-center justify-center hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition cursor-pointer"
-                      >
-                        <Minus size={11} />
-                      </button>
-                      <span className="font-mono font-bold text-xs w-5 text-center">{item.quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.cartLineId, item.quantity + 1)}
-                        className="w-6 h-6 bg-canvas border border-border rounded-lg flex items-center justify-center hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition cursor-pointer"
-                      >
-                        <Plus size={11} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.cartLineId)}
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-ink-soft hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
-            {/* Discount Input */}
+            {/* Discount */}
             <div className="space-y-2 rounded-xl border border-border bg-canvas p-2.5">
               <p className="text-xs font-bold text-ink">الخصم</p>
               <div className="grid grid-cols-2 gap-2">
-                <label className="text-[11px] text-ink-soft">المبلغ (ج.م)<input type="number" min="0" step="0.01" value={discountType === "Fixed" ? discountValue : safeDiscount.toFixed(2)} onChange={(e) => { setDiscountType("Fixed"); setDiscountValue(e.target.value) }} className="mt-1 w-full rounded-lg border border-border bg-surface p-1.5 text-xs font-mono outline-none focus:border-emerald-500" /></label>
-                <label className="text-[11px] text-ink-soft">النسبة (%)<input type="number" min="0" max="100" step="0.01" value={discountType === "Percentage" ? discountValue : discountPercentage.toFixed(2)} onChange={(e) => { setDiscountType("Percentage"); setDiscountValue(e.target.value) }} className="mt-1 w-full rounded-lg border border-border bg-surface p-1.5 text-xs font-mono outline-none focus:border-emerald-500" /></label>
+                <label className="text-[11px] text-ink-soft">
+                  المبلغ (ج.م)
+                  <input
+                    ref={discountInputRef}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={discountType === "Fixed" ? discountValue : safeDiscount.toFixed(2)}
+                    onChange={(e) => {
+                      setDiscountType("Fixed");
+                      setDiscountValue(e.target.value);
+                    }}
+                    className="mt-1 w-full rounded-lg border border-border bg-surface p-1.5 text-xs font-mono outline-none focus:border-emerald-500"
+                  />
+                </label>
+                <label className="text-[11px] text-ink-soft">
+                  النسبة (%)
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={
+                      discountType === "Percentage" ? discountValue : discountPercentage.toFixed(2)
+                    }
+                    onChange={(e) => {
+                      setDiscountType("Percentage");
+                      setDiscountValue(e.target.value);
+                    }}
+                    className="mt-1 w-full rounded-lg border border-border bg-surface p-1.5 text-xs font-mono outline-none focus:border-emerald-500"
+                  />
+                </label>
               </div>
-              <p className="text-[10px] text-ink-soft">سيتم تطبيق خصم {safeDiscount.toFixed(2)} ج.م ({discountPercentage.toFixed(2)}%)</p>
+              <p className="text-[10px] text-ink-soft">
+                سيتم تطبيق خصم {safeDiscount.toFixed(2)} ج.م ({discountPercentage.toFixed(2)}%)
+              </p>
             </div>
 
-            {/* Phase 1: print-format selector */}
+            {/* Print format */}
             <div className="space-y-2 rounded-xl border border-border bg-canvas p-2.5">
               <p className="flex items-center gap-1.5 text-xs font-bold text-ink">
                 <Printer size={13} className="text-ink-soft" />
@@ -910,7 +1282,7 @@ export default function PosCheckoutPage() {
 
             <hr className="border-border" />
 
-            {/* Subtotal & Totals */}
+            {/* Totals */}
             <div className="space-y-1 text-xs">
               <div className="flex justify-between text-ink-soft">
                 <span>المبلغ الجزئي:</span>
@@ -932,7 +1304,7 @@ export default function PosCheckoutPage() {
               </div>
             </div>
 
-            {/* Checkout: Payment Method Grid */}
+            {/* Payment */}
             <div className="grid grid-cols-3 gap-2 pt-1">
               <button
                 type="button"
@@ -941,7 +1313,7 @@ export default function PosCheckoutPage() {
                 className="flex flex-col items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Banknote size={18} />
-                <span className="text-[11px] font-bold">كاش</span>
+                <span className="text-[11px] font-bold">كاش (F2)</span>
               </button>
 
               <button
@@ -968,9 +1340,13 @@ export default function PosCheckoutPage() {
         </div>
       </div>
 
-      {/* ===== Modal: تسجيل مصروف ===== */}
+      {/* ===== Expense modal ===== */}
       {showExpenseModal && (
-        <ModalShell onClose={() => setShowExpenseModal(false)} title="تسجيل مصروف" icon={<Receipt size={16} className="text-amber-dark" />}>
+        <ModalShell
+          onClose={() => setShowExpenseModal(false)}
+          title="تسجيل مصروف"
+          icon={<Receipt size={16} className="text-amber-dark" />}
+        >
           <form onSubmit={handleSubmitExpense} className="space-y-3">
             <div>
               <label className="text-xs font-bold text-ink block mb-1">المبلغ (ج.م)</label>
@@ -1007,9 +1383,13 @@ export default function PosCheckoutPage() {
         </ModalShell>
       )}
 
-      {/* ===== Modal: تعديل / إلغاء طلب ===== */}
+      {/* ===== Modify modal ===== */}
       {showModifyModal && (
-        <ModalShell onClose={() => setShowModifyModal(false)} title="تعديل / إلغاء طلب" icon={<Ban size={16} className="text-ink-soft" />}>
+        <ModalShell
+          onClose={() => setShowModifyModal(false)}
+          title="تعديل / إلغاء طلب"
+          icon={<Ban size={16} className="text-ink-soft" />}
+        >
           <p className="text-sm text-ink-soft leading-relaxed">
             لتعديل أو إلغاء طلب يرجى التوجه لصفحة العمليات
           </p>
@@ -1023,9 +1403,16 @@ export default function PosCheckoutPage() {
         </ModalShell>
       )}
 
-      {/* ===== Modal: حاسبة الكاش ===== */}
+      {/* ===== Cash modal ===== */}
       {showCashModal && (
-        <ModalShell onClose={() => setShowCashModal(false)} title="الدفع نقداً" icon={<Banknote size={16} className="text-emerald-600" />}>
+        <ModalShell
+          onClose={() => {
+            setShowCashModal(false);
+            refocusSearch();
+          }}
+          title="الدفع نقداً"
+          icon={<Banknote size={16} className="text-emerald-600" />}
+        >
           <div className="space-y-4">
             <div className="flex justify-between text-sm text-ink-soft">
               <span>الإجمالي المطلوب:</span>
@@ -1033,7 +1420,9 @@ export default function PosCheckoutPage() {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-ink block mb-1">المبلغ المستلم من العميل</label>
+              <label className="text-xs font-bold text-ink block mb-1">
+                المبلغ المستلم من العميل
+              </label>
               <input
                 type="number"
                 min="0"
@@ -1041,14 +1430,43 @@ export default function PosCheckoutPage() {
                 autoFocus
                 value={cashReceived}
                 onChange={(e) => setCashReceived(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && cashReceivedNumber >= total && !isCheckingOut) {
+                    e.preventDefault();
+                    submitOrder(PAYMENT_METHOD.CASH);
+                  }
+                }}
                 className="w-full border border-border rounded-xl p-3 text-lg font-mono font-bold bg-canvas outline-none focus:border-emerald-500 text-center"
                 placeholder="0.00"
               />
             </div>
 
+            {/* Quick cash suggestions */}
+            <div className="grid grid-cols-5 gap-1.5">
+              {[50, 100, 200, 500].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setCashReceived(String(v))}
+                  className="rounded-lg border border-border bg-canvas py-2 text-xs font-mono font-bold text-ink hover:bg-emerald-50 hover:border-emerald-300 transition cursor-pointer"
+                >
+                  {v}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setCashReceived(total.toFixed(2))}
+                className="rounded-lg border border-emerald-300 bg-emerald-50 py-2 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 transition cursor-pointer"
+              >
+                بالظبط
+              </button>
+            </div>
+
             <div
               className={`rounded-xl p-4 text-center ${
-                changeDue >= 0 ? "bg-emerald-50 border border-emerald-200" : "bg-rose-50 border border-rose-200"
+                changeDue >= 0
+                  ? "bg-emerald-50 border border-emerald-200"
+                  : "bg-rose-50 border border-rose-200"
               }`}
             >
               <div className="text-xs font-bold text-ink-soft mb-1">الباقي للعميل</div>
@@ -1072,28 +1490,34 @@ export default function PosCheckoutPage() {
               onClick={() => submitOrder(PAYMENT_METHOD.CASH)}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 rounded-xl transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isCheckingOut ? "جاري التنفيذ..." : "تأكيد وطباعة الفاتورة"}
+              {isCheckingOut ? "جاري التنفيذ..." : "تأكيد وطباعة الفاتورة (Enter)"}
             </button>
           </div>
         </ModalShell>
       )}
 
-      {/* ===== Phase 1: نافذة اختيار المتغيّر/الوحدة/الكمية ===== */}
+      {/* ===== Picker modal ===== */}
       {pickerProduct && (
         <VariantUnitPickerModal
           product={pickerProduct}
           tier={pricingTier}
           onConfirm={handlePickerConfirm}
-          onClose={() => setPickerProduct(null)}
+          onClose={() => {
+            setPickerProduct(null);
+            refocusSearch();
+          }}
         />
       )}
 
-      {/* ===== Phase 1: تكبير صورة المنتج ===== */}
+      {/* ===== Lightbox ===== */}
       {lightboxProduct && (
         <ProductLightbox
           imageUrl={lightboxProduct.imageUrl}
           title={lightboxProduct.nameAr || lightboxProduct.name}
-          onClose={() => setLightboxProduct(null)}
+          onClose={() => {
+            setLightboxProduct(null);
+            refocusSearch();
+          }}
         />
       )}
 
@@ -1102,16 +1526,19 @@ export default function PosCheckoutPage() {
         onClose={() => {
           setShowMaintenanceModal(false);
           setPrintMaintenanceLabel(false);
+          refocusSearch();
         }}
         customers={customers}
         onCreated={() => {}}
         defaultPrintLabel={printMaintenanceLabel}
       />
+
+      {/* ===== Shortcut bar ===== */}
+      <PosShortcutBar />
     </div>
   );
 }
 
-// نافذة عامة تستخدم في كل مودالز الصفحة
 function ModalShell({ title, icon, onClose, children }) {
   return (
     <div
