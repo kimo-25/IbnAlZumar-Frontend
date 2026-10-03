@@ -89,3 +89,30 @@ export function openPrintWindow(html) {
     printWindow.print()
   }
 }
+
+/**
+ * Silent print: renders the document in a hidden iframe and prints it, so the cashier's window keeps
+ * keyboard focus (openPrintWindow opens a new window that steals focus and can be blocked as a pop-up
+ * when it runs after an async request). Falls back to openPrintWindow if the iframe can't be created.
+ */
+export function openPrintFrame(html) {
+  if (typeof document === 'undefined' || !document.body) return openPrintWindow(html)
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.tabIndex = -1
+  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
+  const remove = () => frame.parentNode && frame.parentNode.removeChild(frame)
+  frame.onload = () => {
+    try {
+      const w = frame.contentWindow
+      w.addEventListener('afterprint', () => setTimeout(remove, 500))
+      w.focus()
+      w.print()
+    } catch {
+      remove()
+    }
+    setTimeout(remove, 120000) // safety net if afterprint never fires
+  }
+  document.body.appendChild(frame)
+  frame.srcdoc = html
+}
