@@ -1,12 +1,12 @@
 // File: src/components/customers/CustomerOrderPanel.jsx
 // لوحة تفاصيل طلب العميل: المنتجات، المبالغ، المدفوع، المتبقي — مع تعديل المبلغ المدفوع وحفظه عبر الـ API.
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { X, Loader2, Save, Receipt } from 'lucide-react'
 import { fetchOrderById, updateOrderPayment } from '../../api/ordersAdminApi'
 import { normalizeOrder, fmtMoney, round2, cairoDay, cairoTime } from '../../utils/orders/normalizeOrder'
 
 export default function CustomerOrderPanel({ order: summaryRaw, onClose, onPaymentSaved }) {
-  const summary = normalizeOrder(summaryRaw)
+  const summary = useMemo(() => normalizeOrder(summaryRaw), [summaryRaw])
   const [order, setOrder] = useState(summary)
   const [loading, setLoading] = useState(true)
   const [detailError, setDetailError] = useState('')
@@ -15,12 +15,11 @@ export default function CustomerOrderPanel({ order: summaryRaw, onClose, onPayme
   const [error, setError] = useState('')
 
   useEffect(() => {
-    let active = true
+    const controller = new AbortController()
     setLoading(true)
     setDetailError('')
-    fetchOrderById(summary.id)
+    fetchOrderById(summary.id, { signal: controller.signal })
       .then((data) => {
-        if (!active) return
         const o = normalizeOrder(data)
         // لو التفاصيل ما فيهاش مدفوع/أصناف نحتفظ بما جاء من القائمة
         const merged = {
@@ -34,12 +33,15 @@ export default function CustomerOrderPanel({ order: summaryRaw, onClose, onPayme
         setOrder(merged)
         setPaid(merged.paid === null ? '' : String(merged.paid))
       })
-      .catch(() => active && setDetailError('تعذر تحميل أصناف الطلب — المبالغ المعروضة من سجل الطلبات.'))
-      .finally(() => active && setLoading(false))
+      .catch((err) => {
+        if (err?.code !== 'ERR_CANCELED' && err?.name !== 'CanceledError') {
+          setDetailError('تعذر تحميل أصناف الطلب — المبالغ المعروضة من سجل الطلبات.')
+        }
+      })
+      .finally(() => !controller.signal.aborted && setLoading(false))
     return () => {
-      active = false
+      controller.abort()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary.id])
 
   useEffect(() => {
@@ -75,9 +77,9 @@ export default function CustomerOrderPanel({ order: summaryRaw, onClose, onPayme
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-start bg-ink/40 backdrop-blur-sm" onClick={() => !saving && onClose()}>
+    <div className="fixed inset-0 z-[70] flex items-end justify-start bg-black/50 backdrop-blur-sm" onClick={() => !saving && onClose()} dir="rtl">
       <aside
-        className="flex h-full w-full max-w-md flex-col overflow-hidden bg-surface shadow-lg"
+        className="flex h-[min(86dvh,720px)] max-h-full w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface shadow-2xl sm:h-full sm:rounded-none"
         dir="rtl"
         onClick={(e) => e.stopPropagation()}
       >

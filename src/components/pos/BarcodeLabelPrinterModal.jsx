@@ -155,11 +155,11 @@ export default function BarcodeLabelPrinterModal({ onClose, onPrinted }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/50 p-2 backdrop-blur-sm sm:p-4"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-surface shadow-lg"
+        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-surface shadow-lg sm:max-h-[92vh]"
         dir="rtl"
         onClick={(e) => e.stopPropagation()}
       >

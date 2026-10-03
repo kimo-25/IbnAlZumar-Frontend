@@ -204,9 +204,9 @@ export default function OrderEditModal({ orderId, summary, onClose, onSaved, onT
   const paymentOptions = withCurrent(PAYMENT_METHOD_OPTIONS, order?.paymentMethod)
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm" onClick={() => !saving && onClose()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/50 p-2 backdrop-blur-sm sm:p-4" onClick={() => !saving && onClose()}>
       <div
-        className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-surface shadow-lg"
+        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-surface shadow-lg sm:max-h-[94vh]"
         dir="rtl"
         onClick={(e) => e.stopPropagation()}
       >

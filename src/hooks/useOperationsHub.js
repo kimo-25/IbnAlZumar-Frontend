@@ -53,6 +53,14 @@ export function useOperationsHub() {
   // ---------- Toast ----------
   const [toast, setToast] = useState(null)
   const toastTimerRef = useRef(null)
+  const requestControllersRef = useRef(new Map())
+
+  const requestSignal = useCallback((key) => {
+    requestControllersRef.current.get(key)?.abort()
+    const controller = new AbortController()
+    requestControllersRef.current.set(key, controller)
+    return controller
+  }, [])
 
   const showToast = useCallback((message, type = 'success') => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
@@ -61,67 +69,80 @@ export function useOperationsHub() {
   }, [])
 
   useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current) }, [])
+  useEffect(() => () => {
+    requestControllersRef.current.forEach((controller) => controller.abort())
+    requestControllersRef.current.clear()
+  }, [])
 
   // ================= Fetchers =================
   const fetchOrders = useCallback(async () => {
+    const controller = requestSignal('orders')
     try {
       setLoadingOrders(true)
       setOrdersError(null)
-      const data = await getOnlineOrders()
+      const data = await getOnlineOrders({}, { signal: controller.signal })
       const ordersList = Array.isArray(data) ? data : (data.$values || data.data || [])
       setOrders(ordersList)
     } catch (err) {
-      console.error('فشل جلب الطلبات:', err)
-      setOrdersError('حدث خطأ أثناء جلب قائمة الطلبات والعمليات.')
+      if (err?.code !== 'ERR_CANCELED' && err?.name !== 'CanceledError') {
+        console.error('فشل جلب الطلبات:', err)
+        setOrdersError('حدث خطأ أثناء جلب قائمة الطلبات والعمليات.')
+      }
     } finally {
-      setLoadingOrders(false)
+      if (!controller.signal.aborted) setLoadingOrders(false)
     }
-  }, [])
+  }, [requestSignal])
 
   const fetchMaintenanceRequests = useCallback(async () => {
+    const controller = requestSignal('maintenance')
     try {
       setLoadingMaintenance(true)
       setMaintenanceError(null)
-      const res = await axiosInstance.get('/Maintenance')
+      const res = await axiosInstance.get('/Maintenance', { signal: controller.signal })
       const list = Array.isArray(res.data) ? res.data : (res.data?.$values || res.data?.data || [])
       setMaintenanceRequests(list)
     } catch (err) {
-      console.error('تعذر جلب طلبات الصيانة:', err)
-      setMaintenanceError('حدث خطأ أثناء جلب طلبات الصيانة.')
+      if (err?.code !== 'ERR_CANCELED' && err?.name !== 'CanceledError') {
+        console.error('تعذر جلب طلبات الصيانة:', err)
+        setMaintenanceError('حدث خطأ أثناء جلب طلبات الصيانة.')
+      }
     } finally {
-      setLoadingMaintenance(false)
+      if (!controller.signal.aborted) setLoadingMaintenance(false)
     }
-  }, [])
+  }, [requestSignal])
 
   const fetchShippingZones = useCallback(async () => {
+    const controller = requestSignal('shipping-zones')
     try {
       setLoadingZones(true)
-      const res = await axiosInstance.get('/ShippingZones')
+      const res = await axiosInstance.get('/ShippingZones', { signal: controller.signal })
       const data = res.data
       setShippingZones(Array.isArray(data) ? data : (data.$values || data.data || []))
     } catch (err) {
       console.error('فشل جلب مناطق الشحن:', err)
     } finally {
-      setLoadingZones(false)
+      if (!controller.signal.aborted) setLoadingZones(false)
     }
-  }, [])
+  }, [requestSignal])
 
   const fetchPendingZoneRequests = useCallback(async () => {
+    const controller = requestSignal('zone-requests')
     try {
       setLoadingZoneRequests(true)
       setZoneRequestsError(null)
-      const res = await axiosInstance.get('/ShippingZones/pending-requests')
+      const res = await axiosInstance.get('/ShippingZones/pending-requests', { signal: controller.signal })
       const data = res.data
       setPendingZoneRequests(Array.isArray(data) ? data : (data.$values || data.data || []))
     } catch (err) {
       console.error('فشل جلب طلبات المناطق الجديدة:', err)
       setZoneRequestsError('حدث خطأ أثناء جلب طلبات المناطق الجديدة.')
     } finally {
-      setLoadingZoneRequests(false)
+      if (!controller.signal.aborted) setLoadingZoneRequests(false)
     }
-  }, [])
+  }, [requestSignal])
 
   const fetchProducts = useCallback(async () => {
+    const controller = requestSignal('products')
     try {
       setLoadingProducts(true)
       const params = {
@@ -132,7 +153,7 @@ export function useOperationsHub() {
         params.searchTerm = productSearch.trim()
       }
 
-      const res = await axiosInstance.get('/Products', { params })
+      const res = await axiosInstance.get('/Products', { params, signal: controller.signal })
       const data = res.data
       const list = Array.isArray(data) ? data : (data.items || data.Items || data.$values || [])
       const total = Number(
@@ -144,28 +165,33 @@ export function useOperationsHub() {
       setProducts(list)
       setProductTotalPages(Math.max(1, Math.ceil(total / pageSize)))
     } catch (err) {
-      console.error('فشل جلب المنتجات:', err)
-      setProducts([])
-      setProductTotalPages(1)
+      if (err?.code !== 'ERR_CANCELED' && err?.name !== 'CanceledError') {
+        console.error('فشل جلب المنتجات:', err)
+        setProducts([])
+        setProductTotalPages(1)
+      }
     } finally {
-      setLoadingProducts(false)
+      if (!controller.signal.aborted) setLoadingProducts(false)
     }
-  }, [productPage, productSearch])
+  }, [productPage, productSearch, requestSignal])
 
   const fetchLowStock = useCallback(async () => {
+    const controller = requestSignal('low-stock')
     try {
       setLoadingLowStock(true)
       setLowStockError(null)
-      const data = await getLowStockProducts()
+      const data = await getLowStockProducts({ signal: controller.signal })
       const list = Array.isArray(data) ? data : (data?.$values || data?.data || [])
       setLowStockProducts(list)
     } catch (err) {
-      console.error('فشل جلب تنبيهات نقص المخزون:', err)
-      setLowStockError('حدث خطأ أثناء جلب قائمة المنتجات الناقصة.')
+      if (err?.code !== 'ERR_CANCELED' && err?.name !== 'CanceledError') {
+        console.error('فشل جلب تنبيهات نقص المخزون:', err)
+        setLowStockError('حدث خطأ أثناء جلب قائمة المنتجات الناقصة.')
+      }
     } finally {
-      setLoadingLowStock(false)
+      if (!controller.signal.aborted) setLoadingLowStock(false)
     }
-  }, [])
+  }, [requestSignal])
 
   useEffect(() => {
     if (activeTab === 'orders') fetchOrders()

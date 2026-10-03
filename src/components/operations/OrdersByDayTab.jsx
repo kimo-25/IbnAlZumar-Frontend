@@ -12,6 +12,8 @@ function shiftDay(day, delta) {
   return d.toLocaleDateString('en-CA')
 }
 
+const ROWS_PER_PAGE = 50
+
 export default function OrdersByDayTab({ kind, refreshKey = 0, onToast }) {
   const isPos = kind === 'pos'
   const [day, setDay] = useState(() => cairoDay())
@@ -20,24 +22,29 @@ export default function OrdersByDayTab({ kind, refreshKey = 0, onToast }) {
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(null) // normalized order summary
   const [reload, setReload] = useState(0)
+  const [page, setPage] = useState(1)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal) => {
     setLoading(true)
     setError('')
     try {
       // Fetch the live order collection; date and order-source filtering stay local because
       // the endpoint contract does not expose a consistent from/to filter across deployments.
-      const res = await fetchOrders()
+      const res = await fetchOrders({}, { signal })
       setAll(extractList(res).map(normalizeOrder))
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'تعذر تحميل الطلبات')
+      if (err?.code !== 'ERR_CANCELED' && err?.name !== 'CanceledError') {
+        setError(err?.response?.data?.message || err?.message || 'تعذر تحميل الطلبات')
+      }
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    load()
+    const controller = new AbortController()
+    load(controller.signal)
+    return () => controller.abort()
   }, [load, refreshKey, reload])
 
   const rows = useMemo(
@@ -48,10 +55,24 @@ export default function OrdersByDayTab({ kind, refreshKey = 0, onToast }) {
     [all, isPos, day]
   )
 
-  const live = rows.filter((o) => !isCancelledStatus(o.status))
-  const sales = live.reduce((s, o) => s + o.total, 0)
-  const collected = live.reduce((s, o) => s + (o.paid ?? 0), 0)
-  const hasPaidData = live.some((o) => o.paid !== null)
+  const stats = useMemo(() => {
+    const live = rows.filter((o) => !isCancelledStatus(o.status))
+    return {
+      sales: live.reduce((sum, o) => sum + o.total, 0),
+      collected: live.reduce((sum, o) => sum + (o.paid ?? 0), 0),
+      hasPaidData: live.some((o) => o.paid !== null)
+    }
+  }, [rows])
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE))
+  const visibleRows = useMemo(
+    () => rows.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE),
+    [rows, page]
+  )
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, pageCount))
+  }, [pageCount])
 
   return (
     <div className="space-y-4">
@@ -71,8 +92,8 @@ export default function OrdersByDayTab({ kind, refreshKey = 0, onToast }) {
 
         <div className="ms-auto flex flex-wrap gap-4 text-xs">
           <Stat label="عدد الطلبات" value={String(rows.length)} />
-          <Stat label="إجمالي المبيعات" value={fmtMoney(sales)} />
-          {hasPaidData && <Stat label="المحصّل" value={fmtMoney(collected)} />}
+          <Stat label="إجمالي المبيعات" value={fmtMoney(stats.sales)} />
+          {stats.hasPaidData && <Stat label="المحصّل" value={fmtMoney(stats.collected)} />}
         </div>
       </div>
 
@@ -104,7 +125,7 @@ export default function OrdersByDayTab({ kind, refreshKey = 0, onToast }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {rows.map((o) => (
+              {visibleRows.map((o) => (
                 <tr key={o.id ?? o.orderNumber} onClick={() => setEditing(o)} className="cursor-pointer transition hover:bg-emerald-50/50" title="اضغط لعرض وتعديل الطلب">
                   <td className="p-3 font-mono font-bold text-emerald-700" dir="ltr">#{o.orderNumber}</td>
                   <td className="p-3 text-ink-soft">{cairoTime(o.createdAt)}</td>
@@ -124,6 +145,14 @@ export default function OrdersByDayTab({ kind, refreshKey = 0, onToast }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-center gap-3 text-xs">
+          <button type="button" disabled={page === 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-border px-3 py-1.5 disabled:opacity-40">السابق</button>
+          <span className="font-mono text-ink-soft">{page} / {pageCount}</span>
+          <button type="button" disabled={page === pageCount} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-border px-3 py-1.5 disabled:opacity-40">التالي</button>
         </div>
       )}
 

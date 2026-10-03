@@ -93,10 +93,10 @@ export default function MaintenanceTicketDrawer({ ticket, onClose, onUpdated }) 
   const runningTotal = (ticket.laborCost || 0) + partsTotal
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-stretch justify-end bg-black/40" onClick={onClose} dir="rtl">
+    <div className="fixed inset-0 z-[70] flex items-end justify-start bg-black/50" onClick={onClose} dir="rtl">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full max-w-md flex-col gap-4 overflow-y-auto bg-surface p-5 shadow-2xl"
+        className="flex h-[min(86dvh,720px)] max-h-full w-full max-w-md flex-col gap-4 overflow-y-auto rounded-t-2xl bg-surface p-5 shadow-2xl sm:h-full sm:rounded-none"
       >
         <div className="flex items-start justify-between border-b border-border pb-3">
           <div>

@@ -223,12 +223,19 @@ export async function getOrders(params = {}) {
   return safeGet('/Orders', params, [])
 }
 
-export async function getOnlineOrders(params = {}) {
+export async function getOnlineOrders(params = {}, options = {}) {
   try {
-    const response = await axiosInstance.get('/Orders', { params })
+    const response = await axiosInstance.get('/Orders', { params, ...options })
     return response.data
   } catch (error) {
-    return safeGet('/Orders/online', params, [])
+    if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') throw error
+    try {
+      const response = await axiosInstance.get('/Orders/online', { params, ...options })
+      return response.data
+    } catch (fallbackError) {
+      if (fallbackError?.code === 'ERR_CANCELED' || fallbackError?.name === 'CanceledError') throw fallbackError
+      return []
+    }
   }
 }
 
@@ -277,8 +284,14 @@ export async function getShifts(params = {}) {
  * ترجع كل المنتجات التي وصلت (أو أقل من) الحد الأدنى المسموح به للمخزون.
  * متاحة للـ Owner و Admin و Moderator على مستوى الـ Back-end.
  */
-export async function getLowStockProducts() {
-  return safeGet('/Inventory/low-stock', {}, [])
+export async function getLowStockProducts(options = {}) {
+  try {
+    const response = await axiosInstance.get('/Inventory/low-stock', options)
+    return response.data
+  } catch (error) {
+    if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') throw error
+    return []
+  }
 }
 
 /**

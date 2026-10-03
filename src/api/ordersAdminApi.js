@@ -16,13 +16,13 @@ export function extractList(res) {
   return res?.items || res?.Items || res?.data || res?.Data || []
 }
 
-export async function fetchOrderById(id) {
-  const res = await axiosInstance.get(`/Orders/${id}`)
+export async function fetchOrderById(id, options = {}) {
+  const res = await axiosInstance.get(`/Orders/${id}`, options)
   return unwrap(res)
 }
 
-export async function fetchOrders(params = {}) {
-  const res = await axiosInstance.get('/Orders', { params })
+export async function fetchOrders(params = {}, options = {}) {
+  const res = await axiosInstance.get('/Orders', { params, ...options })
   return unwrap(res)
 }
 

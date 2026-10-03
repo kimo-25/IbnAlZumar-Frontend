@@ -79,16 +79,18 @@ export default function PosItemPanel({
   };
 
   return (
-    <aside
-      data-panel={mode}
-      dir="rtl"
-      aria-label="تفاصيل الصنف"
-      // clicking inside must not pull focus away from the scan box (inputs excepted)
-      onMouseDown={(e) => {
-        if (!e.target.closest("input,select,textarea")) e.preventDefault();
-      }}
-      className="fixed bottom-10 right-0 top-[68px] z-40 flex w-[348px] max-w-[94vw] flex-col overflow-hidden rounded-l-2xl border border-r-0 border-border bg-surface shadow-2xl"
-    >
+    <>
+      <div className="fixed inset-0 z-[70] bg-black/50" onClick={onClose} aria-hidden="true" />
+      <aside
+        data-panel={mode}
+        dir="rtl"
+        aria-label="تفاصيل الصنف"
+        // clicking inside must not pull focus away from the scan box (inputs excepted)
+        onMouseDown={(e) => {
+          if (!e.target.closest("input,select,textarea")) e.preventDefault();
+        }}
+        className="fixed inset-x-0 bottom-0 z-[71] flex h-[min(86dvh,720px)] max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-b-0 border-border bg-surface shadow-2xl sm:inset-x-auto sm:bottom-10 sm:right-0 sm:top-[68px] sm:h-auto sm:w-[348px] sm:max-w-[94vw] sm:rounded-l-2xl sm:rounded-t-none sm:border-b sm:border-r-0"
+      >
       {/* header */}
       <div className="flex items-start justify-between gap-2 bg-gradient-to-l from-emerald-700 to-emerald-600 px-4 py-3 text-white">
         <div className="min-w-0">
@@ -236,6 +238,7 @@ export default function PosItemPanel({
           </button>
         </div>
       )}
-    </aside>
+      </aside>
+    </>
   );
 }
