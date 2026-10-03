@@ -5,6 +5,8 @@ import { Loader2, ArrowRight, ShoppingBag, Phone, Mail, MapPin, Wallet } from 'l
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import { getCustomers, getOrders } from '../../api/adminApi'
+import CustomerOrderPanel from '../../components/customers/CustomerOrderPanel'
+import { normalizeOrder, fmtMoney } from '../../utils/orders/normalizeOrder'
 
 export default function CustomerDetailsPage() {
   const { id } = useParams()
@@ -13,6 +15,8 @@ export default function CustomerDetailsPage() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [selectedOrder, setSelectedOrder] = useState(null)
+  const [notice, setNotice] = useState(null) // { type: 'ok' | 'warn', text }
 
   useEffect(() => {
     let active = true
@@ -67,6 +71,39 @@ export default function CustomerDetailsPage() {
     }
   }, [id])
 
+  // بعد تعديل المدفوع: نحدّث صف الطلب + مديونية العميل فورًا، ثم نتأكد من السيرفر.
+  const handleOrderPaymentSaved = async ({ orderId, paid, remaining, delta }) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        String(o.id ?? o.Id) === String(orderId) ? { ...o, paidAmount: paid, remainingAmount: remaining } : o
+      )
+    )
+
+    const before = Number(customer?.currentBalance ?? customer?.CurrentBalance ?? 0)
+    // زيادة المدفوع = نقص المديونية (تحديث فوري متفائل)
+    setCustomer((c) => ({ ...c, currentBalance: before - delta }))
+
+    try {
+      const res = await getCustomers()
+      const list = Array.isArray(res) ? res : (res?.items || res?.Items || res?.data || res?.Data || [])
+      const fresh = list.find((c) => String(c.id ?? c.Id) === String(id))
+      if (fresh) {
+        const serverBalance = Number(fresh.currentBalance ?? fresh.CurrentBalance ?? 0)
+        setCustomer(fresh)
+        if (delta !== 0 && Math.abs(serverBalance - before) < 0.005) {
+          setNotice({
+            type: 'warn',
+            text: 'تم حفظ المبلغ المدفوع، لكن مديونية العميل على السيرفر لم تتغير. راجع الـ API: يجب أن يعدّل السيرفر رصيد العميل بفرق المدفوع.',
+          })
+          return
+        }
+      }
+      setNotice({ type: 'ok', text: 'تم حفظ المبلغ المدفوع وتحديث مديونية العميل.' })
+    } catch {
+      setNotice({ type: 'warn', text: 'تم حفظ المدفوع، لكن تعذر إعادة تحميل رصيد العميل من السيرفر.' })
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-24 text-ink-soft">
@@ -113,6 +150,19 @@ export default function CustomerDetailsPage() {
           </div>
         </div>
       </div>
+
+      {notice && (
+        <div
+          className={`flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-medium ${
+            notice.type === 'warn'
+              ? 'border-amber-200 bg-amber-50 text-amber-800'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          }`}
+        >
+          <span>{notice.text}</span>
+          <button type="button" onClick={() => setNotice(null)} className="text-xs font-bold underline cursor-pointer">إخفاء</button>
+        </div>
+      )}
 
       {/* كروت الملخص الإحصائي */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -182,13 +232,22 @@ export default function CustomerDetailsPage() {
                   <th className="pb-2 pl-4 font-medium">التاريخ</th>
                   <th className="pb-2 pl-4 font-medium">طريقة الدفع</th>
                   <th className="pb-2 pl-4 font-medium">قيمة الطلب</th>
+                  <th className="pb-2 pl-4 font-medium">المدفوع</th>
+                  <th className="pb-2 pl-4 font-medium">المتبقي</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.map((ord, idx) => (
                   <tr key={ord.id || ord.orderNumber || idx} className="border-b border-border last:border-0">
-                    <td className="py-3 pl-4 font-medium font-mono text-ink" dir="ltr">
-                      #{ord.orderNumber || ord.id}
+                    <td className="py-3 pl-4 font-medium font-mono" dir="ltr">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrder(ord)}
+                        className="cursor-pointer font-bold text-emerald-700 underline decoration-dotted underline-offset-4 hover:text-emerald-900"
+                        title="عرض تفاصيل الطلب وتعديل المدفوع"
+                      >
+                        #{ord.orderNumber || ord.id}
+                      </button>
                     </td>
                     <td className="py-3 pl-4 text-ink-soft">
                       {ord.orderDate || ord.createdAt ? new Date(ord.orderDate || ord.createdAt).toLocaleDateString('ar-EG') : '—'}
@@ -199,6 +258,22 @@ export default function CustomerDetailsPage() {
                     <td className="py-3 pl-4 font-mono tabular-nums font-semibold text-ink" dir="ltr">
                       EGP {Number(ord.totalAmount || ord.total || ord.amount || 0).toLocaleString()}
                     </td>
+                    {(() => {
+                      const n = normalizeOrder(ord)
+                      return (
+                        <>
+                          <td className="py-3 pl-4 font-mono tabular-nums text-ink-soft" dir="ltr">
+                            {n.paid === null ? '—' : fmtMoney(n.paid)}
+                          </td>
+                          <td
+                            className={`py-3 pl-4 font-mono tabular-nums font-semibold ${n.remaining > 0 ? 'text-danger' : 'text-ink-soft'}`}
+                            dir="ltr"
+                          >
+                            {n.remaining === null ? '—' : fmtMoney(n.remaining)}
+                          </td>
+                        </>
+                      )
+                    })()}
                   </tr>
                 ))}
               </tbody>
@@ -206,6 +281,15 @@ export default function CustomerDetailsPage() {
           </div>
         )}
       </Card>
+
+      {selectedOrder && (
+        <CustomerOrderPanel
+          key={selectedOrder.id ?? selectedOrder.Id ?? selectedOrder.orderNumber}
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onPaymentSaved={handleOrderPaymentSaved}
+        />
+      )}
     </div>
   )
 }

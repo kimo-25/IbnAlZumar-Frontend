@@ -1,5 +1,6 @@
 // File: src/pages/Pos/PosCheckoutPage.jsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { useAuth } from "../../context/AuthContext";
@@ -31,6 +32,8 @@ import usePosScannerFocus from "../../hooks/usePosScannerFocus";
 import PosProductTable from "../../components/pos/PosProductTable";
 import PosPaymentButtons from "../../components/pos/PosPaymentButtons";
 import PosItemPanel from "../../components/pos/PosItemPanel";
+import BarcodeLabelPrinterModal from "../../components/pos/BarcodeLabelPrinterModal";
+import { resolvePaymentOption } from "../../utils/pos/fawryPayment";
 
 import {
   addLocalTransaction,
@@ -105,6 +108,7 @@ function writeHeldOrders(list) {
 
 export default function PosCheckoutPage() {
   const isOnline = useOnlineStatus();
+  const navigate = useNavigate();
   const { logout, hasRole } = useAuth();
   const canSeeCost = COST_VISIBLE_ROLES.some((r) => {
     try {
@@ -156,9 +160,8 @@ export default function PosCheckoutPage() {
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseNotes, setExpenseNotes] = useState("");
   const [expenseSubmitting, setExpenseSubmitting] = useState(false);
-  const [showModifyModal, setShowModifyModal] = useState(false);
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
-  const [printMaintenanceLabel, setPrintMaintenanceLabel] = useState(false);
 
   const [showCashModal, setShowCashModal] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
@@ -671,7 +674,7 @@ export default function PosCheckoutPage() {
   }
 
   function handlePaymentSelect(uiKey) {
-    const option = PAYMENT_BY_KEY[uiKey];
+    const option = resolvePaymentOption(PAYMENT_BY_KEY, uiKey);
     if (!cart.length || !option) return;
     if (option.key === "cash") {
       setCashReceived("");
@@ -692,7 +695,7 @@ export default function PosCheckoutPage() {
         orderNumber: serverOrder?.orderNumber || `POS-${Date.now()}`,
         createdAt: serverOrder?.createdAt || new Date().toISOString(),
         paymentMethod:
-          PAYMENT_BY_KEY[uiKey]?.receiptLabel || PAYMENT_LABEL_BY_METHOD[paymentMethod] || "CASH",
+          resolvePaymentOption(PAYMENT_BY_KEY, uiKey)?.receiptLabel || PAYMENT_LABEL_BY_METHOD[paymentMethod] || "CASH",
         subtotal: printSubtotal,
         discount: printDiscount,
         tax: printTax,
@@ -754,6 +757,13 @@ export default function PosCheckoutPage() {
     setPanel(null);
     refocusSearch();
   }, [cart, selectedCustomer, discountType, discountValue, pricingTier, autoTier, vatRate, refocusSearch]);
+
+  // "تعديل / إلغاء طلب": تحويل مباشر لمركز العمليات (بدون نافذة تنبيه).
+  // لو فيه أصناف في السلة بتتعلّق تلقائيًا (F8) عشان ما تضيعش عند مغادرة الشاشة.
+  const handleOpenOperations = useCallback(() => {
+    if (cart.length) holdOrder();
+    navigate("/admin/operations");
+  }, [cart.length, holdOrder, navigate]);
 
   const restoreHeldOrder = useCallback(
     (id) => {
@@ -830,7 +840,7 @@ export default function PosCheckoutPage() {
   const anyModalOpen =
     showCashModal ||
     showExpenseModal ||
-    showModifyModal ||
+    showBarcodeModal ||
     showMaintenanceModal ||
     !!pickerProduct ||
     !!lightboxProduct;
@@ -862,7 +872,7 @@ export default function PosCheckoutPage() {
   // F6 toggles the panel for the selected line; Esc closes it (only when the scan box is empty).
   useEffect(() => {
     const onKey = (e) => {
-      if (showCashModal || showExpenseModal || showModifyModal || showMaintenanceModal || pickerProduct || lightboxProduct) return;
+      if (showCashModal || showExpenseModal || showBarcodeModal || showMaintenanceModal || pickerProduct || lightboxProduct) return;
       if (e.key === "F6") {
         e.preventDefault();
         if (panel) closePanel();
@@ -876,7 +886,7 @@ export default function PosCheckoutPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [panel, selectedCartLineId, closePanel, showCashModal, showExpenseModal, showModifyModal, showMaintenanceModal, pickerProduct, lightboxProduct]);
+  }, [panel, selectedCartLineId, closePanel, showCashModal, showExpenseModal, showBarcodeModal, showMaintenanceModal, pickerProduct, lightboxProduct]);
 
   // quick add from the panel: +N on a cart line, or add N of a list item
   function panelQuickAdd(n) {
@@ -1014,14 +1024,12 @@ export default function PosCheckoutPage() {
 
           <button
             type="button"
-            onClick={() => {
-              setPrintMaintenanceLabel(true);
-              setShowMaintenanceModal(true);
-            }}
+            onClick={() => setShowBarcodeModal(true)}
+            title="طباعة ملصقات باركود المنتجات"
             className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 cursor-pointer"
           >
             <Barcode size={14} />
-            <span className="hidden sm:inline">طبع باركود الجهاز</span>
+            <span className="hidden sm:inline">طباعة باركود</span>
           </button>
 
           <button
@@ -1035,7 +1043,7 @@ export default function PosCheckoutPage() {
 
           <button
             type="button"
-            onClick={() => setShowModifyModal(true)}
+            onClick={handleOpenOperations}
             className="flex items-center gap-1.5 rounded-xl border border-border bg-canvas hover:bg-canvas/70 text-ink text-xs font-bold px-3 py-2 transition cursor-pointer"
           >
             <Ban size={14} className="text-ink-soft" />
@@ -1544,24 +1552,15 @@ export default function PosCheckoutPage() {
         </ModalShell>
       )}
 
-      {/* ===== Modify modal ===== */}
-      {showModifyModal && (
-        <ModalShell
-          onClose={() => setShowModifyModal(false)}
-          title="تعديل / إلغاء طلب"
-          icon={<Ban size={16} className="text-ink-soft" />}
-        >
-          <p className="text-sm text-ink-soft leading-relaxed">
-            لتعديل أو إلغاء طلب يرجى التوجه لصفحة العمليات
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowModifyModal(false)}
-            className="mt-4 w-full bg-canvas border border-border hover:bg-border/30 text-ink font-bold text-sm py-2.5 rounded-xl transition cursor-pointer"
-          >
-            حسناً
-          </button>
-        </ModalShell>
+      {/* ===== Barcode label printer modal ===== */}
+      {showBarcodeModal && (
+        <BarcodeLabelPrinterModal
+          onClose={() => {
+            setShowBarcodeModal(false);
+            refocusSearch();
+          }}
+          onPrinted={(text) => showToast("ok", text)}
+        />
       )}
 
       {/* ===== Cash modal ===== */}
@@ -1687,12 +1686,11 @@ export default function PosCheckoutPage() {
         isOpen={showMaintenanceModal}
         onClose={() => {
           setShowMaintenanceModal(false);
-          setPrintMaintenanceLabel(false);
           refocusSearch();
         }}
         customers={customers}
         onCreated={() => {}}
-        defaultPrintLabel={printMaintenanceLabel}
+        defaultPrintLabel={false}
       />
 
       {/* ===== Item action panel (side drawer) ===== */}

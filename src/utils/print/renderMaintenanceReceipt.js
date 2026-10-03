@@ -21,7 +21,7 @@ function getTicketCode(receipt) {
   return value.toUpperCase().startsWith('MNT-') ? value : `MNT-${value.padStart(6, '0')}`
 }
 
-function buildBarcodeSvg(value) {
+export function buildBarcodeSvg(value) {
   const source = String(value).replace(/[^\x20-\x7E]/g, '').slice(0, 20) || 'MNT-000001'
   const values = [104, ...Array.from(source, (character) => character.charCodeAt(0) - 32)]
   const checksum = values.slice(1).reduce((sum, code, index) => sum + code * (index + 1), 104) % 103
