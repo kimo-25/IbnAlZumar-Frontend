@@ -1,15 +1,16 @@
 {
   "short_name": "ابن الزمر",
-  "name": "متجر ابن الزمر للمنتجات",
+  "name": "ابن الزمر — للعدد ومستلزمات الورش",
   "icons": [
     {
       "src": "/AS.svg",
       "type": "image/svg+xml",
-      "sizes": "any"
+      "sizes": "any",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#eab308",
-  "background_color": "#000000"
+  "theme_color": "#0F172A",
+  "background_color": "#0F172A"
 }
