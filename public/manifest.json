@@ -1,0 +1,15 @@
+{
+  "short_name": "ابن الزمر",
+  "name": "متجر ابن الزمر للمنتجات",
+  "icons": [
+    {
+      "src": "/AS.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#eab308",
+  "background_color": "#000000"
+}
