@@ -72,6 +72,10 @@ export function normalizeOrderItem(it, index = 0) {
       'صنف',
     quantity: Number(pick(it, 'quantity', 'Quantity') ?? 1) || 0,
     unitPrice: Number(pick(it, 'unitPrice', 'UnitPrice', 'price', 'Price') ?? 0) || 0,
+    hasWarranty: Boolean(pick(it, 'hasWarranty', 'HasWarranty')),
+    warrantyMonths: pick(it, 'warrantyMonths', 'WarrantyMonths') ?? null,
+    isLifetimeWarranty: Boolean(pick(it, 'isLifetimeWarranty', 'IsLifetimeWarranty')),
+    warrantyEndDate: pick(it, 'warrantyEndDate', 'WarrantyEndDate') ?? null,
   }
 }
 
@@ -108,6 +112,9 @@ export function normalizeOrder(raw) {
     paid,
     remaining,
     items,
+    salesRepName: pick(o, 'salesRepName', 'SalesRepName'),
+    cashierName: pick(o, 'cashierName', 'CashierName'),
+    issuedByUserName: pick(o, 'issuedByUserName', 'IssuedByUserName'),
   }
 }
 
@@ -127,7 +134,9 @@ export function toPrintableInvoice(order) {
       tax: order.tax,
       shippingCost: order.shipping,
       total: order.total,
-      items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
+      salesRepName: order.salesRepName,
+      cashierName: order.cashierName,
+      items: order.items.map((i) => ({ ...i, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
     },
     customer: { fullName: order.customerName || 'عميل نقدي', phone: order.customerPhone || '-' },
   }

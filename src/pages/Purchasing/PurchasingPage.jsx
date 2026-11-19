@@ -1,5 +1,6 @@
 // File: src/pages/Purchasing/PurchasingPage.jsx
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Truck,
   Users,
@@ -23,9 +24,11 @@ import SupplierModal from '../../components/Purchasing/SupplierModal'
 import SupplierDetailsModal from '../../components/Purchasing/SupplierDetailsModal'
 import AddPaymentModal from '../../components/Purchasing/AddPaymentModal'
 import PurchaseOrderModal from '../../components/Purchasing/PurchaseOrderModal'
+import { useAuth } from '../../context/AuthContext'
 
 export default function PurchasingPage() {
   const [tab, setTab] = useState('suppliers') // 'suppliers' | 'orders'
+  const { hasPermission } = useAuth()
 
   return (
     <div className="space-y-6 p-6" dir="rtl">
@@ -56,6 +59,14 @@ export default function PurchasingPage() {
         >
           <PackagePlus size={14} /> أوامر الشراء والتوريد
         </button>
+        {hasPermission('SupplierReturns.View') && (
+          <Link
+            to="/admin/purchasing/returns"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-surface px-4 py-2 text-xs font-bold text-ink-soft hover:text-ink"
+          >
+            <PackageCheck size={14} /> مرتجعات الموردين
+          </Link>
+        )}
       </div>
 
       {tab === 'suppliers' ? <SuppliersTab /> : <PurchaseOrdersTab />}

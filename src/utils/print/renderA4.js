@@ -6,6 +6,8 @@ export function renderA4Invoice(invoice, customer, { issuedByName } = {}) {
     documentTitle: 'فاتورة ضريبية',
     documentNumber: invoice.orderNumber,
     issuedByName,
+    salesRepName: invoice.salesRepName,
+    cashierName: invoice.cashierName,
     createdAt: invoice.createdAt,
   })
 

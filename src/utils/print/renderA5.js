@@ -6,6 +6,8 @@ export function renderA5Document(invoice, customer, { documentTitle = 'إذن ت
     documentTitle,
     documentNumber: invoice.orderNumber,
     issuedByName,
+    salesRepName: invoice.salesRepName,
+    cashierName: invoice.cashierName,
     createdAt: invoice.createdAt,
   })
 

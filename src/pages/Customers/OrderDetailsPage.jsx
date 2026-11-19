@@ -21,6 +21,7 @@ import axiosInstance from '../../api/axiosInstance'
 import { formatCurrency } from '../../utils/catalog'
 import { printInvoice } from '../../utils/printInvoice'
 import { requestOrderCancellation } from '../../api/storefrontApi'
+import WarrantyText from '../../components/WarrantyText'
 
 const TRACKING_STEPS = [
   { step: 1, label: 'قيد المراجعة', description: 'تم استلام طلبك وجاري مراجعته' },
@@ -184,6 +185,12 @@ export default function OrderDetailsPage() {
               {order.orderNumber || `ORD-2026-${order.id}`}
             </h1>
           </div>
+          {(order.salesRepName || order.cashierName || order.issuedByUserName) && (
+            <div className="col-span-2 text-xs text-ink-soft">
+              {order.salesRepName && <span className="me-4">المندوب: <b className="text-ink">{order.salesRepName}</b></span>}
+              {(order.cashierName || order.issuedByUserName) && <span>الكاشير: <b className="text-ink">{order.cashierName || order.issuedByUserName}</b></span>}
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold ${
@@ -293,6 +300,7 @@ export default function OrderDetailsPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-ink truncate">{item.productName || item.name || 'منتج'}</p>
                       <p className="text-xs text-ink-soft font-mono">الكمية: {item.quantity}</p>
+                      <WarrantyText item={item} />
                     </div>
                   </div>
                   <div className="text-left font-mono font-bold text-sm text-ink shrink-0">

@@ -57,6 +57,8 @@ export function renderThermalReceipt(invoice, customer, { widthMm = 80 } = {}) {
   <div class="line"><span>التاريخ</span><span>${escapeHtml(formatCairoTimestamp(invoice.createdAt))}</span></div>
   <div class="line"><span>العميل</span><span>${escapeHtml(customer?.fullName || 'عميل نقدي')}</span></div>
   <div class="line"><span>طريقة الدفع</span><span>${escapeHtml(invoice.paymentMethod)}</span></div>
+  ${invoice.salesRepName ? `<div class="line"><span>المندوب</span><span>${escapeHtml(invoice.salesRepName)}</span></div>` : ''}
+  ${invoice.cashierName ? `<div class="line"><span>الكاشير</span><span>${escapeHtml(invoice.cashierName)}</span></div>` : ''}
   <div class="divider"></div>
   ${itemLines}
   <div class="divider"></div>

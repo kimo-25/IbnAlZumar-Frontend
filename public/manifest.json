@@ -3,13 +3,13 @@
   "name": "ابن الزمر — للعدد ومستلزمات الورش",
   "icons": [
     {
-      "src": "/AS.svg",
+      "src": "./AS.svg",
       "type": "image/svg+xml",
       "sizes": "any",
       "purpose": "any maskable"
     }
   ],
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "theme_color": "#0F172A",
   "background_color": "#0F172A"

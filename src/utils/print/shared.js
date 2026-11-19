@@ -19,7 +19,7 @@ export function formatCairoTimestamp(isoString) {
   return date.toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', dateStyle: 'medium', timeStyle: 'short' })
 }
 
-export function buildDocumentHeader({ storeName = 'ابن الزمر — Ibn Al-Zumar', documentTitle, documentNumber, issuedByName, createdAt }) {
+export function buildDocumentHeader({ storeName = 'ابن الزمر — Ibn Al-Zumar', documentTitle, documentNumber, issuedByName, salesRepName, cashierName, createdAt }) {
   return `
     <div class="doc-header">
       <div class="store-name">${escapeHtml(storeName)}</div>
@@ -29,6 +29,7 @@ export function buildDocumentHeader({ storeName = 'ابن الزمر — Ibn Al-
         <span>${escapeHtml(formatCairoTimestamp(createdAt))}</span>
       </div>
       ${issuedByName ? `<div class="meta-row"><span>بواسطة: ${escapeHtml(issuedByName)}</span></div>` : ''}
+      ${salesRepName || cashierName ? `<div class="meta-row"><span>${salesRepName ? `المندوب: ${escapeHtml(salesRepName)}` : ''}</span><span>${cashierName ? `الكاشير: ${escapeHtml(cashierName)}` : ''}</span></div>` : ''}
     </div>
   `
 }
@@ -39,7 +40,7 @@ export function buildItemsTable(items) {
       const lineTotal = (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0)
       return `
         <tr>
-          <td>${escapeHtml(item.name)}</td>
+          <td>${escapeHtml(item.name)}${item.hasWarranty ? `<div class="warranty">${escapeHtml(item.isLifetimeWarranty ? 'ضمان مدى الحياة' : `ضمان ${item.warrantyMonths || ''} شهر${item.warrantyEndDate ? ` — ينتهي ${String(item.warrantyEndDate).slice(0, 10)}` : ''}`)}</div>` : ''}</td>
           <td class="num">${escapeHtml(item.quantity)}</td>
           <td class="num">${formatMoney(item.unitPrice)}</td>
           <td class="num">${formatMoney(lineTotal)}</td>

@@ -31,7 +31,10 @@ const TEMPLATE_COLUMNS = [
   'TrackInventory',
   'CategoryId',
   'BrandId',
-  'ImageUrl'
+  'ImageUrl',
+  'HasWarranty',
+  'WarrantyMonths',
+  'IsLifetimeWarranty'
 ]
 
 const SAMPLE_ROW = [
@@ -47,7 +50,10 @@ const SAMPLE_ROW = [
   true,
   1,
   1,
-  ''
+  '',
+  false,
+  '',
+  false
 ]
 
 function downloadTemplate() {

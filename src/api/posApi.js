@@ -53,3 +53,9 @@ export async function saveProductPricingTier(payload) {
 export async function deleteProductPricingTier(priceId) {
   await axiosInstance.delete(`/ProductPricing/${priceId}`)
 }
+
+export async function getCustomerLastPrice(customerId, productId) {
+  if (!customerId || !productId) return null
+  const response = await axiosInstance.get(`/customers/${customerId}/products/${productId}/last-price`)
+  return response.data
+}

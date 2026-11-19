@@ -111,6 +111,7 @@ export default function Sidebar({ isOpen, onClose }) {
             { to: '/admin/pos', label: 'كاشير المعرض', icon: ShoppingCart, permission: 'Orders.Create' },
             { to: '/admin/customers', label: 'العملاء', icon: Users, permission: 'Customers.View' },
             { to: '/admin/purchasing', label: 'المشتريات', icon: Truck, permission: 'Purchasing.View' },
+            { to: '/admin/purchasing/returns', label: 'مرتجعات الموردين', icon: Truck, permission: 'SupplierReturns.View' },
             {
               to: '/admin/payroll',
               label: 'الرواتب والحضور',

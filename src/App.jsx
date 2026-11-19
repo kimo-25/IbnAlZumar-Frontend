@@ -51,6 +51,7 @@ import WarehouseHierarchyView from './pages/Inventory/WarehouseHierarchyView'
 import BatchesManagementPage from './pages/Inventory/BatchesManagementPage'
 import CustomersPage from './pages/Customers/CustomersPage'
 import PurchasingPage from './pages/Purchasing/PurchasingPage'
+import SupplierReturnsPage from './pages/Purchasing/SupplierReturnsPage'
 import PosCheckoutPage from './pages/Pos/PosCheckoutPage'
 import ReportsPage from './pages/Reports/ReportsPage'
 import OperationsHubPage from './pages/Operations/OperationsHubPage'
@@ -219,6 +220,7 @@ export default function App() {
           <Route path="customers/:id" element={<CustomerDetailsPage />} />
 
           <Route path="purchasing" element={<PurchasingPage />} />
+          <Route path="purchasing/returns" element={<ProtectedRoute permission="SupplierReturns.View"><SupplierReturnsPage /></ProtectedRoute>} />
           <Route path="pos" element={<PosCheckoutPage />} />
 
           <Route 

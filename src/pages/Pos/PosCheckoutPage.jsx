@@ -8,6 +8,7 @@ import { getCustomers, createCustomer } from "../../api/adminApi";
 import {
   searchPosProducts,
   getResolvedUnitPrice,
+  getCustomerLastPrice,
   PRICING_TIER,
   PRICING_TIER_LABELS,
 } from "../../api/posApi";
@@ -109,7 +110,7 @@ function writeHeldOrders(list) {
 export default function PosCheckoutPage() {
   const isOnline = useOnlineStatus();
   const navigate = useNavigate();
-  const { logout, hasRole } = useAuth();
+  const { logout, hasRole, user } = useAuth();
   const canSeeCost = COST_VISIBLE_ROLES.some((r) => {
     try {
       return !!hasRole?.(r);
@@ -155,6 +156,9 @@ export default function PosCheckoutPage() {
   const [isAddingNewCustomer, setIsAddingNewCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ fullName: "", phoneNumber: "" });
   const [customerSearch, setCustomerSearch] = useState("");
+  const [salesRepName, setSalesRepName] = useState("");
+  const [lastPrice, setLastPrice] = useState(null);
+  const [lastPriceLoading, setLastPriceLoading] = useState(false);
 
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -291,6 +295,29 @@ export default function PosCheckoutPage() {
     });
   }
 
+  useEffect(() => {
+    const customerId = selectedCustomer?.id || selectedCustomer?.Id
+    const productId = cart[0]?.productId
+    if (!customerId || !productId) {
+      setLastPrice(null)
+      return
+    }
+    let active = true
+    setLastPriceLoading(true)
+    getCustomerLastPrice(customerId, productId)
+      .then((data) => active && setLastPrice(data?.data ?? data))
+      .catch(() => active && setLastPrice(null))
+      .finally(() => active && setLastPriceLoading(false))
+    return () => { active = false }
+  }, [selectedCustomer, cart])
+
+  function applyLastPrice() {
+    const price = Number(lastPrice?.lastPrice ?? lastPrice?.LastPrice ?? lastPrice?.price)
+    if (!Number.isFinite(price) || price < 0 || !cart[0]) return
+    const targetId = cart[0].cartLineId
+    setCart((prev) => prev.map((item) => item.cartLineId === targetId ? { ...item, unitPrice: price } : item))
+  }
+
   function handleTileClick(product) {
     if (needsPicker(product)) {
       setPickerProduct(product);
@@ -348,6 +375,10 @@ export default function PosCheckoutPage() {
           nextBreak: null,
           priceKey: null, // "qtyBase|mode" the price was last computed for
           serverKey: null, // "qtyBase|mode" the server last confirmed
+          hasWarranty: product.hasWarranty,
+          warrantyMonths: product.warrantyMonths,
+          isLifetimeWarranty: product.isLifetimeWarranty,
+          warrantyEndDate: product.warrantyEndDate,
         },
       ];
     });
@@ -592,6 +623,7 @@ export default function PosCheckoutPage() {
         ? selectedCustomer.phoneNumber || selectedCustomer.phone || ""
         : "",
       customerId: selectedCustomer ? selectedCustomer.id || selectedCustomer.Id : null,
+      ...(salesRepName.trim() ? { salesRepName: salesRepName.trim() } : {}),
       paymentMethod,
       orderSource: ORDER_SOURCE_IN_STORE,
       pricingTier,
@@ -701,6 +733,8 @@ export default function PosCheckoutPage() {
         tax: printTax,
         total: printTotal,
         shippingCost: 0,
+        salesRepName,
+        cashierName: user?.fullName || user?.name,
         items: cart.map((item) => ({
           productId: item.productId,
           productName: item.nameAr || item.name,
@@ -715,6 +749,10 @@ export default function PosCheckoutPage() {
           sku: item.sku,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          hasWarranty: item.hasWarranty,
+          warrantyMonths: item.warrantyMonths,
+          isLifetimeWarranty: item.isLifetimeWarranty,
+          warrantyEndDate: item.warrantyEndDate,
         })),
       },
       {
@@ -726,7 +764,7 @@ export default function PosCheckoutPage() {
           : "-",
         email: "",
       },
-      { format: printFormat, silent: true }
+      { format: printFormat, silent: true, issuedByName: user?.fullName || user?.name }
     );
   };
 
@@ -750,6 +788,8 @@ export default function PosCheckoutPage() {
 
     setCart([]);
     setSelectedCustomer(null);
+    setSalesRepName("");
+    setLastPrice(null);
     setDiscountValue(0);
     setDiscountType("Fixed");
     setSelectedCartLineId(null);
@@ -1309,6 +1349,31 @@ export default function PosCheckoutPage() {
                       >
                         إزالة
                       </button>
+                    </div>
+                  )}
+                  <label className="block text-[11px] font-semibold text-ink">
+                    اسم المندوب (اختياري)
+                    <input
+                      value={salesRepName}
+                      onChange={(e) => setSalesRepName(e.target.value)}
+                      placeholder="اسم مندوب المبيعات"
+                      className="mt-1 w-full rounded-lg border border-border bg-surface p-1.5 text-xs outline-none"
+                    />
+                  </label>
+                  {selectedCustomer && cart[0] && (
+                    <div className="rounded-lg border border-sky-200 bg-sky-50 p-2 text-[11px] text-sky-800">
+                      {lastPriceLoading ? 'جاري جلب آخر سعر...' : lastPrice?.hasPreviousPurchase && (
+                        <div className="flex items-center justify-between gap-2">
+                          <span>
+                            آخر سعر: <b>{Number(lastPrice.lastPrice ?? lastPrice.price).toFixed(2)} ج.م</b>
+                            {lastPrice.lastPurchaseDate && ` — ${String(lastPrice.lastPurchaseDate).slice(0, 10)}`}
+                            <span className="block text-[10px]">السعر الحالي: {Number(lastPrice.currentPrice ?? (cart[0].unitPrice || 0)).toFixed(2)} ج.م</span>
+                          </span>
+                          <button type="button" onClick={applyLastPrice} className="rounded-md bg-sky-600 px-2 py-1 font-bold text-white">
+                            استخدام
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

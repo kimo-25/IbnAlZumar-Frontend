@@ -79,3 +79,28 @@ export async function createSupplierPayment(supplierId, data) {
   const response = await axiosInstance.post(`/Purchasing/suppliers/${supplierId}/payments`, data)
   return response.data
 }
+
+export async function getSupplierReturns(params = {}) {
+  const response = await axiosInstance.get('/supplier-returns', { params })
+  return response.data
+}
+
+export async function getSupplierReturn(id) {
+  const response = await axiosInstance.get(`/supplier-returns/${id}`)
+  return response.data
+}
+
+export async function createSupplierReturn(payload) {
+  const response = await axiosInstance.post('/supplier-returns', payload)
+  return response.data
+}
+
+export async function acceptSupplierReturn(id, notes = '') {
+  const response = await axiosInstance.post(`/supplier-returns/${id}/accept`, { notes })
+  return response.data
+}
+
+export async function rejectSupplierReturn(id, notes = '') {
+  const response = await axiosInstance.post(`/supplier-returns/${id}/reject`, { notes })
+  return response.data
+}

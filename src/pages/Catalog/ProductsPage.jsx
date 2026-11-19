@@ -117,6 +117,9 @@ export default function ProductsPage() {
       trackInventory: product.trackInventory ?? true,
       imageUrl: product.imageUrl || '',
       isAutoTranslated: product.isAutoTranslated ?? false
+      ,hasWarranty: Boolean(product.hasWarranty)
+      ,warrantyMonths: product.warrantyMonths ?? ''
+      ,isLifetimeWarranty: Boolean(product.isLifetimeWarranty)
     })
     setEditImageFile(null)
   }
@@ -401,6 +404,50 @@ export default function ProductsPage() {
                     onBlur={() => handleAutoTranslate(editFormData.name, 'en', 'ar', 'nameAr')}
                     className="w-full rounded-xl border border-border bg-canvas p-2.5 outline-none focus:border-amber transition"
                   />
+                </div>
+
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 space-y-3">
+                  <label className="flex items-center gap-2 font-bold text-ink">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editFormData.hasWarranty)}
+                      onChange={(e) => setEditFormData({
+                        ...editFormData,
+                        hasWarranty: e.target.checked,
+                        warrantyMonths: e.target.checked ? editFormData.warrantyMonths : '',
+                        isLifetimeWarranty: e.target.checked ? editFormData.isLifetimeWarranty : false
+                      })}
+                    />
+                    تفعيل الضمان
+                  </label>
+                  {editFormData.hasWarranty && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="flex items-center gap-2 text-ink">
+                        <input
+                          type="radio"
+                          checked={Boolean(editFormData.isLifetimeWarranty)}
+                          onChange={() => setEditFormData({ ...editFormData, isLifetimeWarranty: true, warrantyMonths: '' })}
+                        />
+                        ضمان مدى الحياة
+                      </label>
+                      <label className="flex items-center gap-2 text-ink">
+                        <input
+                          type="radio"
+                          checked={!editFormData.isLifetimeWarranty}
+                          onChange={() => setEditFormData({ ...editFormData, isLifetimeWarranty: false })}
+                        />
+                        مدة بالشهور
+                        <input
+                          type="number"
+                          min="1"
+                          value={editFormData.warrantyMonths}
+                          disabled={Boolean(editFormData.isLifetimeWarranty)}
+                          onChange={(e) => setEditFormData({ ...editFormData, warrantyMonths: e.target.value })}
+                          className="w-20 rounded-lg border border-border bg-surface p-1.5 font-mono disabled:opacity-50"
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block font-semibold mb-1 text-ink">اسم المنتج (عربي)</label>

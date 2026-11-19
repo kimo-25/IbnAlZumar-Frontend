@@ -35,6 +35,7 @@ export default function OrderEditModal({ orderId, summary, onClose, onSaved, onT
   const [paid, setPaid] = useState('')
   const [discount, setDiscount] = useState('0')
   const [shipping, setShipping] = useState('0')
+  const [salesRepName, setSalesRepName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
@@ -58,6 +59,7 @@ export default function OrderEditModal({ orderId, summary, onClose, onSaved, onT
         setPaid(o.paid === null ? '' : String(o.paid))
         setDiscount(String(o.discount || 0))
         setShipping(String(o.shipping || 0))
+        setSalesRepName(o.salesRepName || '')
       })
       .catch((err) => {
         if (active) setLoadError(err?.response?.data?.message || err?.message || 'تعذر تحميل تفاصيل الطلب')
@@ -176,6 +178,7 @@ export default function OrderEditModal({ orderId, summary, onClose, onSaved, onT
       paidAmount: paidNum,
       discountAmount: discountNum,
       shippingCost: shippingNum,
+      ...(salesRepName.trim() ? { salesRepName: salesRepName.trim() } : {}),
       ...(hasLines
         ? {
             items: lines.map((l) => ({
@@ -245,6 +248,10 @@ export default function OrderEditModal({ orderId, summary, onClose, onSaved, onT
                       <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
                     ))}
                   </select>
+                </label>
+                <label className="text-xs font-bold text-ink">
+                  اسم المندوب (اختياري)
+                  <input value={salesRepName} onChange={(e) => setSalesRepName(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-canvas p-2 text-sm outline-none focus:border-emerald-500" />
                 </label>
                 <label className="text-xs font-bold text-ink">
                   طريقة الدفع
