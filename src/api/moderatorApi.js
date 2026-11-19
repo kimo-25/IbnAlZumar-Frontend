@@ -1,5 +1,6 @@
 // File: src/api/moderatorApi.js
 import axiosInstance from './axiosInstance'
+import { appendWarrantyFormData } from '../utils/warranty'
 
 async function safeGet(url, params = {}, defaultValue = []) {
   try {
@@ -25,11 +26,12 @@ export async function getModeratorProducts(params = {}) {
 export async function createModeratorProduct(productData, imageFile) {
   const formData = new FormData()
 
-  Object.keys(productData).forEach((key) => {
+  Object.keys(productData).filter((key) => !['hasWarranty', 'warrantyMonths', 'isLifetimeWarranty'].includes(key)).forEach((key) => {
     if (productData[key] !== null && productData[key] !== undefined && productData[key] !== '') {
       formData.append(key, productData[key])
     }
   })
+  appendWarrantyFormData(formData, productData)
 
   if (imageFile) {
     formData.append('imageFile', imageFile)
@@ -45,11 +47,14 @@ export async function updateModeratorProduct(id, productData, imageFile) {
   const formData = new FormData()
 
   formData.append('id', id)
-  Object.keys(productData).forEach((key) => {
+  Object.keys(productData).filter((key) => !['hasWarranty', 'warrantyMonths', 'isLifetimeWarranty'].includes(key)).forEach((key) => {
     if (productData[key] !== null && productData[key] !== undefined && productData[key] !== '') {
       formData.append(key, productData[key])
     }
   })
+  if (['hasWarranty', 'warrantyMonths', 'isLifetimeWarranty'].some((key) => key in productData)) {
+    appendWarrantyFormData(formData, productData)
+  }
 
   if (imageFile) {
     formData.append('imageFile', imageFile)

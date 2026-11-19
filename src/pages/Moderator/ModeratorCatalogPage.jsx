@@ -7,6 +7,8 @@ import { formatCurrency } from '../../utils/catalog'
 import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
 import { getModeratorProducts, updateModeratorProduct, deleteModeratorProduct, getCategories } from '../../api/moderatorApi'
 import { translateText } from '../../api/translationApi'
+import WarrantyFields from '../../components/catalog/WarrantyFields'
+import { getApiErrorMessage, normalizeWarrantyFields } from '../../utils/warranty'
 
 export default function ModeratorCatalogPage() {
   const [products, setProducts] = useState([])
@@ -65,6 +67,7 @@ export default function ModeratorCatalogPage() {
       isActive: product.isActive ?? true,
       trackInventory: product.trackInventory ?? true,
       imageUrl: product.imageUrl || '',
+      ...normalizeWarrantyFields(product),
     })
     setEditImageFile(null)
   }
@@ -80,7 +83,7 @@ export default function ModeratorCatalogPage() {
       await fetchData()
     } catch (err) {
       console.error('فشل تعديل المنتج:', err)
-      alert('حدث خطأ أثناء حفظ التعديلات.')
+      alert(getApiErrorMessage(err, 'حدث خطأ أثناء حفظ التعديلات.'))
     } finally {
       setSaving(false)
     }
@@ -253,6 +256,8 @@ export default function ModeratorCatalogPage() {
                   />
                 </div>
               </div>
+
+              <WarrantyFields value={editFormData} onChange={setEditFormData} />
 
               <div>
                 <label className="block font-semibold mb-1 text-ink">القسم (Category)</label>

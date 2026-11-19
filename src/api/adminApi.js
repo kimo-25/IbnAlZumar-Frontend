@@ -1,6 +1,7 @@
 // File: src/api/adminApi.js
 import axiosInstance from './axiosInstance'
 import { validateProduct, validateCustomer, validateCategory } from '../validators/productValidator'
+import { appendWarrantyFormData } from '../utils/warranty'
 
 /**
  * دالة حماية فائقة لمنع إلقاء أي أخطاء 404 نهائياً وإعادة قيمة افتراضية آمنة
@@ -64,10 +65,7 @@ export async function createProduct(productData, imageFile = null) {
   formData.append('isActive', Boolean(productData.isActive))
   formData.append('trackInventory', Boolean(productData.trackInventory))
   formData.append('categoryId', Number(productData.categoryId) || 1)
-  const warranty = normalizeWarrantyPayload(productData)
-  formData.append('hasWarranty', warranty.hasWarranty)
-  formData.append('warrantyMonths', warranty.warrantyMonths ?? '')
-  formData.append('isLifetimeWarranty', warranty.isLifetimeWarranty)
+  appendWarrantyFormData(formData, productData)
 
   if (productData.brandId) formData.append('brandId', Number(productData.brandId))
 
@@ -102,10 +100,9 @@ export async function updateProduct(id, productData, imageFile = null) {
   formData.append('isActive', Boolean(productData.isActive))
   formData.append('trackInventory', Boolean(productData.trackInventory))
   formData.append('categoryId', Number(productData.categoryId) || 1)
-  const warranty = normalizeWarrantyPayload(productData)
-  formData.append('hasWarranty', warranty.hasWarranty)
-  formData.append('warrantyMonths', warranty.warrantyMonths ?? '')
-  formData.append('isLifetimeWarranty', warranty.isLifetimeWarranty)
+  if (['hasWarranty', 'warrantyMonths', 'isLifetimeWarranty'].some((key) => key in productData)) {
+    appendWarrantyFormData(formData, productData)
+  }
 
   if (productData.brandId) formData.append('brandId', Number(productData.brandId))
 
@@ -113,15 +110,6 @@ export async function updateProduct(id, productData, imageFile = null) {
     formData.append('imageFile', imageFile)
   } else if (productData.imageUrl) {
     formData.append('imageUrl', productData.imageUrl)
-  }
-
-  function normalizeWarrantyPayload(productData = {}) {
-    const hasWarranty = Boolean(productData.hasWarranty)
-    const isLifetimeWarranty = hasWarranty && Boolean(productData.isLifetimeWarranty)
-    const warrantyMonths = hasWarranty && !isLifetimeWarranty && Number(productData.warrantyMonths) > 0
-      ? Number(productData.warrantyMonths)
-      : null
-    return { hasWarranty, isLifetimeWarranty, warrantyMonths }
   }
 
   const response = await axiosInstance.put(`/Products/${id}`, formData, {

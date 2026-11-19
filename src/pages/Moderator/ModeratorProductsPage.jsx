@@ -8,6 +8,8 @@ import ProductPricingManager from '../../components/catalog/ProductPricingManage
 import { getImageUrl, getProductImagePath, handleImageError } from '../../utils/imageHelper'
 import { getModeratorProducts, deleteModeratorProduct, updateModeratorProduct, getCategories } from '../../api/moderatorApi'
 import { translateText } from '../../api/translationApi'
+import WarrantyFields from '../../components/catalog/WarrantyFields'
+import { getApiErrorMessage, normalizeWarrantyFields } from '../../utils/warranty'
 
 export default function ModeratorProductsPage() {
   const [products, setProducts] = useState([])
@@ -90,6 +92,7 @@ export default function ModeratorProductsPage() {
       trackInventory: product.trackInventory ?? true,
       imageUrl: product.imageUrl || '',
       isAutoTranslated: product.isAutoTranslated ?? false
+      ,...normalizeWarrantyFields(product)
     })
     setEditImageFile(null)
   }
@@ -105,7 +108,7 @@ export default function ModeratorProductsPage() {
       await loadProducts()
     } catch (err) {
       console.error('فشل تعديل المنتج:', err)
-      alert('حدث خطأ أثناء حفظ التعديلات.')
+      alert(getApiErrorMessage(err, 'حدث خطأ أثناء حفظ التعديلات.'))
     } finally {
       setSaving(false)
     }
@@ -295,6 +298,8 @@ export default function ModeratorProductsPage() {
                   />
                 </div>
               </div>
+
+              <WarrantyFields value={editFormData} onChange={setEditFormData} />
 
               <div className="pt-2 border-t border-border">
                 <ProductPricingManager

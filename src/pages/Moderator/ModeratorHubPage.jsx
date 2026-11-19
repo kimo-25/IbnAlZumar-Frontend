@@ -12,6 +12,8 @@ import {
   updateModeratorProduct,
 } from '../../api/moderatorApi'
 import { translateText } from '../../api/translationApi'
+import WarrantyFields from '../../components/catalog/WarrantyFields'
+import { getApiErrorMessage, normalizeWarrantyFields } from '../../utils/warranty'
 
 function normalizeArray(value) {
   if (Array.isArray(value)) return value
@@ -35,6 +37,9 @@ const initialProductState = {
   isActive: true,
   trackInventory: true,
   imageUrl: 'uploads/products/default.png',
+  hasWarranty: false,
+  warrantyMonths: null,
+  isLifetimeWarranty: false,
 }
 
 export default function ModeratorHubPage() {
@@ -99,7 +104,7 @@ export default function ModeratorHubPage() {
       await loadData()
       alert('تم حفظ المنتج بنجاح!')
     } catch (err) {
-      alert('حدث خطأ أثناء حفظ المنتج: ' + (err?.message || 'تأكد من البيانات'))
+      alert(getApiErrorMessage(err, 'حدث خطأ أثناء حفظ المنتج. تأكد من البيانات.'))
     } finally {
       setSubmitting(false)
     }
@@ -139,6 +144,7 @@ export default function ModeratorHubPage() {
       isActive: product.isActive !== undefined ? product.isActive : true,
       trackInventory: product.trackInventory !== undefined ? product.trackInventory : true,
       imageUrl: product.imageUrl || product.ImageUrl || 'uploads/products/default.png',
+      ...normalizeWarrantyFields(product),
     })
   }
 
@@ -322,6 +328,11 @@ export default function ModeratorHubPage() {
                 </p>
               )}
             </div>
+
+            <WarrantyFields
+              value={productForm}
+              onChange={setProductForm}
+            />
 
             <div className="flex gap-4 pt-1">
               <label className="flex items-center gap-2 text-xs font-medium text-ink cursor-pointer">
